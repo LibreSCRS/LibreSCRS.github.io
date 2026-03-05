@@ -1,0 +1,12 @@
+title = "LibreSCRS"
+languageName = "English"
+weight = 1
+
+[params]
+  description = "Open-source software for Serbian government smart cards"
+
+  [params.author]
+    name = "LibreSCRS Project"
+    links = [
+      {github = "https://github.com/LibreSCRS"}
+    ]

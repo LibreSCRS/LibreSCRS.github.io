@@ -1,0 +1,33 @@
+colorScheme = "congo"
+defaultAppearance = "light"
+autoSwitchAppearance = true
+
+enableSearch = true
+enableCodeCopy = true
+enableImageLazyLoading = true
+
+[header]
+  layout = "hamburger"
+  showTitle = true
+
+[footer]
+  showCopyright = true
+  showThemeAttribution = false
+  showScrollToTop = true
+
+[homepage]
+  layout = "page"
+  showRecent = false
+
+[article]
+  showDate = false
+  showAuthor = false
+  showReadingTime = false
+  showTableOfContents = true
+  showHeadingAnchors = true
+  showBreadcrumbs = true
+  showPagination = false
+
+[list]
+  showSummary = true
+  groupByYear = false

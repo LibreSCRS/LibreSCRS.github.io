@@ -1,0 +1,17 @@
+baseURL = "https://librescrs.github.io/"
+title = "LibreSCRS"
+theme = "congo"
+defaultContentLanguage = "en"
+
+enableRobotsTXT = true
+summaryLength = 0
+
+[pagination]
+  pagerSize = 10
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+
+[privacy]
+  [privacy.youTube]
+    privacyEnhanced = true

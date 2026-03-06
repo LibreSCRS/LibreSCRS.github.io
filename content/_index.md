@@ -1,12 +1,6 @@
 ---
-title: "LibreSCRS"
+title: ""
 description: "Open-source software for Serbian government smart cards"
----
-
-**LibreSCRS** is an open-source project providing free, transparent software for Serbian government smart cards — eID, vehicle registration, health insurance, and PKS Chamber of Commerce cards.
-
-No proprietary middleware, no closed-source DLLs. Direct PCSC communication under a GPL/LGPL licence.
-
 ---
 
 ## Projects
@@ -20,18 +14,18 @@ A desktop application for reading and printing Serbian smart cards:
 - **Health insurance card** — insured person and coverage data
 - **PKS card** — Chamber of Commerce qualified signature certificates
 
-[Download LibreCelik]({{< ref "downloads" >}}) · [Docs]({{< ref "docs/librecelik" >}})
+{{< button href="/downloads/" >}}Download LibreCelik{{< /button >}} [Docs](/docs/librecelik/)
 
 ---
 
 ### LibreMiddleware (PKCS#11 / OpenSC)
 
-A PKCS#11 module and OpenSC external card driver for deep browser and OS integration:
+A PKCS#11 module and OpenSC external card driver for browser and OS integration:
 
 - **PKCS#11** — load directly in Firefox, Chrome, Thunderbird, OpenSSH
 - **OpenSC driver** — transparent PKCS#15 emulation via OpenSC's card driver API
 
-[Download PKCS#11 module]({{< ref "downloads" >}}) · [Docs]({{< ref "docs/pkcs11" >}})
+{{< button href="/downloads/" >}}Download PKCS#11 module{{< /button >}} [Docs](/docs/pkcs11/)
 
 ---
 

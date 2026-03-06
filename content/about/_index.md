@@ -7,7 +7,7 @@ description: "About the LibreSCRS project"
 
 LibreSCRS is an open-source initiative to provide free, auditable software for Serbian government smart cards.
 
-Serbian citizens carry multiple government-issued smart cards — eID, vehicle registration, health insurance, and professional identity. The official software for these cards has historically been closed-source, Windows-only, and difficult to audit.
+Serbian citizens carry multiple government-issued smart cards — eID, vehicle registration, health insurance, and other cards. The official software for these cards has historically been closed-source, Windows-only, and difficult to audit.
 
 LibreSCRS reverse-engineered the card protocols through direct PCSC APDU communication and published the results as open-source software under GPL/LGPL licences.
 

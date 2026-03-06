@@ -1,0 +1,40 @@
+/* LibreSCRS scheme — teal primary, orange secondary */
+:root {
+  --color-neutral: 255, 255, 255;
+  /* Zinc (neutral gray) */
+  --color-neutral-50: 250, 250, 250;
+  --color-neutral-100: 244, 244, 245;
+  --color-neutral-200: 228, 228, 231;
+  --color-neutral-300: 212, 212, 216;
+  --color-neutral-400: 161, 161, 170;
+  --color-neutral-500: 113, 113, 122;
+  --color-neutral-600: 82, 82, 91;
+  --color-neutral-700: 63, 63, 70;
+  --color-neutral-800: 39, 39, 42;
+  --color-neutral-900: 24, 24, 27;
+  --color-neutral-950: 3, 7, 18;
+  /* Teal — rgb(61,140,149) at 500 */
+  --color-primary-50: 240, 249, 250;
+  --color-primary-100: 218, 240, 242;
+  --color-primary-200: 178, 222, 226;
+  --color-primary-300: 130, 198, 204;
+  --color-primary-400: 85, 170, 178;
+  --color-primary-500: 61, 140, 149;
+  --color-primary-600: 48, 118, 126;
+  --color-primary-700: 38, 96, 103;
+  --color-primary-800: 30, 74, 80;
+  --color-primary-900: 24, 58, 63;
+  --color-primary-950: 14, 36, 40;
+  /* Orange — rgb(230,135,60) at 500 */
+  --color-secondary-50: 255, 247, 237;
+  --color-secondary-100: 255, 237, 213;
+  --color-secondary-200: 254, 215, 170;
+  --color-secondary-300: 253, 189, 120;
+  --color-secondary-400: 245, 162, 85;
+  --color-secondary-500: 230, 135, 60;
+  --color-secondary-600: 210, 110, 42;
+  --color-secondary-700: 178, 88, 32;
+  --color-secondary-800: 142, 70, 28;
+  --color-secondary-900: 116, 58, 26;
+  --color-secondary-950: 68, 30, 12;
+}

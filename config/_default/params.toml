@@ -1,4 +1,4 @@
-colorScheme = "congo"
+colorScheme = "librescrs"
 defaultAppearance = "light"
 autoSwitchAppearance = true
 
@@ -14,9 +14,10 @@ enableImageLazyLoading = true
   showCopyright = true
   showThemeAttribution = false
   showScrollToTop = true
+  showAppearanceSwitcher = true
 
 [homepage]
-  layout = "page"
+  layout = "hero"
   showRecent = false
 
 [article]

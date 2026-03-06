@@ -1,15 +1,15 @@
 [[main]]
-  name = "Downloads"
+  name = "Преузимања"
   pageRef = "downloads"
   weight = 10
 
 [[main]]
-  name = "Docs"
+  name = "Документација"
   pageRef = "docs"
   weight = 20
 
 [[main]]
-  name = "About"
+  name = "О пројекту"
   pageRef = "about"
   weight = 30
 

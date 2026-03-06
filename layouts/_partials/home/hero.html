@@ -1,0 +1,21 @@
+<section class="mb-8 border-b border-primary-200 pb-8 dark:border-primary-800">
+  <h1 class="mb-3 text-4xl font-bold text-primary-600 dark:text-primary-400">LibreSCRS</h1>
+  <p class="mb-5 text-lg text-neutral-500 dark:text-neutral-400">
+    {{ i18n "hero_tagline" | default "Open-source software for Serbian government smart cards. No proprietary middleware, no closed-source DLLs." }}
+  </p>
+  <div class="flex flex-wrap gap-3">
+    <a
+      href="{{ "downloads" | relURL }}"
+      class="inline-block !rounded-md bg-primary-600 px-4 py-1.5 text-sm font-semibold !text-neutral !no-underline hover:!bg-primary-500 dark:bg-primary-800 dark:hover:!bg-primary-700"
+      >{{ i18n "hero_downloads" | default "Downloads" }}</a
+    >
+    <a
+      href="{{ "docs" | relURL }}"
+      class="inline-block rounded-md border border-primary-300 px-4 py-1.5 text-sm font-semibold text-primary-600 no-underline hover:bg-primary-50 dark:border-primary-700 dark:text-primary-400 dark:hover:bg-primary-900"
+      >{{ i18n "hero_docs" | default "Documentation" }}</a
+    >
+  </div>
+</section>
+<article class="prose max-w-full dark:prose-invert">
+  <section>{{ .Content | emojify }}</section>
+</article>

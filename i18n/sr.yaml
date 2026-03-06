@@ -1,0 +1,62 @@
+article:
+  anchor_label: "Сидро"
+  date: "{{ .Date }}"
+  date_updated: "Ажурирано: {{ .Date }}"
+  draft: "Нацрт"
+  edit_title: "Измени садржај"
+  reading_time:
+    one: "{{ .Count }} мин"
+    other: "{{ .Count }} мин"
+  reading_time_title: "Време читања"
+  table_of_contents: "Садржај"
+  word_count:
+    one: "{{ .Count }} реч"
+    other: "{{ .Count }} речи"
+
+author:
+  byline_title: "Аутор"
+
+code:
+  copy: "Копирај"
+  copied: "Копирано"
+
+error:
+  404_title: "Страница није пронађена"
+  404_error: "Грешка 404"
+  404_description: "Изгледа да страница коју тражите не постоји."
+
+footer:
+  dark_appearance: "Тамни режим"
+  light_appearance: "Светли режим"
+  powered_by: "Покреће {{ .Hugo }} и {{ .Congo }}"
+
+list:
+  externalurl_title: "Веза ка спољном сајту"
+  no_articles: "Тренутно нема чланака."
+
+nav:
+  scroll_to_top_title: "На врх"
+  skip_to_main: "Пређи на главни садржај"
+
+search:
+  open_button_title: "Претрага (/)"
+  close_button_title: "Затвори (Esc)"
+  input_placeholder: "Претрага"
+
+sharing:
+  email: "Пошаљи имејлом"
+  facebook: "Подели на Фејсбуку"
+  linkedin: "Подели на Линкедину"
+  mastodon: "Подели на Мастодону"
+  reddit: "Подели на Редиту"
+  twitter: "Твитни"
+  telegram: "Подели на Телеграму"
+  x-twitter: "Објави на X"
+
+shortcode:
+  recent_articles: "Недавно"
+
+hero_tagline: "Софтвер отвореног кода за српске државне смарт картице. Без власничког middleware-а, без затворених бинарних датотека."
+hero_downloads: "Преузимања"
+hero_docs: "Документација"
+hero_home: "Назад на почетну"

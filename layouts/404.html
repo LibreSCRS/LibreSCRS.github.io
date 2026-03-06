@@ -1,0 +1,10 @@
+{{ define "main" }}
+  <h1 class="mb-3 text-4xl font-extrabold text-primary-600 dark:text-primary-400">{{ i18n "error.404_title" | emojify }}</h1>
+  <p class="mb-8 mt-4 text-neutral-500 dark:text-neutral-400">
+    {{ i18n "error.404_description" | emojify }}
+  </p>
+  <a
+    href="{{ "/" | relLangURL }}"
+    class="inline-block !rounded-md bg-primary-600 px-4 py-1.5 text-sm font-semibold !text-neutral !no-underline hover:!bg-primary-500 dark:bg-primary-800 dark:hover:!bg-primary-700"
+  >{{ i18n "hero_home" | default "Back to home" }}</a>
+{{ end }}

@@ -1,0 +1,12 @@
+title = "LibreSCRS"
+languageName = "Српски"
+weight = 2
+
+[params]
+  description = "Софтвер отвореног кода за српске државне смарт картице"
+
+  [params.author]
+    name = "LibreSCRS пројекат"
+    links = [
+      {github = "https://github.com/LibreSCRS"}
+    ]

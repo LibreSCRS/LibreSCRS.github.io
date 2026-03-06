@@ -13,8 +13,26 @@ Download the package for your platform from the [releases page](https://github.c
 
 ```bash
 tar -xzf LibreSCRS-pkcs11-*-linux-*.tar.gz
-sudo cp librescrs-pkcs11.so /usr/local/lib/
+sudo cp lib/librescrs-pkcs11.so* /usr/local/lib/
+sudo ldconfig
 ```
+
+#### p11-kit registration (optional)
+
+Register the module system-wide so all p11-kit consumers (Chromium, GnuTLS apps, etc.) can use it automatically:
+
+```bash
+sudo cp p11-kit/librescrs.module /usr/share/p11-kit/modules/
+```
+
+Or per-user:
+
+```bash
+mkdir -p ~/.config/pkcs11/modules
+cp p11-kit/librescrs.module ~/.config/pkcs11/modules/
+```
+
+Verify with: `p11-kit list-modules | grep -A5 librescrs`
 
 ### macOS
 

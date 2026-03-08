@@ -1,6 +1,7 @@
 ---
 title: "About"
 description: "About the LibreSCRS project"
+layout: "simple"
 ---
 
 ## What is LibreSCRS?
@@ -9,7 +10,17 @@ LibreSCRS is an open-source initiative to provide free, auditable software for S
 
 Serbian citizens carry multiple government-issued smart cards — eID, vehicle registration, health insurance, and other cards. The official software for these cards has historically been closed-source, Windows-only, and difficult to audit.
 
-LibreSCRS reverse-engineered the card protocols through direct PCSC APDU communication and published the results as open-source software under GPL/LGPL licences.
+LibreSCRS reverse-engineered the card protocols through direct PC/SC APDU communication and published the results as open-source software under GPL/LGPL licences.
+
+---
+
+## Development
+
+LibreSCRS was developed by reverse-engineering the smart card protocols used on Serbian government cards. No official documentation or specifications were available — the entire protocol stack was reconstructed through systematic APDU tracing, behavioral analysis of the CardEdge PKI applet, and iterative testing on real hardware.
+
+AI tooling assisted throughout the development process, from analyzing captured APDU traces and identifying protocol patterns to implementing and refactoring the driver code. Every result was validated against physical cards to ensure correctness.
+
+The project supports the Gemalto (2014+) Serbian eID, IF2020 Foreigner eID, PKS Chamber of Commerce qualified signature cards, and health insurance cards — each with distinct protocol variations discovered through this process.
 
 ---
 

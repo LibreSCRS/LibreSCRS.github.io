@@ -1,6 +1,7 @@
 ---
 title: "Преузимања"
 description: "Преузмите LibreCelik и LibreMiddleware пакете"
+layout: "simple"
 ---
 
 Сва издања су објављена на GitHub-у. Изаберите пакет за вашу платформу.

@@ -1,6 +1,7 @@
 ---
 title: "Downloads"
 description: "Download LibreCelik and LibreMiddleware packages"
+layout: "simple"
 ---
 
 All releases are published on GitHub. Choose the package for your platform.

@@ -29,6 +29,16 @@ A PKCS#11 module and OpenSC external card driver for browser and OS integration:
 
 ---
 
+## What's new
+
+**LibreMiddleware 1.5.0** (March 2026)
+
+- PKCS#11 module now supports all Serbian CardEdge cards (eID, health insurance, PKS)
+- Improved Firefox/NSS compatibility: full private key attribute set matching OpenSC's srbeid driver
+- Per-key usage flags for key exchange vs signature keys
+
+---
+
 ## Supported cards
 
 | Card | Type |

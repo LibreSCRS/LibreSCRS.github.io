@@ -4,18 +4,13 @@
   <p class="mb-5 text-lg text-neutral-500 dark:text-neutral-400">
     {{ i18n "hero_tagline" | default "Open-source software for Serbian government smart cards. No proprietary middleware, no closed-source DLLs." }}
   </p>
-  <div class="flex flex-wrap gap-3">
+  <p>
     <a
       href="{{ "downloads" | relURL }}"
-      class="inline-block !rounded-md bg-primary-600 px-4 py-1.5 text-sm font-semibold !text-neutral !no-underline hover:!bg-primary-500 dark:bg-primary-800 dark:hover:!bg-primary-700"
+      class="inline-block !rounded-md bg-primary-600 px-4 py-1 !text-neutral !no-underline hover:!bg-primary-500 dark:bg-primary-800 dark:hover:!bg-primary-700"
       >{{ i18n "hero_downloads" | default "Downloads" }}</a
-    >
-    <a
-      href="{{ "docs" | relURL }}"
-      class="inline-block rounded-md border border-primary-300 px-4 py-1.5 text-sm font-semibold text-primary-600 no-underline hover:bg-primary-50 dark:border-primary-700 dark:text-primary-400 dark:hover:bg-primary-900"
-      >{{ i18n "hero_docs" | default "Documentation" }}</a
-    >
-  </div>
+    > <a href="{{ "docs" | relURL }}">{{ i18n "hero_docs" | default "Docs" }}</a>
+  </p>
 </section>
 <article class="prose max-w-full dark:prose-invert">
   <section>{{ .Content | emojify }}</section>

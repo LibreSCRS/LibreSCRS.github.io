@@ -3,6 +3,14 @@ title: ""
 description: "Open-source software for Serbian government smart cards"
 ---
 
+## Liberate Your Smart Cards
+
+Open-source software for Serbian government smart cards. No proprietary middleware, no closed-source binaries.
+
+{{< button href="/downloads/" >}}Downloads{{< /button >}} [Documentation](/docs/)
+
+---
+
 ## Projects
 
 ### LibreCelik

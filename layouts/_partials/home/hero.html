@@ -1,17 +1,3 @@
-<section class="prose mb-8 max-w-full border-b border-primary-200 pb-8 dark:prose-invert dark:border-primary-800">
-  {{ $title := i18n "hero_title" | default "Liberate Your Smart Cards" }}
-  <h2 id="liberate-your-smart-cards" class="relative group">{{ $title }} <span class="absolute top-0 w-6 transition-opacity opacity-0 -start-6 not-prose group-hover:opacity-100"><a class="group-hover:text-primary-300 dark:group-hover:text-neutral-700" style="text-decoration-line: none !important;" href="#liberate-your-smart-cards" aria-label="Anchor">#</a></span></h2>
-  <p class="mb-5 text-lg text-neutral-500 dark:text-neutral-400">
-    {{ i18n "hero_tagline" | default "Open-source software for Serbian government smart cards. No proprietary middleware, no closed-source DLLs." }}
-  </p>
-  <p>
-    <a
-      href="{{ "downloads" | relURL }}"
-      class="inline-block !rounded-md bg-primary-600 px-4 py-1 !text-neutral !no-underline hover:!bg-primary-500 dark:bg-primary-800 dark:hover:!bg-primary-700"
-      >{{ i18n "hero_downloads" | default "Downloads" }}</a
-    > <a href="{{ "docs" | relURL }}">{{ i18n "hero_docs" | default "Docs" }}</a>
-  </p>
-</section>
 <article class="prose max-w-full dark:prose-invert">
   <section>{{ .Content | emojify }}</section>
 </article>

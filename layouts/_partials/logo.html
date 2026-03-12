@@ -1,0 +1,33 @@
+{{- if .Site.Params.header.logo }}
+  {{- $logo := resources.Get .Site.Params.header.logo }}
+  {{- $logo_dark := resources.Get .Site.Params.header.logoDark }}
+  {{- if $logo }}
+    <a href="{{ "" | relLangURL }}" class="mr-2">
+      {{- $isSVG := eq $logo.MediaType.SubType "svg" }}
+      <img
+        src="{{ $logo.Permalink }}"
+        {{ if not $isSVG }}width="{{ div $logo.Width 2 }}" height="{{ div $logo.Height 2 }}"{{ end }}
+        class="max-h-[3rem] max-w-[14rem] object-scale-down object-left
+        {{ if $logo_dark }}dark:hidden flex{{ end }}"
+        alt="{{ .Site.Title }}"
+      />
+      {{- if $logo_dark }}
+        {{- $isDarkSVG := eq $logo_dark.MediaType.SubType "svg" }}
+        <img
+          src="{{ $logo_dark.Permalink }}"
+          {{ if not $isDarkSVG }}width="{{ div $logo_dark.Width 2 }}" height="{{ div $logo_dark.Height 2 }}"{{ end }}
+          class="hidden max-h-[3rem] max-w-[14rem] object-scale-down object-left dark:flex"
+          alt="{{ .Site.Title }}"
+        />
+      {{- end }}
+    </a>
+  {{- end }}
+{{- end }}
+{{- if .Site.Params.header.showTitle | default true }}
+  <a
+    class="decoration-primary-500 hover:underline hover:decoration-2 hover:underline-offset-2"
+    rel="me"
+    href="{{ "" | relLangURL }}"
+    >{{ .Site.Title | markdownify | emojify }}</a
+  >
+{{- end }}

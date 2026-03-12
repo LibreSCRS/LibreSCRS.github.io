@@ -8,7 +8,9 @@ enableImageLazyLoading = true
 
 [header]
   layout = "hamburger"
-  showTitle = true
+  logo = "img/logo.svg"
+  logoDark = "img/logo.svg"
+  showTitle = false
 
 [footer]
   showCopyright = true

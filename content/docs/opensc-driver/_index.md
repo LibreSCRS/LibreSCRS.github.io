@@ -3,6 +3,8 @@ title: "OpenSC Card Driver"
 description: "Building, installing, and using the LibreSCRS OpenSC external card driver"
 ---
 
+> **Deprecation notice:** A built-in Serbian card driver has been contributed to OpenSC and approved for inclusion. Once released, this external driver will no longer be needed — just install OpenSC. Until then, this driver remains fully functional.
+
 The LibreSCRS OpenSC card driver is an external card driver module for OpenSC. Once installed, any PKCS#11-aware application can use Serbian eID and PKS cards transparently via OpenSC's PKCS#11 bridge.
 
 **Supported cards**:
@@ -112,25 +114,7 @@ pkcs15-tool --list-keys
 pkcs15-tool --list-pins          # shows tries remaining
 ```
 
-### Sign and verify
-
-`pkcs15-crypt --sha-256` expects a **pre-computed binary hash** as input, not the raw message.
-
-```bash
-# Compute the hash
-openssl dgst -sha256 -binary /path/to/message.txt > /tmp/hash.bin
-
-# Sign with key 02 (Digital Signature)
-pkcs15-crypt --sign --pkcs1 --sha-256 --key 02 \
-    --input /tmp/hash.bin --output /tmp/sig.bin
-
-# Verify
-pkcs15-tool --read-certificate 02 --output /tmp/cert.der
-openssl x509 -inform DER -in /tmp/cert.der -pubkey -noout > /tmp/pubkey.pem
-openssl dgst -sha256 -verify /tmp/pubkey.pem \
-    -signature /tmp/sig.bin /path/to/message.txt
-# Verified OK
-```
+For signing and verifying files, see the [Digital Signing]({{< ref "docs/digital-signing" >}}) page.
 
 ---
 

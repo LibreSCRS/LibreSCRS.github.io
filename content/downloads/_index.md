@@ -10,7 +10,7 @@ All releases are published on GitHub. Choose the package for your platform.
 
 ## LibreCelik
 
-Desktop application for reading Serbian smart cards.
+Desktop application for reading and displaying Serbian smart cards — eID, vehicle registration, health insurance, and PKS cards.
 
 | Platform | Package |
 |----------|---------|
@@ -23,7 +23,9 @@ Desktop application for reading Serbian smart cards.
 
 ## LibreMiddleware — PKCS#11 module
 
-Load this module in your browser, email client, or SSH to use your smart card for authentication and digital signatures.
+> **Note:** Once OpenSC includes built-in Serbian card support, you can use OpenSC's PKCS#11 module instead. This module remains available as an alternative.
+
+Use your smart card for browser authentication (e.g. eUprava login) and digital signatures in Firefox, Chrome, Thunderbird, or OpenSSH.
 
 | Platform | Package |
 |----------|---------|
@@ -38,7 +40,9 @@ See [PKCS#11 setup docs]({{< ref "docs/pkcs11" >}}) for Firefox, Chrome, and Thu
 
 ## LibreMiddleware — OpenSC card driver
 
-An OpenSC external card driver. Required only if you want OpenSC tools (`pkcs15-tool`, `pkcs11-tool`) to work with Serbian eID / PKS cards.
+> **Deprecated.** A built-in Serbian card driver has been contributed to OpenSC and is pending inclusion in the next release. Once available, install OpenSC directly — no external driver needed.
+
+An OpenSC external card driver for CLI tools (`pkcs15-tool`, `pkcs11-tool`, `pkcs15-crypt`) and PKCS#11 applications.
 
 | Platform | Package |
 |----------|---------|

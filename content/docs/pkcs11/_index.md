@@ -3,6 +3,8 @@ title: "PKCS#11 Module"
 description: "Using the LibreSCRS PKCS#11 module with Firefox, Chrome, Thunderbird, and SSH"
 ---
 
+> **Note:** A built-in Serbian card driver has been contributed to OpenSC and approved for inclusion. Once released, you can use OpenSC's PKCS#11 module instead. This module remains available as an alternative.
+
 The LibreSCRS PKCS#11 module lets any PKCS#11-aware application use Serbian smart cards for authentication and digital signatures — without LibreCelik being open.
 
 ## Installation
@@ -52,7 +54,7 @@ sudo cp librescrs-pkcs11.dylib /usr/local/lib/
    - macOS: `/usr/local/lib/librescrs-pkcs11.dylib`
 4. Click **OK**
 
-Insert your eID or PKS card and refresh — Firefox will prompt for PIN when a certificate is needed.
+Insert your eID or PKS card and refresh — Firefox will prompt for PIN when a certificate is needed. This is how you authenticate to government services like eUprava.
 
 ---
 
@@ -108,6 +110,6 @@ Host myserver
 See [LibreMiddleware on GitHub](https://github.com/LibreSCRS/LibreMiddleware) for build instructions.
 
 ```bash
-cmake -S /path/to/LibreMiddleware -B build -DBUILD_PKCS11=ON
-cmake --build build --target rescrs-pkcs11
+cmake -S /path/to/LibreMiddleware -B build
+cmake --build build --target librescrs-pkcs11
 ```

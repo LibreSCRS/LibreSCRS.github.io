@@ -5,45 +5,38 @@ description: "Open-source software for Serbian government smart cards"
 
 ## Liberate Your Smart Cards
 
-Open-source software for Serbian government smart cards. No proprietary middleware, no closed-source binaries.
+Read, sign, and authenticate with Serbian government smart cards on Linux and macOS. No proprietary middleware, no closed-source binaries.
 
 {{< button href="/downloads/" >}}Downloads{{< /button >}} [Documentation](/docs/)
 
 ---
 
-## Projects
+## Why LibreSCRS?
 
-### LibreCelik
+Serbian government smart cards — eID, vehicle registration, health insurance, PKS — come with official software that only works on Windows and cannot be audited. LibreSCRS changes that:
 
-A desktop application for reading and printing Serbian smart cards:
+- **Open source** — all code is published under GPL/LGPL licences
+- **Cross-platform** — works on Linux and macOS
+- **Auditable** — no proprietary middleware, no closed-source binaries
+- **Standards-based** — built on PC/SC, PKCS#11, and PKCS#15
 
-- **eID** — personal identity, document, and digital signature certificates
-- **Vehicle registration** — all fields from the vehicle registration document
-- **Health insurance card** — insured person and coverage data
-- **PKS card** — Chamber of Commerce qualified signature certificates
+---
+
+## Which package do I need?
+
+### Just want to read your card?
+
+**Download LibreCelik.** It reads and displays all data from your eID, vehicle registration, health insurance, and PKS cards. No setup needed — just plug in your card reader.
 
 {{< button href="/downloads/" >}}Download LibreCelik{{< /button >}} [Docs](/docs/librecelik/)
 
----
+### Need browser authentication or digital signatures?
 
-### LibreMiddleware (PKCS#11 / OpenSC)
+**Use OpenSC.** A built-in Serbian card driver has been contributed to OpenSC and is pending inclusion in the next release. Once available, install OpenSC directly — no extra drivers needed.
 
-A PKCS#11 module and OpenSC external card driver for browser and OS integration:
-
-- **PKCS#11** — load directly in Firefox, Chrome, Thunderbird, OpenSSH
-- **OpenSC driver** — transparent PKCS#15 emulation via OpenSC's card driver API
+In the meantime, you can use the **LibreSCRS PKCS#11 module** for Firefox authentication (e.g. eUprava login) and digital signing.
 
 {{< button href="/downloads/" >}}Download PKCS#11 module{{< /button >}} [Docs](/docs/pkcs11/)
-
----
-
-## What's new
-
-**LibreMiddleware 1.5.0** (March 2026)
-
-- PKCS#11 module now supports all Serbian CardEdge cards (eID, health insurance, PKS)
-- Improved Firefox/NSS compatibility: full private key attribute set matching OpenSC's srbeid driver
-- Per-key usage flags for key exchange vs signature keys
 
 ---
 

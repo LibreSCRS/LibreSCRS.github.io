@@ -3,6 +3,8 @@ title: "PKCS#11 модул"
 description: "Коришћење LibreSCRS PKCS#11 модула са Firefox-ом, Chrome-ом, Thunderbird-ом и SSH-ом"
 ---
 
+> **Напомена:** Уграђени драјвер за српске картице је предложен за OpenSC и одобрен за укључивање. Када буде објављен, моћи ћете да користите OpenSC-ов PKCS#11 модул уместо овог. Овај модул остаје доступан као алтернатива.
+
 LibreSCRS PKCS#11 модул омогућава свакој PKCS#11 апликацији да користи српске смарт картице за аутентификацију и дигиталне потписе — без потребе да LibreCelik буде отворен.
 
 ## Инсталација
@@ -52,7 +54,7 @@ sudo cp librescrs-pkcs11.dylib /usr/local/lib/
    - macOS: `/usr/local/lib/librescrs-pkcs11.dylib`
 4. Кликните **OK**
 
-Убаците личну карту или ПКС картицу и освежите — Firefox ће тражити PIN када је сертификат потребан.
+Убаците личну карту или ПКС картицу и освежите — Firefox ће тражити PIN када је сертификат потребан. На овај начин се аутентификујете на државне сервисе као што је еУправа.
 
 ---
 
@@ -108,6 +110,6 @@ Host myserver
 Погледајте [LibreMiddleware на GitHub-у](https://github.com/LibreSCRS/LibreMiddleware) за упутства за компајлирање.
 
 ```bash
-cmake -S /path/to/LibreMiddleware -B build -DBUILD_PKCS11=ON
-cmake --build build --target rescrs-pkcs11
+cmake -S /path/to/LibreMiddleware -B build
+cmake --build build --target librescrs-pkcs11
 ```

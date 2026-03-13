@@ -42,7 +42,7 @@ pcsc_scan
 
 Download and open the `.dmg` from the [releases page](https://github.com/LibreSCRS/LibreCelik/releases), drag LibreCelik to Applications.
 
-macOS includes PC/SC support (`CryptoTokenKit`) natively — no extra software needed.
+macOS includes PC/SC support natively — no extra software needed.
 
 ---
 

@@ -3,6 +3,8 @@ title: "OpenSC драјвер"
 description: "Инсталација и коришћење LibreSCRS OpenSC екстерног драјвера за картице"
 ---
 
+> **Обавештење о застарелости:** Уграђени драјвер за српске картице је предложен за OpenSC и одобрен за укључивање. Када буде објављен, овај екстерни драјвер више неће бити потребан — само инсталирајте OpenSC. До тада, овај драјвер остаје потпуно функционалан.
+
 LibreSCRS OpenSC драјвер је екстерни модул за OpenSC. Када се инсталира, свака PKCS#11 апликација може транспарентно користити српске личне картице и ПКС картице преко OpenSC PKCS#11 моста.
 
 **Подржане картице**:
@@ -112,25 +114,7 @@ pkcs15-tool --list-keys
 pkcs15-tool --list-pins          # приказује преостале покушаје
 ```
 
-### Потписивање и верификација
-
-`pkcs15-crypt --sha-256` очекује **унапред израчунат бинарни хеш** као улаз, не сирову поруку.
-
-```bash
-# Израчунај хеш
-openssl dgst -sha256 -binary /path/to/message.txt > /tmp/hash.bin
-
-# Потпиши кључем 02 (Дигитални потпис)
-pkcs15-crypt --sign --pkcs1 --sha-256 --key 02 \
-    --input /tmp/hash.bin --output /tmp/sig.bin
-
-# Верификуј
-pkcs15-tool --read-certificate 02 --output /tmp/cert.der
-openssl x509 -inform DER -in /tmp/cert.der -pubkey -noout > /tmp/pubkey.pem
-openssl dgst -sha256 -verify /tmp/pubkey.pem \
-    -signature /tmp/sig.bin /path/to/message.txt
-# Verified OK
-```
+За потписивање и верификацију датотека, погледајте страницу [Дигитално потписивање](/sr/docs/digital-signing/).
 
 ---
 

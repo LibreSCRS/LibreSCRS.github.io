@@ -41,68 +41,128 @@ LibreCelik fetches LibreMiddleware via CMake `FetchContent`. For local developme
 
 ---
 
-## Data Flow
-
-When a smart card is inserted, data flows through the system in the following sequence:
-
-```
-Card inserted into reader
-  │
-  ▼
-SmartCardScanner (PC/SC polling thread)
-  │  detects card presence via SCardGetStatusChange
-  ▼
-SmartCardReaderListener (singleton, Qt signals)
-  │  emits cardInserted signal
-  ▼
-Main window receives signal
-  │
-  ▼
-CardPluginRegistry::findAllCandidates()
-  │  tries each middleware plugin's probe() in priority order
-  │  returns list of plugins that recognize the card
-  ▼
-AsyncCardReader::requestData()
-  │  wraps middleware call with std::async
-  │  marshals result back to Qt main thread via signal
-  ▼
-CardPlugin::readCard() (middleware plugin)
-  │  communicates with card via APDU commands
-  │  parses response data (TLV, BER-TLV)
-  │  returns CardData with extracted fields
-  ▼
-CardWidgetPluginRegistry::findByCardType()
-  │  maps card type string to a GUI plugin
-  ▼
-CardWidgetPlugin::createWidget(CardData)
-  │  builds Qt widget displaying the card data
-  ▼
-Widget displayed in main window
-```
-
----
-
 ## Plugin Architecture
 
-The system uses two independent plugin registries — one for card communication (middleware) and one for display (GUI).
+The entire system is built around plugins. There are two independent plugin layers — **middleware plugins** handle card communication, **GUI plugins** handle display. They connect through `CardData`, a universal data model that any middleware plugin produces and any GUI plugin consumes.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      LibreCelik (GUI)                   │
+│                                                         │
+│  ┌─────────────────┐     ┌────────────────────────┐     │
+│  │ SmartCardScanner │────▶│ CardWidgetPluginRegistry│     │
+│  │ (PC/SC polling)  │     │ (QPluginLoader)        │     │
+│  └─────────────────┘     └──────────┬─────────────┘     │
+│                                     │ loads              │
+│                          ┌──────────▼─────────────┐     │
+│                          │   GUI Plugins (.so)     │     │
+│                          │ ┌────────┐ ┌─────────┐ │     │
+│                          │ │ rseid  │ │ vehicle │ │     │
+│                          │ ├────────┤ ├─────────┤ │     │
+│                          │ │ health │ │  pks    │ │     │
+│                          │ └────────┘ └─────────┘ │     │
+│                          └────────────────────────┘     │
+│                                     ▲                   │
+│                                     │ CardData          │
+├─────────────────────────────────────┼───────────────────┤
+│                      LibreMiddleware│                    │
+│                                     │                   │
+│  ┌────────────────────────┐         │                   │
+│  │ CardPluginRegistry     │─────────┘                   │
+│  │ (dlopen)               │                             │
+│  └──────────┬─────────────┘                             │
+│             │ loads                                      │
+│  ┌──────────▼──────────────────────────────────┐        │
+│  │         Middleware Plugins (.so)              │        │
+│  │ ┌─────────┐ ┌──────────┐ ┌───────────────┐ │        │
+│  │ │ eidcard │ │ vehicle  │ │    opensc      │ │        │
+│  │ ├─────────┤ ├──────────┤ │ (PKI fallback) │ │        │
+│  │ │ health  │ │  emrtd   │ └───────────────┘ │        │
+│  │ ├─────────┤ ├──────────┤                    │        │
+│  │ │  pks    │ │ pkcs15   │                    │        │
+│  │ └─────────┘ └──────────┘                    │        │
+│  └─────────────────────────────────────────────┘        │
+│                          │                              │
+│                          │ APDU (ISO 7816-4)            │
+│                          ▼                              │
+│                   ┌─────────────┐                       │
+│                   │ PCSCConnection│                      │
+│                   │  (PC/SC)     │                       │
+│                   └──────┬──────┘                       │
+└──────────────────────────┼──────────────────────────────┘
+                           │
+                    ┌──────▼──────┐
+                    │ Smart Card  │
+                    └─────────────┘
+```
 
 ### Middleware Plugins (CardPlugin)
 
-Loaded by `CardPluginRegistry` via `dlopen` at runtime. Each plugin implements:
+A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPluginRegistry` via `dlopen` at runtime. Each plugin implements two key methods:
 
-- **`probe()`** — detect whether the inserted card is supported by this plugin. Returns a confidence score. The registry tries plugins in priority order and builds a candidate list.
-- **`readCard()`** — extract all data from the card. Returns a `CardData` object containing typed fields (text, images, dates, certificates).
+- **`probe(PCSCConnection&)`** — detect whether the inserted card is supported by this plugin. Typically sends SELECT commands for known AIDs and returns a confidence score. The registry calls `probe()` on every registered plugin and builds a ranked candidate list.
+- **`readCard(PCSCConnection&)`** — extract all data from the card. Sends APDU commands, parses TLV/BER-TLV responses, and returns a `CardData` object containing typed field groups (personal data, document data, photos, certificates).
 
-The fallback chain means if the primary plugin fails, the next candidate is tried automatically. The OpenSC plugin serves as a generic fallback for any PKCS#15-compliant card.
+**Fallback chain:** If the top-ranked plugin's `readCard()` fails, the next candidate is tried automatically. The OpenSC plugin serves as a generic fallback — it delegates PKI operations (certificates, signing) to OpenSC for any card it doesn't natively support.
+
+**To add a new card type:** Write a class that inherits `CardPlugin`, implement `probe()` and `readCard()`, build as a shared library, and drop it into the plugin directory. The registry discovers it automatically at next startup.
 
 ### GUI Plugins (CardWidgetPlugin)
 
-Loaded by `CardWidgetPluginRegistry` via `QPluginLoader`. Each plugin implements:
+A GUI plugin is a Qt shared library loaded by `CardWidgetPluginRegistry` via `QPluginLoader`. Each plugin implements:
 
-- **`cardTypes()`** — list of card type strings this plugin can display.
-- **`createWidget(CardData)`** — build and return a Qt widget that renders the card data.
+- **`cardTypes()`** — returns a list of card type strings this plugin can display (must match what the middleware plugin sets in `CardData`).
+- **`createWidget(CardData)`** — builds and returns a Qt widget that renders the card data. Full control over layout — text fields, photos, certificates, whatever the card contains.
 
-Adding support for a new card type means writing two shared libraries — a middleware plugin for card communication and a GUI plugin for display — and dropping them into the plugin directories. No recompilation of the core application is needed.
+**To add a new card display:** Write a class that inherits `CardWidgetPlugin` and `Q_PLUGIN_METADATA`, implement `cardTypes()` and `createWidget()`, build as a Qt MODULE library.
+
+### How They Connect
+
+Adding support for a completely new card type requires two plugins:
+
+1. **Middleware plugin** — knows how to talk to the card (SELECT, READ BINARY, parse response)
+2. **GUI plugin** — knows how to display the data (layout, labels, formatting)
+
+The bridge is `CardData` — a map of field groups, where each group contains key-value pairs. The middleware plugin populates it, the GUI plugin reads it. Neither needs to know about the other. No recompilation of the core application is needed — just drop in the `.so` files.
+
+---
+
+## Data Flow
+
+The complete flow when a smart card is inserted:
+
+```
+1. Card inserted into reader
+
+2. SmartCardScanner (PC/SC polling thread)
+   └─ SCardGetStatusChange detects card presence
+   └─ emits cardInserted signal via SmartCardReaderListener
+
+3. Main window receives signal, starts plugin discovery:
+   └─ CardPluginRegistry::findAllCandidates(connection)
+      ├─ eidcard-plugin::probe()     → score: 100 (recognized AID)
+      ├─ vehicle-plugin::probe()     → score: 0 (wrong AID)
+      ├─ emrtd-plugin::probe()       → score: 0 (no eMRTD applet)
+      └─ opensc-plugin::probe()      → score: 50 (found PKCS#15)
+      Result: [eidcard-plugin (100), opensc-plugin (50)]
+
+4. AsyncCardReader::requestData(topCandidate)
+   └─ std::async → background thread
+   └─ eidcard-plugin::readCard(connection)
+      ├─ SELECT AID, READ BINARY personal data
+      ├─ parse BER-TLV response
+      └─ return CardData { type: "rs.eid", fields: {...} }
+
+5. Result marshalled back to Qt main thread (QMetaObject::invokeMethod)
+
+6. CardWidgetPluginRegistry::findByCardType("rs.eid")
+   └─ rseid-gui-plugin matches
+
+7. rseid-gui-plugin::createWidget(cardData)
+   └─ builds widget: photo, name, address, document number, certificates
+
+8. Widget displayed in main window
+```
 
 ---
 

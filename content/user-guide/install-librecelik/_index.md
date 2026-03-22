@@ -1,4 +1,5 @@
 ---
+layout: "simple"
 title: "Install LibreCelik"
 description: "Download and install the LibreCelik desktop application on Linux or macOS"
 ---

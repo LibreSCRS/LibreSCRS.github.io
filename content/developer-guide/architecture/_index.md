@@ -1,4 +1,5 @@
 ---
+layout: "simple"
 title: "Architecture Overview"
 description: "System components, data flow, plugin architecture, and design patterns"
 ---

@@ -1,4 +1,5 @@
 ---
+layout: "simple"
 title: "Инсталирајте LibreCelik"
 description: "Преузимање и инсталација LibreCelik десктоп апликације на Linux-у или macOS-у"
 ---

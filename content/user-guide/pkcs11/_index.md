@@ -1,4 +1,5 @@
 ---
+layout: "simple"
 title: "PKCS#11 Module"
 description: "Using the LibreSCRS PKCS#11 module with Firefox, Chrome, Thunderbird, and SSH"
 ---

@@ -1,4 +1,5 @@
 ---
+layout: "simple"
 title: "Building From Source"
 description: "Prerequisites, build instructions, and running tests"
 ---

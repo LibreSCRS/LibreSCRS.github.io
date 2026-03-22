@@ -1,4 +1,5 @@
 ---
+layout: "simple"
 title: "OpenSC Card Driver"
 description: "Building, installing, and using the LibreSCRS OpenSC external card driver"
 ---

@@ -1,4 +1,5 @@
 ---
+layout: "simple"
 title: "Read Your Card"
 description: "Supported smart cards, auto-detection, and how LibreCelik displays card data"
 ---

@@ -1,4 +1,5 @@
 ---
+layout: "simple"
 title: "OpenSC драјвер"
 description: "Инсталација и коришћење LibreSCRS OpenSC екстерног драјвера за картице"
 ---

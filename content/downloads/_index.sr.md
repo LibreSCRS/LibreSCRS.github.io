@@ -1,54 +1,48 @@
 ---
 title: "Преузимања"
-description: "Преузмите LibreCelik и LibreMiddleware пакете"
 layout: "simple"
----
-
-Сва издања су објављена на GitHub-у. Изаберите пакет за вашу платформу.
-
 ---
 
 ## LibreCelik
 
-Десктоп апликација за читање и приказивање српских смарт картица — лична карта, саобраћајна дозвола, здравствена картица и ПКС картица.
+Графичка апликација за читање смарт картица на Linux-у и macOS-у. Чита личну карту, саобраћајну дозволу, здравствену картицу, eMRTD и друго путем додатака.
 
-| Платформа | Пакет |
-|-----------|-------|
-| Linux (x86_64) | `.AppImage` |
-| macOS (Apple Silicon) | `.dmg` |
+{{< button href="https://github.com/LibreSCRS/LibreCelik/releases" target="_blank" >}}
+Преузми AppImage (Linux)
+{{< /button >}}
 
-[LibreCelik издања на GitHub-у](https://github.com/LibreSCRS/LibreCelik/releases)
-
----
-
-## LibreMiddleware — PKCS#11 модул
-
-> **Напомена:** Када OpenSC укључи уграђену подршку за српске картице, моћи ћете да користите OpenSC-ов PKCS#11 модул уместо овог. Овај модул остаје доступан као алтернатива.
-
-Користите смарт картицу за аутентификацију у прегледачу (нпр. пријава на еУправу) и дигиталне потписе у Firefox-у, Chrome-у, Thunderbird-у или OpenSSH-у.
-
-| Платформа | Пакет |
-|-----------|-------|
-| Linux (x86_64) | `.tar.gz` |
-| macOS (Apple Silicon) | `.zip` |
-
-[LibreMiddleware издања на GitHub-у](https://github.com/LibreSCRS/LibreMiddleware/releases)
-
-Погледајте [PKCS#11 упутство](/sr/docs/pkcs11/) за подешавање Firefox-а, Chrome-а и Thunderbird-а.
+{{< button href="https://github.com/LibreSCRS/LibreCelik/releases" target="_blank" >}}
+Преузми DMG (macOS)
+{{< /button >}}
 
 ---
 
-## LibreMiddleware — OpenSC драјвер
+## PKCS#11 модул
 
-> **Застарело.** Уграђени драјвер за српске картице је предложен за OpenSC и чека укључивање у следеће издање. Када буде доступан, инсталирајте OpenSC директно — без додатног драјвера.
+Аутентификација у прегледачу и дигитално потписивање за српске личне карте. Ради са Firefox-ом, Chrome-ом, Thunderbird-ом и SSH-ом.
 
-OpenSC екстерни драјвер за CLI алате (`pkcs15-tool`, `pkcs11-tool`, `pkcs15-crypt`) и PKCS#11 апликације.
+*Одржава се док подршка за српске личне карте не буде укључена у OpenSC ([PR #3595](https://github.com/OpenSC/OpenSC/pull/3595), одобрен, чека издање).*
 
-| Платформа | Пакет |
-|-----------|-------|
-| Linux (x86_64, OpenSC 0.26.x) | `.tar.gz` |
-| macOS (Apple Silicon, OpenSC 0.26.x) | `.zip` |
+{{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
+Преузми за Linux (tar.gz)
+{{< /button >}}
 
-[LibreMiddleware издања на GitHub-у](https://github.com/LibreSCRS/LibreMiddleware/releases)
+{{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
+Преузми за macOS (zip)
+{{< /button >}}
 
-Погледајте [OpenSC драјвер упутство](/sr/docs/opensc-driver/) за инсталацију и конфигурацију.
+---
+
+## OpenSC екстерни драјвер
+
+Драјвер за српске личне карте и ПКС картице за OpenSC. Омогућава PKCS#11 приступ кроз OpenSC инфраструктуру.
+
+*Привремено — биће замењен уграђеним OpenSC драјвером када [PR #3595](https://github.com/OpenSC/OpenSC/pull/3595) буде укључен у издање OpenSC-а.*
+
+{{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
+Преузми за Linux
+{{< /button >}}
+
+{{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
+Преузми за macOS
+{{< /button >}}

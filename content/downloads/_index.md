@@ -1,54 +1,48 @@
 ---
 title: "Downloads"
-description: "Download LibreCelik and LibreMiddleware packages"
 layout: "simple"
----
-
-All releases are published on GitHub. Choose the package for your platform.
-
 ---
 
 ## LibreCelik
 
-Desktop application for reading and displaying Serbian smart cards — eID, vehicle registration, health insurance, and PKS cards.
+GUI smart card reader for Linux & macOS. Reads eID, vehicle registration, health cards, eMRTD, and more through plugins.
 
-| Platform | Package |
-|----------|---------|
-| Linux (x86_64) | `.AppImage` |
-| macOS (Apple Silicon) | `.dmg` |
+{{< button href="https://github.com/LibreSCRS/LibreCelik/releases" target="_blank" >}}
+Download AppImage (Linux)
+{{< /button >}}
 
-[LibreCelik releases on GitHub](https://github.com/LibreSCRS/LibreCelik/releases)
-
----
-
-## LibreMiddleware — PKCS#11 module
-
-> **Note:** Once OpenSC includes built-in Serbian card support, you can use OpenSC's PKCS#11 module instead. This module remains available as an alternative.
-
-Use your smart card for browser authentication (e.g. eUprava login) and digital signatures in Firefox, Chrome, Thunderbird, or OpenSSH.
-
-| Platform | Package |
-|----------|---------|
-| Linux (x86_64) | `.tar.gz` |
-| macOS (Apple Silicon) | `.zip` |
-
-[LibreMiddleware releases on GitHub](https://github.com/LibreSCRS/LibreMiddleware/releases)
-
-See [PKCS#11 setup docs]({{< ref "docs/pkcs11" >}}) for Firefox, Chrome, and Thunderbird configuration.
+{{< button href="https://github.com/LibreSCRS/LibreCelik/releases" target="_blank" >}}
+Download DMG (macOS)
+{{< /button >}}
 
 ---
 
-## LibreMiddleware — OpenSC card driver
+## PKCS#11 Module
 
-> **Deprecated.** A built-in Serbian card driver has been contributed to OpenSC and is pending inclusion in the next release. Once available, install OpenSC directly — no external driver needed.
+Browser authentication and digital signing for Serbian eID cards. Works with Firefox, Chrome, Thunderbird, and SSH.
 
-An OpenSC external card driver for CLI tools (`pkcs15-tool`, `pkcs11-tool`, `pkcs15-crypt`) and PKCS#11 applications.
+*Maintained until Serbian eID support ships in OpenSC upstream ([PR #3595](https://github.com/OpenSC/OpenSC/pull/3595), approved, pending release).*
 
-| Platform | Package |
-|----------|---------|
-| Linux (x86_64, OpenSC 0.26.x) | `.tar.gz` |
-| macOS (Apple Silicon, OpenSC 0.26.x) | `.zip` |
+{{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
+Download Linux (tar.gz)
+{{< /button >}}
 
-[LibreMiddleware releases on GitHub](https://github.com/LibreSCRS/LibreMiddleware/releases)
+{{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
+Download macOS (zip)
+{{< /button >}}
 
-See [OpenSC driver docs]({{< ref "docs/opensc-driver" >}}) for installation and configuration.
+---
+
+## OpenSC External Driver
+
+Serbian eID and PKS card driver for OpenSC. Enables PKCS#11 access through OpenSC's infrastructure.
+
+*Temporary — will be replaced by the built-in OpenSC driver once [PR #3595](https://github.com/OpenSC/OpenSC/pull/3595) is included in an OpenSC release.*
+
+{{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
+Download Linux
+{{< /button >}}
+
+{{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
+Download macOS
+{{< /button >}}

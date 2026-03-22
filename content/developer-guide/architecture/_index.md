@@ -14,13 +14,14 @@ A Qt-free C++20 static library collection for smart card communication. It handl
 
 | Library | Purpose |
 |---|---|
-| `smartcard` | PCSCConnection, Monitor (card event polling), APDU command/response, TLV and BER-TLV parsing (ISO 7816-4) |
-| `plugin` | CardPlugin interface, CardData model, CardPluginRegistry (dlopen), AutoReader |
+| `smartcard` | PCSCConnection, Monitor (card event polling), APDU command/response, TLV and BER-TLV parsing (ISO 7816-4), TransmitFilter (transparent Secure Messaging layer) |
+| `plugin` | CardPlugin interface (with streaming support), CardData model, CardPluginRegistry (dlopen), AutoReader (Monitor + plugin discovery bridge) |
+| `pkcs15` | Generic PKCS#15/ISO 7816-15 parser and card library — EF.ODF/EF.DIR discovery, certificate and key enumeration. Works with any PKCS#15-compliant card |
 | `eidcard` | Serbian eID card API with card reader implementations (Apollo 2008, Gemalto 2014+, Foreigner IF2020) |
 | `vehiclecard` | Vehicle registration document API |
 | `healthcard` | Health insurance card (RFZO) |
 | `pkscard` | PKS qualified signature card (Chamber of Commerce) |
-| `cardedge` | Generic CardEdge/PKCS#15 applet — PIN operations, signing, certificate discovery |
+| `cardedge` | Gemalto CardEdge applet — PIN operations, signing, certificate discovery (Serbian eID PKI) |
 | `emrtd` | eMRTD e-passport communication — data group reading, MRZ parsing |
 | `emrtd-crypto` | eMRTD cryptography — BAC, PACE (ECDH-GM), Secure Messaging |
 | `pkcs11` | PKCS#11 shared library (`librescrs-pkcs11`) |
@@ -119,9 +120,13 @@ A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPlugin
 
 **Two-phase probe:** The registry first calls `canHandle(atr)` on all plugins — those that return `true` go into the candidate list immediately, ranked by `probePriority()`. Then `canHandleConnection(conn)` is called only on plugins that returned `false` in Phase 1, giving generic plugins (like OpenSC) a chance to claim the card by probing the live connection. This avoids unnecessary card communication for plugins that already matched by ATR.
 
+**Streaming support:** Plugins can implement `readCardStreaming()` in addition to `readCard()`. Streaming delivers `CardData` incrementally — fields appear in the GUI as they are read from the card, rather than waiting for the entire read to complete. This is especially useful for eMRTD where data groups are read sequentially through encrypted channels.
+
 **Fallback chain:** If the top-ranked plugin's `readCard()` fails, the next candidate is tried automatically. The OpenSC plugin serves as a generic fallback for any card it doesn't natively support.
 
-**To add a new card type:** Write a class that inherits `CardPlugin`, implement `canHandle()`, `canHandleConnection()`, and `readCard()`, build as a shared library, and drop it into the plugin directory. The registry discovers it automatically at next startup.
+**PKI fallback:** Data plugins (eID, vehicle, health) read demographic data but may not handle PKI operations. After a data plugin finishes, the system can trigger a separate PKI plugin (CardEdge, PKCS#15, or OpenSC) to provide certificate discovery, signing, and PIN management. This decoupling means data plugins don't need to know about PKI.
+
+**To add a new card type:** Write a class that inherits `CardPlugin`, implement `canHandle()`, `canHandleConnection()`, and `readCard()` (optionally `readCardStreaming()`), build as a shared library, and drop it into the plugin directory. The registry discovers it automatically at next startup.
 
 ### GUI Plugins (CardWidgetPlugin)
 
@@ -146,10 +151,10 @@ The bridge is `CardData` — a map of field groups, where each group contains ke
 The eMRTD plugin demonstrates the most complex card communication in the system. E-passports require cryptographic key agreement before any data can be read:
 
 - **BAC** (Basic Access Control) — derives session keys from the Machine Readable Zone (MRZ) printed on the passport
-- **PACE** (Password Authenticated Connection Establishment) — elliptic curve Diffie-Hellman key agreement, the modern replacement for BAC
-- **Secure Messaging** — all subsequent APDU commands and responses are encrypted and MACed with session keys
+- **PACE** (Password Authenticated Connection Establishment) — elliptic curve Diffie-Hellman key agreement, the modern replacement for BAC. May require the user to enter the CAN (Card Access Number) printed on the passport.
+- **Secure Messaging** — all subsequent APDU commands and responses are encrypted and MACed with session keys. Implemented as a `TransmitFilter` on `PCSCConnection` — once installed, encryption is transparent to all higher-level code.
 
-The `emrtd-crypto` library implements these protocols from the ICAO 9303 specification, while the `emrtd` library handles data group reading and MRZ parsing. The `emrtd-plugin` ties them together as a standard `CardPlugin` — from the rest of the system's perspective, it's just another plugin that returns `CardData`.
+The `emrtd-crypto` library implements these protocols from the ICAO 9303 specification, while the `emrtd` library handles data group reading and MRZ parsing. The `emrtd-plugin` ties them together as a standard `CardPlugin` with streaming support — data groups are read progressively and delivered to the GUI as they become available. From the rest of the system's perspective, it's just another plugin that returns `CardData`.
 
 ---
 
@@ -212,7 +217,7 @@ The complete flow when a smart card is inserted:
 
 ### Async
 
-`AsyncCardReader` wraps middleware plugin calls with `std::async` to keep the GUI responsive. Results are marshalled back to the Qt main thread via `QMetaObject::invokeMethod` and Qt signals.
+`AsyncCardReader` wraps middleware plugin calls with `std::async` to keep the GUI responsive. Results are marshalled back to the Qt main thread via `QMetaObject::invokeMethod` and Qt signals. Supports both batch (`readCard`) and streaming (`readCardStreaming`) modes. In the middleware layer, `AutoReader` provides a convenience wrapper that bridges `smartcard::Monitor` events directly to `CardPluginRegistry` discovery and card reading — useful for applications that want automatic card handling without manual wiring.
 
 ### Observer
 

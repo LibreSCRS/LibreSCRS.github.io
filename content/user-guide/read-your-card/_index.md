@@ -9,12 +9,13 @@ LibreCelik automatically detects the type of card you insert and displays the ap
 
 | Card | Data shown |
 |------|-----------|
-| Serbian eID (Gemalto / IF2020) | Personal data, document info, digital signature certificates, PIN management |
-| Vehicle registration | All fields including owner, vehicle, and registration dates |
-| Health insurance card | Insured person, employer, insurance details |
+| Serbian eID (Gemalto 2014+ / IF2020 Foreigner) | Personal data, document info, photo, digital signature certificates, PIN management |
+| Vehicle registration (EU Directive 2003/127/EC) | Owner, vehicle data, registration dates — core fields interoperable across EU-compliant cards |
+| Health insurance card (RFZO) | Insured person, employer, insurance details |
 | PKS Chamber of Commerce | Qualified signature certificates, PIN management |
+| eMRTD e-passports | Personal data, photo, MRZ, data groups — requires BAC or PACE authentication |
 
-Support for additional card types is planned through the plugin architecture.
+The plugin architecture makes it straightforward to add support for new card types — both at the middleware level (card communication) and GUI level (data display).
 
 ---
 
@@ -22,9 +23,9 @@ Support for additional card types is planned through the plugin architecture.
 
 When a card is inserted into the reader, LibreCelik:
 
-1. Detects the card event via PC/SC polling
-2. Queries the card to determine its type (by ATR or AID)
-3. Loads the appropriate card plugin to read the data
+1. Detects the card event via `smartcard::Monitor` (PC/SC polling in LibreMiddleware)
+2. Queries all middleware plugins — first by ATR, then by live connection probe
+3. The highest-ranked plugin reads the card data
 4. Displays the data using the matching GUI plugin
 
 If no plugin recognizes the card, LibreCelik shows a message indicating the card type is not supported.

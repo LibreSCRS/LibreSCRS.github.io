@@ -58,6 +58,4 @@ macOS има уграђену PC/SC подршку — додатни софтв
 
 ## Компајлирање из изворног кода
 
-Погледајте [BUILDING.md](https://github.com/LibreSCRS/LibreCelik/blob/main/BUILDING.md) у изворном репозиторијуму.
-
-**Потребно**: CMake 3.24+, Qt 6.6+, OpenSSL 3, C++20 компајлер.
+Погледајте [Водич за програмере — Изградња из изворног кода]({{< ref "developer-guide/building-from-source" >}}) за комплетна упутства.

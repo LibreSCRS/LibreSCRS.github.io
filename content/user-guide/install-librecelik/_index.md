@@ -58,6 +58,4 @@ macOS includes PC/SC support natively — no extra software needed.
 
 ## Building from source
 
-See [BUILDING.md](https://github.com/LibreSCRS/LibreCelik/blob/main/BUILDING.md) in the source repository.
-
-**Requirements**: CMake 3.24+, Qt 6.6+, OpenSSL 3, a C++20 compiler.
+See the [Developer Guide — Building From Source]({{< ref "developer-guide/building-from-source" >}}) for full build instructions.

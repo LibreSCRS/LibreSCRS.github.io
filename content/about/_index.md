@@ -52,6 +52,15 @@ This project was built with AI as a development partner — from analyzing hex d
 
 ---
 
+## Related Projects
+
+LibreSCRS is not the first open-source effort to liberate Serbian smart cards. We stand on the shoulders of those who came before:
+
+- **[JFreesteel](https://github.com/grakic/jfreesteel)** — the pioneering open-source Serbian eID library by Goran Rakic (Java, 2015). JFreesteel proved it was possible to read Serbian eID cards without proprietary software and inspired others to follow.
+- **[Bas Celik](https://github.com/ubavic/bas-celik)** — a actively maintained Go desktop reader for Serbian eID, vehicle, and health cards by Nikola Ubavic. A great alternative if you prefer a Go-based tool.
+
+---
+
 ## Contributing
 
 Bug reports, pull requests, and protocol analysis contributions are welcome on GitHub.

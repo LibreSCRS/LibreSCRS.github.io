@@ -9,7 +9,7 @@ description: "Prerequisites, build instructions, and running tests"
 |---|---|---|
 | CMake | 3.24+ | Build system |
 | C++ compiler | GCC 12+ or Clang 15+ | C++20 support required |
-| Qt 6 | Widgets, PrintSupport, LinguistTools | LibreCelik only |
+| Qt 6.6+ | Widgets, PrintSupport, LinguistTools | LibreCelik only |
 | PC/SC | `libpcsclite-dev` (Linux) | Built-in on macOS |
 | OpenSSL 3 | — | Bundled in LibreMiddleware `thirdparty/` |
 | UUID | `uuid-dev` (Linux) | UUID generation |

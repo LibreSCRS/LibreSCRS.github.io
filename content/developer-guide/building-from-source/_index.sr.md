@@ -9,7 +9,7 @@ description: "Предуслови, упутства за изградњу и п
 |---|---|---|
 | CMake | 3.24+ | Систем за изградњу |
 | C++ компајлер | GCC 12+ или Clang 15+ | Потребна подршка за C++20 |
-| Qt 6 | Widgets, PrintSupport, LinguistTools | Само за LibreCelik |
+| Qt 6.6+ | Widgets, PrintSupport, LinguistTools | Само за LibreCelik |
 | PC/SC | `libpcsclite-dev` (Linux) | Уграђено на macOS-у |
 | OpenSSL 3 | — | Укључено у LibreMiddleware `thirdparty/` |
 | UUID | `uuid-dev` (Linux) | Генерисање UUID-а |

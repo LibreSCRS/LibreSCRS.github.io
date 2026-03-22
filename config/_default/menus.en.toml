@@ -1,32 +1,37 @@
 [[main]]
-  name = "Downloads"
-  pageRef = "downloads"
+  name = "About"
+  pageRef = "about"
   weight = 10
 
 [[main]]
-  name = "Docs"
-  pageRef = "docs"
+  name = "Downloads"
+  pageRef = "downloads"
   weight = 20
 
 [[main]]
-  name = "About"
-  pageRef = "about"
+  name = "User Guide"
+  pageRef = "user-guide"
   weight = 30
 
 [[main]]
-  identifier = "search"
+  name = "Developer Guide"
+  pageRef = "developer-guide"
   weight = 40
+
+[[main]]
+  identifier = "search"
+  weight = 50
   [main.params]
     action = "search"
 
 [[main]]
   identifier = "locale"
-  weight = 50
+  weight = 60
   [main.params]
     action = "locale"
 
 [[main]]
   identifier = "appearance"
-  weight = 60
+  weight = 70
   [main.params]
     action = "appearance"

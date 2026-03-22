@@ -56,8 +56,10 @@ sharing:
 shortcode:
   recent_articles: "Недавно"
 
-hero_title: "Ослободите своје смарт картице"
-hero_tagline: "Читајте, потписујте и аутентификујте се са српским државним смарт картицама на Linux-у и macOS-у."
-hero_downloads: "Преузимања"
-hero_docs: "Документација"
+hero_title: "LibreSCRS"
+hero_subtitle: "Libre Smart Card Reader System"
+hero_tagline: "Алат отвореног кода за читање, аутентификацију и потписивање са било којом смарт картицом на Linux-у и macOS-у. Plugin архитектура — проширите подршку за своју картицу за неколико минута."
+hero_standards: "ISO 7816 · PC/SC · PKCS#11 · PKCS#15"
+hero_get_started: "Почните овде"
+hero_for_developers: "За програмере"
 hero_home: "Назад на почетну"

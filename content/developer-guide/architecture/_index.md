@@ -24,7 +24,7 @@ A Qt-free C++20 static library collection for smart card communication. It handl
 | `emrtd` | eMRTD e-passport communication — data group reading, MRZ parsing |
 | `emrtd-crypto` | eMRTD cryptography — BAC, PACE (ECDH-GM), Secure Messaging |
 | `pkcs11` | PKCS#11 shared library (`librescrs-pkcs11`) |
-| `*-plugin` | Card plugins (`.so`): eidcard, vehiclecard, healthcard, pkscard, cardedge, opensc, emrtd |
+| `*-plugin` | Card plugins (`.so`): eidcard, vehiclecard, healthcard, pkscard, cardedge, pkcs15, opensc, emrtd |
 
 ### LibreCelik (GPL-3.0)
 
@@ -113,11 +113,11 @@ The monitor lazy-starts its polling thread on the first subscription and stops w
 
 A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPluginRegistry` via `dlopen` at runtime. Each plugin implements:
 
-- **`canHandle(const std::vector<uint8_t>& atr)`** — fast ATR-only check. Returns a confidence score without opening a connection to the card. The registry uses this for initial filtering.
-- **`canHandleConnection(PCSCConnection& conn)`** — live connection probe. Sends SELECT commands for known AIDs to confirm card support. Called only on plugins that passed `canHandle()`.
+- **`canHandle(const std::vector<uint8_t>& atr)`** — fast ATR-only check. Returns `bool` — does this plugin recognize the ATR? No card communication needed. Plugins also expose `probePriority()` (an `int`) so the registry can rank candidates.
+- **`canHandleConnection(PCSCConnection& conn)`** — live connection probe. Sends SELECT commands for known AIDs to confirm card support. Called only on plugins that did **not** match in `canHandle()` — giving them a second chance to claim the card via live communication.
 - **`readCard(PCSCConnection& conn)`** — extract all data from the card. Sends APDU commands, parses TLV/BER-TLV responses, and returns a `CardData` object containing typed field groups (personal data, document data, photos, certificates).
 
-**Two-phase probe:** The registry first calls `canHandle(atr)` on all plugins to build a quick candidate list, then calls `canHandleConnection(conn)` on candidates for precise matching. This avoids unnecessary card communication.
+**Two-phase probe:** The registry first calls `canHandle(atr)` on all plugins — those that return `true` go into the candidate list immediately, ranked by `probePriority()`. Then `canHandleConnection(conn)` is called only on plugins that returned `false` in Phase 1, giving generic plugins (like OpenSC) a chance to claim the card by probing the live connection. This avoids unnecessary card communication for plugins that already matched by ATR.
 
 **Fallback chain:** If the top-ranked plugin's `readCard()` fails, the next candidate is tried automatically. The OpenSC plugin serves as a generic fallback for any card it doesn't natively support.
 
@@ -171,17 +171,18 @@ The complete flow when a smart card is inserted:
    └─ emits signal with MonitorEvent
 
 4. Main window receives signal, starts two-phase plugin discovery:
-   Phase 1 — ATR filtering:
-   └─ CardPluginRegistry::findAllCandidates(atr)
-      ├─ eidcard-plugin::canHandle(atr)     → score: 100
-      ├─ vehicle-plugin::canHandle(atr)     → score: 0
-      ├─ emrtd-plugin::canHandle(atr)       → score: 0
-      └─ opensc-plugin::canHandle(atr)      → score: 50
-   Phase 2 — connection probe (on candidates):
+   Phase 1 — ATR filtering (no card communication):
    └─ CardPluginRegistry::findAllCandidates(atr, connection)
-      ├─ eidcard-plugin::canHandleConnection(conn)  → confirmed
-      └─ opensc-plugin::canHandleConnection(conn)   → confirmed
-      Result: [eidcard-plugin (100), opensc-plugin (50)]
+      ├─ eidcard-plugin::canHandle(atr)     → true  (recognized Serbian eID ATR)
+      ├─ vehicle-plugin::canHandle(atr)     → false
+      ├─ emrtd-plugin::canHandle(atr)       → false
+      └─ opensc-plugin::canHandle(atr)      → false
+      Candidates so far: [eidcard-plugin (priority 100)]
+   Phase 2 — connection probe (only on plugins that returned false):
+      ├─ vehicle-plugin::canHandleConnection(conn)  → false
+      ├─ emrtd-plugin::canHandleConnection(conn)    → false
+      └─ opensc-plugin::canHandleConnection(conn)   → true (found PKCS#15)
+      Final candidates: [eidcard-plugin (100), opensc-plugin (50)]
 
 5. AsyncCardReader::requestData(topCandidate)
    └─ std::async → background thread

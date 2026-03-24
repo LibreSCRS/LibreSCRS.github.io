@@ -4,7 +4,7 @@ title: ""
 
 # LibreSCRS — Libre Smart Card Reader System
 
-Open-source toolkit to read, authenticate, and sign with any smart card on Linux & macOS. Plugin architecture — extend for your card in minutes.
+Liberate your smart cards. Open-source tools for Linux & macOS.
 
 `ISO 7816 · PC/SC · PKCS#11 · PKCS#15`
 

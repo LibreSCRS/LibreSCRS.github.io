@@ -8,6 +8,12 @@ description: "Using the LibreSCRS PKCS#11 module with Firefox, Chrome, Thunderbi
 
 The LibreSCRS PKCS#11 module lets any PKCS#11-aware application use your smart card for authentication and digital signatures — without LibreCelik being open.
 
+**Supported cards** (CardEdge applet):
+- Serbian eID Gemalto (2014+) and IF2020 Foreigner
+- PKS Chamber of Commerce card
+
+Generic PKCS#15 cards are not supported by the PKCS#11 module.
+
 ## Installation
 
 Download the package for your platform from the [releases page](https://github.com/LibreSCRS/LibreMiddleware/releases) and extract it.

@@ -11,7 +11,4 @@ layout: "simple"
 - [Преглед архитектуре](/sr/developer-guide/architecture/) — компоненте система, ток података, систем додатака и пројектни обрасци
 - [Изградња из изворног кода](/sr/developer-guide/building-from-source/) — предуслови, упутства за изградњу и покретање тестова
 
-Додатне странице биће додате кад се API-ји стабилизују:
-
-- **API-ји за додатке** — писање `CardPlugin` (middleware) и `CardWidgetPlugin` (GUI) имплементација
-- **Референца стандарда** — ISO 7816-4, PC/SC, PKCS#11, PKCS#15, ICAO 9303
+За детаље о плагин API-јима, погледајте `CardPlugin` и `CardWidgetPlugin` интерфејсе у [Прегледу архитектуре](/sr/developer-guide/architecture/).

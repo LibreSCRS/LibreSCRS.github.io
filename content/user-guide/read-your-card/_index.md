@@ -10,7 +10,7 @@ LibreCelik automatically detects the type of card you insert and displays the ap
 
 | Card | Data shown |
 |------|-----------|
-| Serbian eID (Gemalto 2014+ / IF2020 Foreigner) | Personal data, document info, photo, digital signature certificates, PIN management |
+| Serbian eID (Apollo 2008, Gemalto 2014+, IF2020 Foreigner) | Personal data, document info, photo. Gemalto and IF2020 also support digital signature certificates and PIN management (Apollo 2008 supports data reading only — no PKI) |
 | Vehicle registration (EU Directive 2003/127/EC) | Owner, vehicle data, registration dates — core fields interoperable across EU-compliant cards |
 | Health insurance card (RFZO) | Insured person, employer, insurance details |
 | PKS Chamber of Commerce | Qualified signature certificates, PIN management |

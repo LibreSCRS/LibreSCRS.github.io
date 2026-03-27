@@ -72,6 +72,6 @@ Bug reports, pull requests, and protocol analysis contributions are welcome on G
 
 ## Supporting the Project
 
-LibreSCRS is developed and maintained in spare time. If these tools are useful to you — whether you use them to read your own cards, integrate smart card support into your application, or simply believe open-source infrastructure matters — please consider sponsoring the project.
+LibreSCRS is developed and maintained in spare time. If these tools are useful to you, please consider supporting the project.
 
-[Become a sponsor on GitHub](https://github.com/sponsors/LibreSCRS)
+[Donate via Open Source Collective](/donate/)

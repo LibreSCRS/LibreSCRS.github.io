@@ -4,6 +4,11 @@
   weight = 10
 
 [[main]]
+  name = "Функционалности"
+  pageRef = "features"
+  weight = 15
+
+[[main]]
   name = "Преузимања"
   pageRef = "downloads"
   weight = 20

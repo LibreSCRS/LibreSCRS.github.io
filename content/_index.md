@@ -27,6 +27,14 @@ Falls back to OpenSC for PKI on unsupported cards. Native plugins take priority 
 
 ---
 
+## Support LibreSCRS
+
+Help keep smart card tools free and open.
+
+{{< button href="/donate/" >}}Support the Project{{< /button >}}
+
+---
+
 ## Licence
 
 - **LibreCelik**: GPL-3.0-or-later

@@ -24,6 +24,11 @@
   weight = 40
 
 [[main]]
+  name = "Contribute"
+  pageRef = "contribute"
+  weight = 42
+
+[[main]]
   name = "Support Us"
   pageRef = "donate"
   weight = 45

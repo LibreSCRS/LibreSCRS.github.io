@@ -5,7 +5,7 @@ layout: "simple"
 
 ## LibreCelik
 
-Графичка апликација за читање смарт картица на Linux-у и macOS-у. Чита личну карту, саобраћајну дозволу, здравствену картицу, eMRTD и друго путем додатака.
+Графичка апликација за читање смарт картица на Linux-у и macOS-у. Чита пасоше, е-пасоше, личну карту, саобраћајну дозволу, PIV и друге PKI картице путем додатака.
 
 {{< button href="https://github.com/LibreSCRS/LibreCelik/releases" target="_blank" >}}
 Преузми AppImage (Linux)

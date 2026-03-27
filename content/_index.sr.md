@@ -6,7 +6,7 @@ title: ""
 
 Ослободите своје смарт картице. Алати отвореног кода за Linux и macOS.
 
-`ISO 7816 · PC/SC · PKCS#11 · PKCS#15`
+`ISO 7816 · PC/SC · PKCS#11 · PKCS#15 · ICAO 9303 · NIST PIV · BSI TR-03110`
 
 {{< button href="/sr/user-guide/" >}}Почните овде{{< /button >}}
 {{< button href="/sr/developer-guide/" >}}За програмере{{< /button >}}
@@ -15,7 +15,7 @@ title: ""
 
 ### Читајте било коју картицу
 
-Графички читач смарт картица са подршком за плагинове. Лична карта, саобраћајна дозвола, здравствена картица, eMRTD и друго.
+Графички читач смарт картица са подршком за плагинове. Пасоши, е-пасоши, лична карта, саобраћајна дозвола, PIV и друге PKI картице.
 
 ### Проширите плагиновима
 
@@ -37,5 +37,5 @@ title: ""
 
 ## Лиценца
 
-- **LibreCelik**: GPL-3.0-or-later
-- **LibreMiddleware**: LGPL-2.1-or-later
+- **LibreCelik**: [GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html)
+- **LibreMiddleware**: [LGPL-2.1-or-later](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html)

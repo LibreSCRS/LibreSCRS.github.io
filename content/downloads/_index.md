@@ -5,7 +5,7 @@ layout: "simple"
 
 ## LibreCelik
 
-GUI smart card reader for Linux & macOS. Reads eID, vehicle registration, health cards, eMRTD, and more through plugins.
+GUI smart card reader for Linux & macOS. Reads passports, e-passports, eID, vehicle registration, PIV, and other PKI cards through plugins.
 
 {{< button href="https://github.com/LibreSCRS/LibreCelik/releases" target="_blank" >}}
 Download AppImage (Linux)

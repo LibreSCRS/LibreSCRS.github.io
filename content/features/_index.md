@@ -6,9 +6,13 @@ description: "Supported smart cards and capabilities"
 
 ## Supported Cards
 
+### eMRTD / ePassport
+
+Any passport or national ID card compliant with ICAO 9303. PACE and BAC authentication, Secure Messaging, biometric data (photo, MRZ), data groups. Passive, Chip, and Active Authentication for document authenticity verification.
+
 ### Serbian eID
 
-Apollo 2008, Gemalto 2014+, IF2020 Foreigner. Personal data, address, document info, photo. Gemalto and IF2020 support digital signature certificates and PIN management.
+Gemalto 2014+, IF2020 Foreigner. Personal data, address, document info, photo. Digital signature certificates and PIN management via CardEdge.
 
 ### Serbian Vehicle Registration (EU VRC)
 
@@ -18,17 +22,13 @@ EU Directive 2003/127/EC compliant. Owner, vehicle data, registration dates — 
 
 Insured person, employer, insurance details.
 
-### eMRTD / ePassport
-
-PACE and BAC authentication, Secure Messaging, biometric data (photo, MRZ), data groups. Passive Authentication, Chip Authentication, and Active Authentication for document authenticity verification.
-
 ### PIV (NIST SP 800-73)
 
 US federal ID standard. Certificates, photo, fingerprints, PIN management.
 
 ### PKCS#15 Compatible Cards
 
-Gemalto, CardEdge, and other generic PKI cards. Certificate discovery, PIN verification and change, multi-PIN support.
+Generic PKI standard for certificate discovery, PIN management, and digital signing. Covers Gemalto, CardEdge, and other compliant cards — including PKI on eMRTD-capable national ID cards.
 
 ---
 

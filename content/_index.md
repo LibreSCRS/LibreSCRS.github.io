@@ -6,7 +6,7 @@ title: ""
 
 Liberate your smart cards. Open-source tools for Linux & macOS.
 
-`ISO 7816 · PC/SC · PKCS#11 · PKCS#15`
+`ISO 7816 · PC/SC · PKCS#11 · PKCS#15 · ICAO 9303 · NIST PIV · BSI TR-03110`
 
 {{< button href="/user-guide/" >}}Get Started{{< /button >}}
 {{< button href="/developer-guide/" >}}For Developers{{< /button >}}
@@ -15,7 +15,7 @@ Liberate your smart cards. Open-source tools for Linux & macOS.
 
 ### Read Any Card
 
-GUI smart card reader with plugin support. eID, vehicle registration, health cards, eMRTD, and more.
+GUI smart card reader with plugin support. Passports, e-passports, eID, vehicle registration, PIV, and other PKI cards.
 
 ### Extend With Plugins
 
@@ -37,5 +37,5 @@ Help keep smart card tools free and open.
 
 ## Licence
 
-- **LibreCelik**: GPL-3.0-or-later
-- **LibreMiddleware**: LGPL-2.1-or-later
+- **LibreCelik**: [GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html)
+- **LibreMiddleware**: [LGPL-2.1-or-later](https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html)

@@ -14,8 +14,8 @@ Donate any amount, or pick a concrete goal:
 
 | Goal | Amount | What it funds |
 |------|--------|---------------|
-| Buy the developer a smart card reader | $30 | Testing hardware for new card types |
-| Fund a new card type | $500 | Development time for a complete card plugin |
+| Buy the developer a smart card reader | €30 | Testing hardware for new card types |
+| Fund a new card type | €500 | Development time for a complete card plugin |
 
 ---
 
@@ -23,9 +23,9 @@ Donate any amount, or pick a concrete goal:
 
 | Tier | Monthly | Yearly | You get |
 |------|---------|--------|---------|
-| Supporter | $5 | $50 | Name on website (Contributors section) |
-| Backer | $10 | $100 | + Priority support via GitHub Issues |
-| Champion | $25 | $250 | + Vote on next feature (roadmap input) |
+| Supporter | €5 | €50 | Name on website (Contributors section) |
+| Backer | €10 | €100 | + Priority support via GitHub Issues |
+| Champion | €25 | €250 | + Vote on next feature (roadmap input) |
 
 ---
 
@@ -33,9 +33,9 @@ Donate any amount, or pick a concrete goal:
 
 | Tier | Monthly | Yearly | You get |
 |------|---------|--------|---------|
-| Bronze Sponsor | $50 | $500 | Logo on website (Sponsors section) |
-| Silver Sponsor | $100 | $1,000 | + Logo in README + priority bug reports |
-| Gold Sponsor | $250 | $2,500 | + Logo on homepage + dedicated support channel |
+| Bronze Sponsor | €50 | €500 | Logo on website (Sponsors section) |
+| Silver Sponsor | €100 | €1,000 | + Logo in README + priority bug reports |
+| Gold Sponsor | €250 | €2,500 | + Logo on homepage + dedicated support channel |
 
 ---
 

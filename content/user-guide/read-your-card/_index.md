@@ -13,10 +13,9 @@ LibreCelik automatically detects the type of card you insert and displays the ap
 | Serbian eID (Apollo 2008, Gemalto 2014+, IF2020 Foreigner) | Personal data, document info, photo. Gemalto and IF2020 also support digital signature certificates and PIN management (Apollo 2008 supports data reading only — no PKI) |
 | Vehicle registration (EU Directive 2003/127/EC) | Owner, vehicle data, registration dates — all EU mandatory and optional fields |
 | Health insurance card (RFZO) | Insured person, employer, insurance details |
-| PKS Chamber of Commerce | Qualified signature certificates, PIN management |
 | eMRTD e-passports | Personal data, photo, MRZ, data groups — requires BAC or PACE authentication (you may be prompted to enter the CAN from your passport). Passive, Chip, and Active Authentication for document verification |
 | PIV (NIST SP 800-73) | Certificates, photo, fingerprints, PIN management |
-| PKCS#15 compatible cards (Gemalto, CardEdge, generic PKI) | Certificate discovery, PIN verification and change, multi-PIN support |
+| PKCS#15 compatible cards (Gemalto, CardEdge, PKS, generic PKI) | Certificate discovery, PIN verification and change, multi-PIN support |
 
 The plugin architecture makes it straightforward to add support for new card types — both at the middleware level (card communication) and GUI level (data display).
 

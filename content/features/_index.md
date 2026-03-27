@@ -36,12 +36,12 @@ Gemalto, CardEdge, and other generic PKI cards. Certificate discovery, PIN verif
 
 - **Automatic card detection** — insert a card, LibreCelik identifies it and shows the data. No manual selection needed.
 - **Progressive reading** — data appears as it is read from the card. No waiting for the full read to finish.
-- **Print** — all card types support formatted printout of displayed data.
+- **Print** — card data views support formatted printout.
 - **Multi-PIN management** — cards with multiple PINs (e.g., separate authentication and signing PINs) show each PIN's status and allow independent change.
 - **Plugin architecture** — add support for new card types by dropping in a shared library. Both middleware (card communication) and GUI (data display) are extensible.
 - **Multilingual** — English and Serbian (Cyrillic) interface.
 - **PKCS#11 module** — for CardEdge cards: use in Firefox, Chrome, SSH, and email signing. Installed separately.
-- **OpenSC external driver** — for CardEdge cards: extends OpenSC for cards it doesn't natively support. Contributed upstream (PR #3595, approved).
+- **OpenSC external driver** — for CardEdge cards: extends OpenSC for cards it doesn't natively support. Submitted upstream (PR #3595, approved — merge pending).
 
 ---
 

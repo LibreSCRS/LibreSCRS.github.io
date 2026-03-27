@@ -63,10 +63,7 @@ LibreSCRS is not the first open-source effort to liberate Serbian smart cards. W
 
 ## Contributing
 
-Bug reports, pull requests, and protocol analysis contributions are welcome on GitHub.
-
-- [LibreCelik issues](https://github.com/LibreSCRS/LibreCelik/issues)
-- [LibreMiddleware issues](https://github.com/LibreSCRS/LibreMiddleware/issues)
+See the [Contribute](/contribute/) page for how to report bugs, submit pull requests, and add support for new card types.
 
 ---
 

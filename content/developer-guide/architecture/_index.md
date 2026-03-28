@@ -17,15 +17,15 @@ A Qt-free C++20 static library collection for smart card communication. It handl
 | `smartcard` | PCSCConnection, Monitor (card event polling), APDU command/response, TLV and BER-TLV parsing (ISO 7816-4), TransmitFilter (transparent Secure Messaging layer) |
 | `plugin` | CardPlugin interface (with streaming support), CardData model, CardPluginRegistry (dlopen), AutoReader (Monitor + plugin discovery bridge) |
 | `pkcs15` | Generic PKCS#15/ISO 7816-15 parser and card library — EF.ODF/EF.DIR discovery, certificate and key enumeration. Works with any PKCS#15-compliant card |
-| `eidcard` | Serbian eID card API with card reader implementations (Apollo 2008, Gemalto 2014+, Foreigner IF2020) |
-| `vehiclecard` | Vehicle registration document API |
-| `healthcard` | Health insurance card (RFZO) |
-| `pkscard` | PKS qualified signature card (Chamber of Commerce) |
-| `cardedge` | Gemalto CardEdge applet — PIN operations, signing, certificate discovery (Serbian eID PKI) |
+| `rs-eid` | Serbian eID card API with card reader implementations (Apollo 2008, Gemalto 2014+, Foreigner IF2020) |
+| `eu-vrc` | EU Vehicle Registration Certificate (Directive 2003/127/EC) |
+| `rs-health` | Serbian health insurance card (RFZO) |
+| `cardedge` | CardEdge PKI applet for Serbian smart cards — certificates, PIN management, digital signing |
 | `emrtd` | eMRTD e-passport communication — data group reading, MRZ parsing |
 | `emrtd-crypto` | eMRTD cryptography — BAC, PACE (ECDH-GM), Secure Messaging |
+| `piv` | PIV card communication (NIST SP 800-73) |
 | `pkcs11` | PKCS#11 shared library (`librescrs-pkcs11`) |
-| `*-plugin` | Card plugins (`.so`): eidcard, vehiclecard, healthcard, pkscard, cardedge, pkcs15, opensc, emrtd |
+| `*-plugin` | Card plugins (`.so`): rs-eid, rs-health, eu-vrc, emrtd, piv, pkcs15, cardedge, opensc |
 
 ### LibreCelik (GPL-3.0)
 
@@ -38,7 +38,7 @@ A Qt6 desktop GUI application that displays card data. It is a **pure presentati
 | `asynccardreader` | Generic async card reader using middleware CardPlugin fallback chain |
 | `document` | Shared PKI UI (TokenSection), PIN change dialog, printing |
 | `certificate` | X.509 certificate viewer (tree model + dialog) |
-| `plugins/` | GUI plugins (rseid, vehicle, health, pks, emrtd) as Qt MODULE `.so` files |
+| `plugins/` | GUI plugins (rs-eid, rs-health, eu-vrc, emrtd, piv, token) as Qt MODULE `.so` files |
 
 LibreCelik fetches LibreMiddleware via CMake `FetchContent`. For local development, you can point it to a local checkout instead.
 
@@ -60,11 +60,12 @@ The entire system is built around plugins. There are two independent plugin laye
 │           │ wraps             ┌──────▼──────────────┐   │
 │           │                   │  GUI Plugins (.so)   │   │
 │           │                   │ ┌──────┐ ┌────────┐ │   │
-│           │                   │ │rseid │ │vehicle │ │   │
+│           │                   │ │rs-eid│ │eu-vrc  │ │   │
 │           │                   │ ├──────┤ ├────────┤ │   │
-│           │                   │ │health│ │  pks   │ │   │
-│           │                   │ ├──────┤ └────────┘ │   │
-│           │                   │ │emrtd │            │   │
+│           │                   │ │rs-   │ │ emrtd  │ │   │
+│           │                   │ │health│ ├────────┤ │   │
+│           │                   │ ├──────┤ │  piv   │ │   │
+│           │                   │ │token │ └────────┘ │   │
 │           │                   │ └──────┘            │   │
 │           │                   └─────────────────────┘   │
 │           │                          ▲                  │
@@ -80,11 +81,11 @@ The entire system is built around plugins. There are two independent plugin laye
 │  ┌───────────────────────────────▼─────────────────┐   │
 │  │           Middleware Plugins (.so)                │   │
 │  │ ┌─────────┐ ┌──────────┐ ┌───────────────────┐ │   │
-│  │ │ eidcard │ │ vehicle  │ │     opensc         │ │   │
+│  │ │ rs-eid  │ │  emrtd   │ │     opensc         │ │   │
 │  │ ├─────────┤ ├──────────┤ │ (PKI fallback)     │ │   │
-│  │ │ health  │ │  emrtd   │ └───────────────────┘ │   │
+│  │ │ eu-vrc  │ │ cardedge │ └───────────────────┘ │   │
 │  │ ├─────────┤ ├──────────┤ ┌───────────────────┐ │   │
-│  │ │  pks    │ │ cardedge │ │     pkcs15         │ │   │
+│  │ │rs-health│ │   piv    │ │     pkcs15         │ │   │
 │  │ └─────────┘ └──────────┘ └───────────────────┘ │   │
 │  └─────────────────────────────────────────────────┘   │
 │                          │                             │
@@ -124,7 +125,7 @@ A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPlugin
 
 **Fallback chain:** If the top-ranked plugin's `readCard()` fails, the next candidate is tried automatically. The OpenSC plugin serves as a generic fallback for any card it doesn't natively support.
 
-**PKI fallback:** Data plugins (eID, vehicle, health) read demographic data but may not handle PKI operations. After a data plugin finishes, the system can trigger a separate PKI plugin (CardEdge, PKCS#15, or OpenSC) to provide certificate discovery, signing, and PIN management. This decoupling means data plugins don't need to know about PKI.
+**PKI fallback:** Data plugins (eID, vehicle, health) read demographic data but do not handle PKI operations. After a data plugin finishes, the system can trigger a separate PKI plugin (CardEdge, PKCS#15, or OpenSC) to provide certificate discovery, signing, and PIN management. This decoupling means data plugins don't need to know about PKI.
 
 **To add a new card type:** Write a class that inherits `CardPlugin`, implement `canHandle()`, `canHandleConnection()`, and `readCard()` (optionally `readCardStreaming()`), build as a shared library, and drop it into the plugin directory. The registry discovers it automatically at next startup.
 
@@ -233,10 +234,16 @@ The complete flow when a smart card is inserted:
 
 | Namespace | Scope |
 |---|---|
+| `smartcard::` | SmartCard library — APDU, TLV, BER, PCSCConnection, Monitor |
 | `plugin::` | Plugin system types — CardData, CardPlugin, CertificateData, CardPluginRegistry |
-| `eidcard::` | EIdCard library types and API |
-| `vehiclecard::` | VehicleCard library types and API |
-| `smartcard::` | SmartCard library — APDU, TLV, BER, PCSCConnection |
+| `eidcard::` | Serbian eID library types and API |
+| `euvrc::` | EU Vehicle Registration Certificate types and API |
+| `healthcard::` | Serbian health insurance card types |
+| `cardedge::` | CardEdge PKI applet — certificates, PIN, signing |
+| `emrtd::` | eMRTD data structures and MRZ parsing |
+| `emrtd::crypto` | eMRTD cryptography — BAC, PACE, Secure Messaging |
+| `piv::` | PIV card types and API |
+| `pkcs15::` | PKCS#15 parser types |
 | `LibreSCRS::` | GUI application types |
 
 ---
@@ -252,3 +259,5 @@ The following standards are relevant to the codebase:
 | PKCS#11 | Cryptographic token interface — browser authentication, digital signatures |
 | PKCS#15 | Cryptographic information application — certificate and key discovery on smart cards |
 | ICAO 9303 | eMRTD (e-passports) — BAC and PACE key agreement, Secure Messaging, data group structure |
+| NIST SP 800-73 | PIV card interface — certificate discovery, authentication, digital signing |
+| BSI TR-03110 | PACE protocol — password-authenticated key agreement for eMRTD |

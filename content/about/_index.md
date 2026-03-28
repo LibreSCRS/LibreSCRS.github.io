@@ -13,7 +13,7 @@ LibreSCRS started as a reverse-engineering effort to liberate Serbian government
 2. **Early 2026** — LibreMiddleware extracted as standalone C++20 library (no Qt dependency)
 3. **Early 2026** — PKCS#11 module ships; OpenSC Serbian eID driver contributed upstream (PR #3595, approved)
 4. **Early 2026** — Plugin architecture: both middleware and GUI become card-agnostic
-5. **2026** — eMRTD + PKCS#15 support: e-passports, any PKI card. Universal toolkit.
+5. **2026** — eMRTD, PKCS#15, and PIV support: e-passports, any PKCS#15-based PKI card, PIV smart cards. Universal toolkit.
 
 ---
 

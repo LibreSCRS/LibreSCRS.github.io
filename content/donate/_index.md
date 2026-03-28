@@ -8,34 +8,23 @@ LibreSCRS is developed and maintained in spare time. The project is independent 
 
 ---
 
-## One-Time Donations
+## Recurring Contributions
 
-Donate any amount, or pick a concrete goal:
+| Tier | Amount | Description |
+|------|--------|-------------|
+| Backer | from €5/month | Join us and support the project |
+| Sponsor | from €100/month | Become a sponsor and support the project |
+
+---
+
+## One-Time Contributions
 
 | Goal | Amount | What it funds |
 |------|--------|---------------|
-| Buy the developer a smart card reader | €30 | Testing hardware for new card types |
-| Fund a new card type | €500 | Development time for a complete card plugin |
+| Buy a Smart Card Reader | €30 | Testing hardware for new card types |
+| Fund a New Card Type | €500 | Development time for a complete card plugin |
 
----
-
-## Individual Tiers
-
-| Tier | Monthly | Yearly | You get |
-|------|---------|--------|---------|
-| Supporter | €5 | €50 | Name on website (Contributors section) |
-| Backer | €10 | €100 | + Priority support via GitHub Issues |
-| Champion | €25 | €250 | + Vote on next feature (roadmap input) |
-
----
-
-## Organization Tiers
-
-| Tier | Monthly | Yearly | You get |
-|------|---------|--------|---------|
-| Bronze Sponsor | €50 | €500 | Logo on website (Sponsors section) |
-| Silver Sponsor | €100 | €1,000 | + Logo in README + priority bug reports |
-| Gold Sponsor | €250 | €2,500 | + Logo on homepage + dedicated support channel |
+You can also make a custom one-time or recurring donation of any amount.
 
 ---
 

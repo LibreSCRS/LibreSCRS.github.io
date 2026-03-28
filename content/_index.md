@@ -4,7 +4,7 @@ title: ""
 
 # LibreSCRS — Libre Smart Card Reader System
 
-Liberate your smart cards. Open-source tools for Linux & macOS.
+Libre smart card tools for Linux & macOS.
 
 `ISO 7816 · PC/SC · PKCS#11 · PKCS#15 · ICAO 9303 · NIST PIV · BSI TR-03110`
 

@@ -21,8 +21,8 @@ Download the package for your platform from the [releases page](https://github.c
 ### Linux
 
 ```bash
-tar -xzf LibreSCRS-pkcs11-*-linux-*.tar.gz
-sudo cp lib/librescrs-pkcs11.so* /usr/local/lib/
+tar -xzf LibreSCRS-cardedge-pkcs11-*-linux-*.tar.gz
+sudo cp lib/librescrs-cardedge-pkcs11.so* /usr/local/lib/
 sudo ldconfig
 ```
 
@@ -46,8 +46,8 @@ Verify with: `p11-kit list-modules | grep -A5 librescrs`
 ### macOS
 
 ```bash
-unzip LibreSCRS-pkcs11-*-macos.zip
-sudo cp librescrs-pkcs11.dylib /usr/local/lib/
+unzip LibreSCRS-cardedge-pkcs11-*-macos.zip
+sudo cp librescrs-cardedge-pkcs11.dylib /usr/local/lib/
 ```
 
 ---
@@ -57,8 +57,8 @@ sudo cp librescrs-pkcs11.dylib /usr/local/lib/
 1. Open **Settings** > **Privacy & Security** > scroll to **Security** > **Security Devices**
 2. Click **Load**
 3. Enter a name (e.g. `LibreSCRS`) and the path to the module:
-   - Linux: `/usr/local/lib/librescrs-pkcs11.so`
-   - macOS: `/usr/local/lib/librescrs-pkcs11.dylib`
+   - Linux: `/usr/local/lib/librescrs-cardedge-pkcs11.so`
+   - macOS: `/usr/local/lib/librescrs-cardedge-pkcs11.dylib`
 4. Click **OK**
 
 Insert your smart card and refresh — Firefox will prompt for PIN when a certificate is needed. This is how you authenticate to services that require client certificate authentication, such as Serbian eUprava.
@@ -76,7 +76,7 @@ sudo dnf install nss-tools         # Fedora
 
 # Register for the current user
 modutil -dbdir sql:$HOME/.pki/nssdb -add "LibreSCRS" \
-    -libfile /usr/local/lib/librescrs-pkcs11.so
+    -libfile /usr/local/lib/librescrs-cardedge-pkcs11.so
 ```
 
 Restart Chrome. The card's certificates will appear in **Settings** > **Privacy and security** > **Manage certificates**.
@@ -94,20 +94,20 @@ Same as Firefox — **Preferences** > **Privacy & Security** > **Security Device
 List the public keys on the card:
 
 ```bash
-ssh-keygen -D /usr/local/lib/librescrs-pkcs11.so
+ssh-keygen -D /usr/local/lib/librescrs-cardedge-pkcs11.so
 ```
 
 Use the module for SSH authentication:
 
 ```bash
-ssh -I /usr/local/lib/librescrs-pkcs11.so user@host
+ssh -I /usr/local/lib/librescrs-cardedge-pkcs11.so user@host
 ```
 
 Or add to `~/.ssh/config`:
 
 ```
 Host myserver
-    PKCS11Provider /usr/local/lib/librescrs-pkcs11.so
+    PKCS11Provider /usr/local/lib/librescrs-cardedge-pkcs11.so
 ```
 
 ---
@@ -118,5 +118,5 @@ See [LibreMiddleware on GitHub](https://github.com/LibreSCRS/LibreMiddleware) fo
 
 ```bash
 cmake -S /path/to/LibreMiddleware -B build
-cmake --build build --target librescrs-pkcs11
+cmake --build build --target librescrs-cardedge-pkcs11
 ```

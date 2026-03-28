@@ -24,7 +24,7 @@ A Qt-free C++20 static library collection for smart card communication. It handl
 | `emrtd` | eMRTD e-passport communication — data group reading, MRZ parsing |
 | `emrtd-crypto` | eMRTD cryptography — BAC, PACE (ECDH-GM), Secure Messaging |
 | `piv` | PIV card communication (NIST SP 800-73) |
-| `pkcs11` | PKCS#11 shared library (`librescrs-pkcs11`) |
+| `cardedge-pkcs11` | PKCS#11 shared library (`librescrs-cardedge-pkcs11`) |
 | `*-plugin` | Card plugins (`.so`): rs-eid, rs-health, eu-vrc, emrtd, piv, pkcs15, cardedge, opensc |
 
 ### LibreCelik (GPL-3.0)

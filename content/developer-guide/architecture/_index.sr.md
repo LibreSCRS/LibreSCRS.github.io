@@ -24,7 +24,7 @@ LibreSCRS се састоји од два главна пројекта који
 | `emrtd` | eMRTD комуникација са е-пасошем — читање група података, парсирање MRZ-а |
 | `emrtd-crypto` | eMRTD криптографија — BAC, PACE (ECDH-GM), Secure Messaging |
 | `piv` | PIV комуникација са картицом (NIST SP 800-73) |
-| `pkcs11` | PKCS#11 дељена библиотека (`librescrs-pkcs11`) |
+| `cardedge-pkcs11` | PKCS#11 дељена библиотека (`librescrs-cardedge-pkcs11`) |
 | `*-plugin` | Додаци за картице (`.so`): rs-eid, rs-health, eu-vrc, emrtd, piv, pkcs15, cardedge, opensc |
 
 ### LibreCelik (GPL-3.0)

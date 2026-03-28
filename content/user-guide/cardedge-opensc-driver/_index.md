@@ -23,17 +23,17 @@ Pre-built packages are available on the [releases page](https://github.com/Libre
 
 | Platform | File |
 |----------|------|
-| Linux (x86_64, OpenSC 0.26.x) | `librescrs-opensc-*-opensc0.26.x-linux-x86_64.tar.gz` |
-| macOS (Apple Silicon, OpenSC 0.26.x) | `librescrs-opensc-*-opensc0.26.x-macos-arm64.zip` |
+| Linux (x86_64, OpenSC 0.26.x) | `librescrs-cardedge-opensc-*-opensc0.26.x-linux-x86_64.tar.gz` |
+| macOS (Apple Silicon, OpenSC 0.26.x) | `librescrs-cardedge-opensc-*-opensc0.26.x-macos-arm64.zip` |
 
 Extract and copy:
 
 ```bash
 # Linux
-sudo cp librescrs-opensc.so /usr/local/lib/
+sudo cp librescrs-cardedge-opensc.so /usr/local/lib/
 
 # macOS
-sudo cp librescrs-opensc.dylib /usr/local/lib/
+sudo cp librescrs-cardedge-opensc.dylib /usr/local/lib/
 ```
 
 ---
@@ -46,9 +46,9 @@ sudo cp librescrs-opensc.dylib /usr/local/lib/
 sudo apt install libopensc-dev        # Debian/Ubuntu
 # sudo dnf install opensc-devel       # Fedora/RHEL
 
-cmake -S /path/to/LibreMiddleware -B build -DBUILD_OPENSC_DRIVER=ON
-cmake --build build --target librescrs-opensc
-sudo cp build/lib/opensc-driver/librescrs-opensc.so /usr/local/lib/
+cmake -S /path/to/LibreMiddleware -B build -DBUILD_CARDEDGE_OPENSC_DRIVER=ON
+cmake --build build --target librescrs-cardedge-opensc
+sudo cp build/lib/cardedge-opensc-driver/librescrs-cardedge-opensc.so /usr/local/lib/
 ```
 
 ### macOS
@@ -61,10 +61,10 @@ opensc-tool --version          # note the version, e.g. 0.26.1
 git clone --branch 0.26.1 --depth 1 https://github.com/OpenSC/OpenSC /tmp/opensc-src
 
 cmake -S /path/to/LibreMiddleware -B build \
-    -DBUILD_OPENSC_DRIVER=ON \
+    -DBUILD_CARDEDGE_OPENSC_DRIVER=ON \
     -DOPENSC_INCLUDE_DIR=/tmp/opensc-src/src
-cmake --build build --target librescrs-opensc
-sudo cp build/lib/opensc-driver/librescrs-opensc.dylib /usr/local/lib/
+cmake --build build --target librescrs-cardedge-opensc
+sudo cp build/lib/cardedge-opensc-driver/librescrs-cardedge-opensc.dylib /usr/local/lib/
 ```
 
 ---
@@ -83,14 +83,14 @@ app default {
     card_drivers = librescrs, internal;
 
     card_driver librescrs {
-        module = /usr/local/lib/librescrs-opensc.so;   # Linux
-        # module = /usr/local/lib/librescrs-opensc.dylib;  # macOS
+        module = /usr/local/lib/librescrs-cardedge-opensc.so;   # Linux
+        # module = /usr/local/lib/librescrs-cardedge-opensc.dylib;  # macOS
     }
 
     framework pkcs15 {
         emulate librescrs {
-            module = /usr/local/lib/librescrs-opensc.so;   # Linux
-            # module = /usr/local/lib/librescrs-opensc.dylib;  # macOS
+            module = /usr/local/lib/librescrs-cardedge-opensc.so;   # Linux
+            # module = /usr/local/lib/librescrs-cardedge-opensc.dylib;  # macOS
         }
     }
 }

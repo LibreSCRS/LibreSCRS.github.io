@@ -11,8 +11,8 @@ Smart cards with private keys can be used for digital signatures. This page cove
 You need one of the following:
 
 1. **OpenSC with built-in Serbian card support** — just install OpenSC, nothing else needed. *(Not yet released — a built-in driver has been approved and is pending inclusion in the next OpenSC release.)*
-2. **OpenSC + LibreSCRS external driver** — use this until the built-in driver is released. Gives you full OpenSC CLI tools (`pkcs15-crypt`, `pkcs11-tool`, etc.). See [OpenSC driver setup]({{< ref "user-guide/opensc-driver" >}}).
-3. **LibreSCRS PKCS#11 module** — works without OpenSC. For browser authentication and signing via any PKCS#11 application. See [PKCS#11 setup]({{< ref "user-guide/pkcs11" >}}).
+2. **OpenSC + LibreSCRS external driver** — use this until the built-in driver is released. Gives you full OpenSC CLI tools (`pkcs15-crypt`, `pkcs11-tool`, etc.). See [OpenSC driver setup]({{< ref "user-guide/cardedge-opensc-driver" >}}).
+3. **LibreSCRS PKCS#11 module** — works without OpenSC. For browser authentication and signing via any PKCS#11 application. See [PKCS#11 setup]({{< ref "user-guide/cardedge-pkcs11" >}}).
 
 ---
 
@@ -50,7 +50,7 @@ openssl dgst -sha256 -verify /tmp/pubkey.pem \
 You can also sign using `pkcs11-tool` with either the LibreSCRS PKCS#11 module or OpenSC's module:
 
 ```bash
-pkcs11-tool --module /usr/local/lib/librescrs-pkcs11.so \
+pkcs11-tool --module /usr/local/lib/librescrs-cardedge-pkcs11.so \
     --sign --mechanism RSA-PKCS --id 02 \
     --input-file /tmp/hash.bin --output-file /tmp/sig.bin
 ```
@@ -59,7 +59,7 @@ pkcs11-tool --module /usr/local/lib/librescrs-pkcs11.so \
 
 ## Browser authentication (eUprava)
 
-For authenticating to government services like eUprava, set up the PKCS#11 module in Firefox. See the [PKCS#11 Firefox setup guide]({{< ref "user-guide/pkcs11" >}}).
+For authenticating to government services like eUprava, set up the PKCS#11 module in Firefox. See the [PKCS#11 Firefox setup guide]({{< ref "user-guide/cardedge-pkcs11" >}}).
 
 When you visit a site that requires client certificate authentication, Firefox will prompt you to select a certificate and enter your PIN.
 
@@ -78,6 +78,6 @@ This functionality has not been extensively tested. If you have experience with 
 
 ## Email signing (S/MIME)
 
-Thunderbird and other email clients that support PKCS#11 security devices can use your smart card certificates for S/MIME email signing and encryption. Load the PKCS#11 module in Thunderbird the same way as in Firefox — see [PKCS#11 setup]({{< ref "user-guide/pkcs11" >}}).
+Thunderbird and other email clients that support PKCS#11 security devices can use your smart card certificates for S/MIME email signing and encryption. Load the PKCS#11 module in Thunderbird the same way as in Firefox — see [PKCS#11 setup]({{< ref "user-guide/cardedge-pkcs11" >}}).
 
 Whether the certificates on your card are suitable for S/MIME depends on their key usage extensions. If you have tested this, please [share your results](https://github.com/LibreSCRS/LibreMiddleware/issues).

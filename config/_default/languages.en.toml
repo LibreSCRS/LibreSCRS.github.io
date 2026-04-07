@@ -3,7 +3,7 @@ languageName = "English"
 weight = 1
 
 [params]
-  description = "Open-source software for Serbian government smart cards"
+  description = "Open-source smart card reader and digital signing software"
 
   [params.author]
     name = "LibreSCRS Project"

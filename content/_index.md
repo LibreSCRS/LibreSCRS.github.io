@@ -21,10 +21,6 @@ GUI smart card reader with plugin support. Passports, e-passports, eID, vehicle 
 
 Build middleware and GUI plugins for new card types. Standards-based C++20 architecture.
 
-### Complements OpenSC
-
-Falls back to OpenSC for PKI on unsupported cards. Native plugins take priority when available.
-
 ---
 
 ## Support LibreSCRS

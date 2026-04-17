@@ -4,7 +4,7 @@ layout: "simple"
 description: "Help keep LibreSCRS free and open-source"
 ---
 
-LibreSCRS is developed and maintained in spare time. The project is independent — no corporate backing, no government funding. If these tools are useful to you, consider supporting the project through Open Source Collective.
+LibreSCRS is developed and maintained in spare time. The project is independent. If these tools are useful to you, consider supporting the project.
 
 ---
 
@@ -12,8 +12,10 @@ LibreSCRS is developed and maintained in spare time. The project is independent 
 
 | Tier | Amount | Description |
 |------|--------|-------------|
-| Backer | from €5/month | Join us and support the project |
-| Sponsor | from €100/month | Become a sponsor and support the project |
+| Backer | $5/month | Support ongoing development |
+| Supporter | $15/month | Help fund testing hardware and CI/CD |
+| Sponsor | $50/month | Your name in project README |
+| Gold Sponsor | $100/month | Logo in README + website |
 
 ---
 
@@ -21,8 +23,9 @@ LibreSCRS is developed and maintained in spare time. The project is independent 
 
 | Goal | Amount | What it funds |
 |------|--------|---------------|
-| Buy a Smart Card Reader | €30 | Testing hardware for new card types |
-| Fund a New Card Type | €500 | Development time for a complete card plugin |
+| Card Reader | $30 | A smart card reader for testing |
+| Card Type | $100 | New card type support |
+| Major Feature | $500 | Development of a major feature |
 
 You can also make a custom one-time or recurring donation of any amount.
 
@@ -36,4 +39,4 @@ You can also make a custom one-time or recurring donation of any amount.
 
 ---
 
-{{< button href="https://opencollective.com/librescrs" target="_blank" >}}Donate via Open Source Collective{{< /button >}}
+{{< button href="https://github.com/sponsors/LibreSCRS" target="_blank" >}}Sponsor on GitHub{{< /button >}}&nbsp;&nbsp;{{< button href="https://opencollective.com/librescrs" target="_blank" >}}Donate via Open Collective{{< /button >}}

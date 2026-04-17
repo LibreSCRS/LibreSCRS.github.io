@@ -11,9 +11,9 @@ LibreSCRS started as a reverse-engineering effort to liberate Serbian government
 
 1. **Mid 2025** — Project begins: LibreCelik, GUI reader for Serbian eID and vehicle cards
 2. **Early 2026** — LibreMiddleware extracted as standalone C++20 library (no Qt dependency)
-3. **Early 2026** — PKCS#11 module ships; OpenSC Serbian eID driver contributed upstream (PR #3595, approved)
+3. **Early 2026** — PKCS#11 module ships; OpenSC Serbian eID driver contributed upstream (PR #3595, merged)
 4. **Early 2026** — Plugin architecture: both middleware and GUI become card-agnostic
-5. **2026** — eMRTD, PKCS#15, and PIV support: e-passports, any PKCS#15-based PKI card, PIV smart cards. Universal toolkit.
+5. **2026** — eMRTD, PKCS#15, and PIV support: e-passports, any PKCS#15-based PKI card, PIV smart cards. PKCS#11 module generalized to support all card types. Universal toolkit.
 
 ---
 
@@ -28,12 +28,6 @@ As the codebase grew, it became clear that the card communication logic needed t
 The next step was a plugin architecture. Instead of hardcoding support for specific cards, both the middleware and the GUI became extensible. CardPluginRegistry discovers card handlers at runtime via dlopen; CardWidgetPluginRegistry loads GUI plugins via QPluginLoader. Adding a new card type means dropping in a shared library — no recompilation needed.
 
 Most recently, support was added for eMRTD e-passports and PKCS#15 generic cards. eMRTD required implementing BAC and PACE key agreement from the ICAO 9303 specification — Diffie-Hellman over elliptic curves, key derivation functions, and Secure Messaging with session keys. PKCS#15 adds the ability to discover and use certificates and keys on any compliant card.
-
----
-
-## OpenSC
-
-LibreSCRS is designed to complement OpenSC. For cards without a native LibreMiddleware plugin, it can fall back to OpenSC for PKI operations (certificate discovery, authentication, signing) while providing its own GUI and demographic data reading. Native plugins always take priority when available.
 
 ---
 

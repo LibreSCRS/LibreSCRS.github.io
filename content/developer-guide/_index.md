@@ -9,6 +9,8 @@ This guide is for developers who want to understand the LibreSCRS internals, bui
 ## Topics
 
 - [Architecture Overview]({{< ref "developer-guide/architecture" >}}) — system components, data flow, plugin system, and design patterns
+- [Signing Architecture]({{< ref "developer-guide/signing-architecture" >}}) — native signing engine, format support, and certificate handling
+- [Signing Integration Guide]({{< ref "developer-guide/signing-integration" >}}) — integrating digital signing into applications using LibreMiddleware
 - [Building From Source]({{< ref "developer-guide/building-from-source" >}}) — prerequisites, build instructions, and running tests
 
 For plugin API details, see the `CardPlugin` and `CardWidgetPlugin` interfaces in the [Architecture Overview]({{< ref "developer-guide/architecture" >}}).

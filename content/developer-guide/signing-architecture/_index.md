@@ -70,7 +70,7 @@ Each signature format is implemented as an independent module. All modules follo
 | JAdES | `native/jades_module.cpp` | JSON Web Signature with JAdES header |
 | ASiC-E | `native/asic_module.cpp` | ZIP container with XAdES signature (uses miniz) |
 
-Format modules do not access PKCS#11 directly. They receive a `SigningProvider` callback that abstracts the actual signing operation, keeping the modules testable without hardware.
+Format modules receive a `Pkcs11Token&` reference for signing operations. The token handles PKCS#11 session management, key lookup, and raw signing internally.
 
 ### Infrastructure
 
@@ -79,13 +79,13 @@ Format modules do not access PKCS#11 directly. They receive a `SigningProvider` 
 | `Pkcs11Token` | `native/pkcs11_token.h/.cpp` | PKCS#11 session management — module loading, login, key lookup, raw sign, certificate extraction |
 | `TSAClient` | `native/tsa_client.h/.cpp` | RFC 3161 timestamp requests via HTTP (libcurl) |
 | `RevocationClient` | `native/revocation_client.h/.cpp` | CRL and OCSP fetching for B-LT/B-LTA levels |
-| `SigningProvider` | `native/signing_provider.h/.cpp` | Callback abstraction over Pkcs11Token — format modules call this instead of the token directly |
+| `SigningProvider` | `native/signing_provider.h/.cpp` | Abstraction over Pkcs11Token for downstream consumers |
 | `TrustedListParser` | `native/trusted_list_parser.h/.cpp` | XML parser for EU Trusted Lists (LOTL and TL) |
-| `TlCache` | `native/tl_cache.h/.cpp` | Disk cache for downloaded Trusted List XML files |
-| `TlSignatureVerifier` | `native/tl_signature_verifier.h/.cpp` | XML-DSIG verification of Trusted List signatures |
+| `TlCache` | (internal) `native/tl_cache.h/.cpp` | Disk cache for downloaded Trusted List XML files |
+| `TlSignatureVerifier` | (internal) `native/tl_signature_verifier.h/.cpp` | XML-DSIG verification of Trusted List signatures |
 | `TrustStoreManager` | (internal) | Aggregates system, bundled, and TL-derived certificates |
-| PDF parser | `native/pdf_parser.h/.cpp` | Minimal PDF parser for PAdES incremental save — finds xref, appends signature dictionary |
-| OpenSSL RAII | `native/openssl_raii.h` | RAII wrappers for OpenSSL types (`BIO`, `X509`, `EVP_PKEY`, etc.) |
+| PDF parser | (internal) `native/pdf_parser.h/.cpp` | Minimal PDF parser for PAdES incremental save — finds xref, appends signature dictionary |
+| OpenSSL RAII | (internal) `native/openssl_raii.h` | RAII wrappers for OpenSSL types (`BIO`, `X509`, `EVP_PKEY`, etc.) |
 
 ---
 
@@ -182,7 +182,7 @@ LibreCelik (the GUI) and LibreMiddleware (the engine) are separate projects with
 To add a new format module:
 
 1. Create `native/newformat_module.h` and `native/newformat_module.cpp`
-2. Implement a `sign()` function that accepts the document, certificate chain, `SigningProvider` callback, and format-specific parameters
+2. Implement a `sign()` function that accepts the document, `Pkcs11Token&`, and format-specific parameters
 3. Register the format in `NativeSigningService::sign()` by adding a case for the new `SignatureFormat` enum value
 4. Add the new enum value to `SignatureFormat` in `types.h`
 5. Add the source files to `lib/libresign/CMakeLists.txt`

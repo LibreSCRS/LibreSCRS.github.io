@@ -9,6 +9,8 @@ layout: "simple"
 ## Теме
 
 - [Преглед архитектуре](/sr/developer-guide/architecture/) — компоненте система, ток података, систем додатака и пројектни обрасци
+- [Архитектура потписивања](/sr/developer-guide/signing-architecture/) — нативни механизам потписивања, подржани формати и руковање сертификатима
+- [Водич за интеграцију потписивања](/sr/developer-guide/signing-integration/) — интеграција дигиталног потписивања у апликације користећи LibreMiddleware
 - [Изградња из изворног кода](/sr/developer-guide/building-from-source/) — предуслови, упутства за изградњу и покретање тестова
 
 За детаље о плагин API-јима, погледајте `CardPlugin` и `CardWidgetPlugin` интерфејсе у [Прегледу архитектуре](/sr/developer-guide/architecture/).

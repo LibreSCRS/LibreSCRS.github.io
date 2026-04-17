@@ -1,12 +1,22 @@
 ---
 layout: "simple"
-title: "OpenSC Card Driver"
-description: "Building, installing, and using the LibreSCRS OpenSC external card driver"
+title: "OpenSC Integration"
+description: "Native OpenSC support for Serbian cards and the external driver for current OpenSC releases"
+aliases:
+  - /user-guide/cardedge-opensc-driver/
 ---
 
-> **Temporary — this driver will be deprecated.** A built-in Serbian card driver has been [contributed to OpenSC](https://github.com/OpenSC/OpenSC/pull/3595) and approved for inclusion by the OpenSC maintainers. Once the next OpenSC release ships, this external driver will no longer be needed — just install OpenSC. Until then, this driver remains fully functional.
+## Native OpenSC Support
 
-The LibreSCRS OpenSC card driver is an external card driver module for OpenSC. Once installed, any PKCS#11-aware application can use Serbian eID and PKS cards transparently via OpenSC's PKCS#11 bridge.
+The [srbeid driver](https://github.com/OpenSC/OpenSC/pull/3595) for Serbian smart cards has been merged into OpenSC mainline. Serbian eID (Gemalto 2014+, IF2020 Foreigner) and PKS Chamber of Commerce cards will be supported out of the box in the next OpenSC release.
+
+If you build OpenSC from source (main branch), native support is already available — no external driver or configuration needed.
+
+---
+
+## External Driver
+
+For users on current OpenSC release versions (0.26.x, 0.27.x) that do not yet include the native srbeid driver, LibreSCRS provides an external card driver module. Once installed, any PKCS#11-aware application can use Serbian eID and PKS cards transparently via OpenSC's PKCS#11 bridge.
 
 **Supported cards**:
 - Serbian eID Gemalto (2014+) — matched by ATR `3B:FF:94`
@@ -15,16 +25,9 @@ The LibreSCRS OpenSC card driver is an external card driver module for OpenSC. O
 
 **Not supported**: Apollo 2008 eID (no CardEdge applet).
 
----
+### Download
 
-## Download
-
-Pre-built packages are available on the [releases page](https://github.com/LibreSCRS/LibreMiddleware/releases):
-
-| Platform | File |
-|----------|------|
-| Linux (x86_64, OpenSC 0.26.x) | `librescrs-cardedge-opensc-*-opensc0.26.x-linux-x86_64.tar.gz` |
-| macOS (Apple Silicon, OpenSC 0.26.x) | `librescrs-cardedge-opensc-*-opensc0.26.x-macos-arm64.zip` |
+Pre-built packages for OpenSC 0.26.x and 0.27.x are available on the [releases page](https://github.com/LibreSCRS/LibreMiddleware/releases).
 
 Extract and copy:
 
@@ -36,11 +39,9 @@ sudo cp librescrs-cardedge-opensc.so /usr/local/lib/
 sudo cp librescrs-cardedge-opensc.dylib /usr/local/lib/
 ```
 
----
+### Build from source
 
-## Build from source
-
-### Linux
+#### Linux
 
 ```bash
 sudo apt install libopensc-dev        # Debian/Ubuntu
@@ -51,7 +52,7 @@ cmake --build build --target librescrs-cardedge-opensc
 sudo cp build/lib/cardedge-opensc-driver/librescrs-cardedge-opensc.so /usr/local/lib/
 ```
 
-### macOS
+#### macOS
 
 Homebrew installs OpenSC but not its development headers. Clone the OpenSC source at the matching version tag:
 
@@ -67,9 +68,7 @@ cmake --build build --target librescrs-cardedge-opensc
 sudo cp build/lib/cardedge-opensc-driver/librescrs-cardedge-opensc.dylib /usr/local/lib/
 ```
 
----
-
-## Configuration
+### Configuration
 
 Add the following to your `opensc.conf`:
 
@@ -96,18 +95,16 @@ app default {
 }
 ```
 
----
+### Verification
 
-## Verification
-
-### Card detection
+#### Card detection
 
 ```bash
 opensc-tool --list-readers
 # Gemalto USB SmartCard Reader  Slot 0  ATR: 3B FF ...
 ```
 
-### PKCS#15 objects
+#### PKCS#15 objects
 
 ```bash
 pkcs15-tool --list-certificates
@@ -117,9 +114,7 @@ pkcs15-tool --list-pins          # shows tries remaining
 
 For signing and verifying files, see the [Digital Signing]({{< ref "user-guide/digital-signing" >}}) page.
 
----
-
-## Debugging
+### Debugging
 
 Enable OpenSC debug logging in `opensc.conf`:
 

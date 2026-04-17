@@ -4,39 +4,14 @@ layout: "simple"
 description: "Помозите да LibreSCRS остане бесплатан и отвореног кода"
 ---
 
+{{< button href="https://github.com/sponsors/LibreSCRS" target="_blank" >}}Спонзоришите на GitHub-у{{< /button >}}&nbsp;&nbsp;{{< button href="https://opencollective.com/librescrs" target="_blank" >}}Донирајте преко Open Collective{{< /button >}}
+
+---
+
 LibreSCRS се развија и одржава у слободно време. Пројекат је независан. Ако су вам ови алати корисни, размислите о подршци пројекту.
-
----
-
-## Редовни доприноси
-
-| Ниво | GitHub (USD) | Open Collective (EUR) | Опис |
-|------|-------------|----------------------|------|
-| Backer | $5/месечно | €5/месечно | Подржите развој пројекта |
-| Supporter | $15/месечно | €15/месечно | Помозите у набавци хардвера и CI/CD инфраструктуре |
-| Sponsor | $50/месечно | €50/месечно | Ваше име у README пројекта |
-| Gold Sponsor | $100/месечно | €100/месечно | Лого у README-у и на сајту |
-
----
-
-## Једнократни доприноси
-
-| Циљ | GitHub (USD) | Open Collective (EUR) | Чему служи |
-|-----|-------------|----------------------|-------------|
-| Card Reader | $30 | €30 | Читач картица за тестирање |
-| Card Type | $100 | €100 | Подршка за нови тип картице |
-| Major Feature | $500 | €500 | Развој веће функционалности |
-
-Можете направити и прилагођену једнократну или редовну донацију било ког износа.
-
----
 
 ## Како се користе средства
 
 - Хардвер за тестирање (читачи картица, смарт картице из различитих земаља)
 - Време за развој
 - CI/CD инфраструктура
-
----
-
-{{< button href="https://github.com/sponsors/LibreSCRS" target="_blank" >}}Спонзоришите на GitHub-у{{< /button >}}&nbsp;&nbsp;{{< button href="https://opencollective.com/librescrs" target="_blank" >}}Донирајте преко Open Collective{{< /button >}}

@@ -109,7 +109,7 @@ int main()
     std::string pin = "1234";  // in production, use SecureBuffer
     auto result = service->sign(
         request,
-        "/usr/lib/opensc-pkcs11.so",     // path to any PKCS#11 module
+        "/usr/local/lib/librescrs-pkcs11.so",  // PKCS#11 module path
         libresign::as_pin(pin),          // PIN as byte span
         "SIGN"                           // key alias on the card
     );
@@ -201,7 +201,9 @@ Configuration for EU Trusted Lists, used for B-LT and B-LTA levels.
 
 The signing engine accesses private keys through PKCS#11. It does not communicate with smart cards directly — all card I/O goes through the PKCS#11 module.
 
-The signing engine works with any PKCS#11 module. You can use OpenSC's `opensc-pkcs11.so`, or any other compliant module that supports your card type.
+LibreMiddleware ships its own PKCS#11 module (`librescrs-pkcs11.so`) that supports all card types recognized by the middleware plugin system: Serbian eID (CardEdge), PKCS#15-compliant cards, PIV, and OpenSC-backed cards.
+
+You can also use any third-party PKCS#11 module (e.g., OpenSC's `opensc-pkcs11.so`).
 
 **Token selection:** Pass a `tokenLabel` string to `sign()` to select a specific PKCS#11 slot by label. If empty, the service auto-detects the first available token.
 

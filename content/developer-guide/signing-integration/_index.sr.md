@@ -109,7 +109,7 @@ int main()
     std::string pin = "1234";  // u produkciji koristite SecureBuffer
     auto result = service->sign(
         request,
-        "/usr/lib/opensc-pkcs11.so",     // putanja do bilo kog PKCS#11 modula
+        "/usr/local/lib/librescrs-pkcs11.so",  // putanja do PKCS#11 modula
         libresign::as_pin(pin),          // PIN kao span bajtova
         "SIGN"                           // alias ključa na kartici
     );
@@ -201,7 +201,9 @@ Konfiguracija za EU Trusted Lists, koristi se za B-LT i B-LTA nivoe.
 
 Engine za potpisivanje pristupa privatnim ključevima putem PKCS#11. Ne komunicira direktno sa smart karticama — sav I/O sa karticom prolazi kroz PKCS#11 modul.
 
-Engine za potpisivanje radi sa bilo kojim PKCS#11 modulom. Možete koristiti OpenSC-ov `opensc-pkcs11.so` ili bilo koji drugi kompatibilan modul koji podržava vaš tip kartice.
+LibreMiddleware isporučuje sopstveni PKCS#11 modul (`librescrs-pkcs11.so`) koji podržava sve tipove kartica prepoznate od strane middleware sistema dodataka: srpski eID (CardEdge), PKCS#15-kompatibilne kartice, PIV i kartice podržane kroz OpenSC.
+
+Takođe možete koristiti bilo koji PKCS#11 modul treće strane (npr. `opensc-pkcs11.so` iz OpenSC-a).
 
 **Izbor tokena:** Prosledite `tokenLabel` string metodi `sign()` za izbor specifičnog PKCS#11 slota po oznaci. Ako je prazan, servis automatski detektuje prvi dostupan token.
 

@@ -40,8 +40,8 @@ Generic PKI standard for certificate discovery, PIN management, and digital sign
 - **Multi-PIN management** — cards with multiple PINs (e.g., separate authentication and signing PINs) show each PIN's status and allow independent change.
 - **Plugin architecture** — add support for new card types by dropping in a shared library. Both middleware (card communication) and GUI (data display) are extensible.
 - **Multilingual** — English and Serbian (Cyrillic) interface.
-- **PKCS#11 module** — for CardEdge cards: use in Firefox, Chrome, SSH, and email signing. Installed separately.
-- **OpenSC external driver** — for CardEdge cards: extends OpenSC for cards it doesn't natively support. Submitted upstream (PR #3595, approved — merge pending).
+- **PKCS#11 module** — universal cryptographic token interface supporting CardEdge, PKCS#15, and PIV cards. Use in Firefox, Chrome, SSH, and email signing.
+- **OpenSC integration** — Serbian CardEdge driver merged into OpenSC mainline. External driver available for current OpenSC releases.
 
 ---
 

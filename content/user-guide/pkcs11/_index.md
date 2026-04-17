@@ -4,15 +4,14 @@ title: "PKCS#11 Module"
 description: "Using the LibreSCRS PKCS#11 module with Firefox, Chrome, Thunderbird, and SSH"
 ---
 
-> **Note:** A built-in Serbian card driver has been contributed to OpenSC and approved for inclusion. Once released, you can use OpenSC's PKCS#11 module instead. This module is maintained until Serbian eID support ships in OpenSC upstream and remains available as an alternative.
+> **Note:** A built-in Serbian card driver ([srbeid](https://github.com/OpenSC/OpenSC/pull/3595)) has been merged into OpenSC mainline. It will be included in the next OpenSC release. Until then, this module remains the recommended option for PKCS#11 access to smart cards.
 
-The LibreSCRS PKCS#11 module lets any PKCS#11-aware application use your smart card for authentication and digital signatures — without LibreCelik being open.
+The LibreSCRS PKCS#11 module is a universal cryptographic token interface that automatically detects your card type and uses the appropriate provider. It works with any PKCS#11-aware application — Firefox, Chrome, SSH, email clients — without LibreCelik being open.
 
-**Supported cards:**
-- Serbian eID Gemalto (2014+) and IF2020 Foreigner (CardEdge)
-- PKS Chamber of Commerce card (CardEdge)
-- Any PKCS#15-compliant smart card
-- PIV cards (NIST SP 800-73)
+**Card types recognized automatically:**
+- **CardEdge** — Serbian eID Gemalto (2014+), IF2020 Foreigner, PKS Chamber of Commerce
+- **PKCS#15** — any PKCS#15-compliant smart card (generic PKI standard)
+- **PIV** — US federal ID cards (NIST SP 800-73)
 
 ## Installation
 

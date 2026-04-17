@@ -10,4 +10,4 @@ layout: "simple"
 - [Прочитајте картицу](/sr/user-guide/read-your-card/) — подржане картице, аутоматска детекција и језичке опције
 - [Дигитално потписивање](/sr/user-guide/digital-signing/) — потписивање докумената и датотека смарт картицом
 - [PKCS#11 модул](/sr/user-guide/pkcs11/) — аутентификација у прегледачу и дигитални потписи преко Firefox-а, Chrome-а, Thunderbird-а, SSH-а
-- [OpenSC драјвер](/sr/user-guide/cardedge-opensc-driver/) — екстерни OpenSC драјвер за CLI алате (привремено — уграђени драјвер у припреми)
+- [OpenSC интеграција](/sr/user-guide/opensc-integration/) — нативна OpenSC подршка за српске картице и екстерни драјвер за тренутна издања

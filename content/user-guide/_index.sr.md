@@ -9,5 +9,5 @@ layout: "simple"
 - [Инсталирајте LibreCelik](/sr/user-guide/install-librecelik/) — преузмите и подесите десктоп апликацију на Linux-у или macOS-у
 - [Прочитајте картицу](/sr/user-guide/read-your-card/) — подржане картице, аутоматска детекција и језичке опције
 - [Дигитално потписивање](/sr/user-guide/digital-signing/) — потписивање докумената и датотека смарт картицом
-- [PKCS#11 модул](/sr/user-guide/cardedge-pkcs11/) — аутентификација у прегледачу и дигитални потписи преко Firefox-а, Chrome-а, Thunderbird-а, SSH-а
+- [PKCS#11 модул](/sr/user-guide/pkcs11/) — аутентификација у прегледачу и дигитални потписи преко Firefox-а, Chrome-а, Thunderbird-а, SSH-а
 - [OpenSC драјвер](/sr/user-guide/cardedge-opensc-driver/) — екстерни OpenSC драјвер за CLI алате (привремено — уграђени драјвер у припреми)

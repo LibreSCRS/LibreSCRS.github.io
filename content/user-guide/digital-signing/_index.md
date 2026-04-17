@@ -10,8 +10,8 @@ Smart cards with private keys can be used for digital signatures. This page cove
 
 You need one of the following:
 
-1. **OpenSC with built-in Serbian card support** — just install OpenSC, nothing else needed. *(Not yet released — a built-in driver has been approved and is pending inclusion in the next OpenSC release.)*
-2. **OpenSC + LibreSCRS external driver** — use this until the built-in driver is released. Gives you full OpenSC CLI tools (`pkcs15-crypt`, `pkcs11-tool`, etc.). See [OpenSC driver setup]({{< ref "user-guide/cardedge-opensc-driver" >}}).
+1. **OpenSC with built-in Serbian card support** — just install OpenSC, nothing else needed. *(The srbeid driver has been [merged into OpenSC mainline](https://github.com/OpenSC/OpenSC/pull/3595) but is not yet included in a release. If you build OpenSC from source, it works now.)*
+2. **OpenSC + LibreSCRS external driver** — use this until the built-in driver is released. Gives you full OpenSC CLI tools (`pkcs15-crypt`, `pkcs11-tool`, etc.). See [OpenSC integration]({{< ref "user-guide/opensc-integration" >}}).
 3. **LibreSCRS PKCS#11 module** — works without OpenSC. For browser authentication and signing via any PKCS#11 application. See [PKCS#11 setup]({{< ref "user-guide/pkcs11" >}}).
 
 ---

@@ -20,7 +20,7 @@ Download the package for your platform from the [releases page](https://github.c
 ### Linux
 
 ```bash
-tar -xzf LibreSCRS-pkcs11-*-linux-*.tar.gz
+tar -xzf librescrs-pkcs11-*-linux-*.tar.gz
 sudo cp lib/librescrs-pkcs11.so* /usr/local/lib/
 sudo ldconfig
 ```
@@ -45,7 +45,7 @@ Verify with: `p11-kit list-modules | grep -A5 librescrs`
 ### macOS
 
 ```bash
-unzip LibreSCRS-pkcs11-*-macos.zip
+unzip librescrs-pkcs11-*-macos-universal.zip
 sudo cp librescrs-pkcs11.dylib /usr/local/lib/
 ```
 

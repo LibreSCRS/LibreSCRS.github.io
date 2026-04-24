@@ -39,7 +39,7 @@ include(FetchContent)
 FetchContent_Declare(
     LibreMiddleware
     GIT_REPOSITORY https://github.com/LibreSCRS/LibreMiddleware.git
-    GIT_TAG        v2.0.2
+    GIT_TAG        v3.0.0
 )
 FetchContent_MakeAvailable(LibreMiddleware)
 
@@ -210,6 +210,18 @@ You can also use any third-party PKCS#11 module (e.g., OpenSC's `opensc-pkcs11.s
 **Key selection:** The `keyAlias` parameter matches the `CKA_LABEL` attribute on the private key object. For Serbian eID cards, the signing key label is typically `"SIGN"`.
 
 **PIN handling:** The `pin` parameter is a `std::span<const uint8_t>` — a non-owning view into caller-managed memory. In production code, store the PIN in a `smartcard::SecureBuffer` which automatically zeroes memory on destruction. The signing service does not retain the PIN past the `sign()` call.
+
+---
+
+## PDF Input Tolerance
+
+For PAdES signing, the engine follows Adobe Acrobat Implementation Notes §H.3 when ingesting PDF input, matching the behavior of Acrobat, Foxit, qpdf, and pdfinfo:
+
+- Up to **1024 bytes** of non-PDF prefix before the `%PDF-` header are tolerated and stripped (e.g. `multipart/form-data` wrappers from web-form uploads).
+- Trailing data after the last `%%EOF` is stripped (an optional single CR/LF is preserved).
+- When `startxref` points to an offset that does not contain the `xref` keyword (common after a prefix strip, or a generator bug), the engine falls back to scanning the last ~10 KB for a standalone `xref` keyword and retries.
+
+If the first 1024 bytes contain no `%PDF-` header the input is still rejected with `Input is not a valid PDF (missing %PDF- header)`. No caller-side changes are needed — the tolerance is applied internally in `PAdESModule::sign`.
 
 ---
 

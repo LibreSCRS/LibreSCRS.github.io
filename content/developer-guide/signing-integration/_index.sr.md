@@ -39,7 +39,7 @@ include(FetchContent)
 FetchContent_Declare(
     LibreMiddleware
     GIT_REPOSITORY https://github.com/LibreSCRS/LibreMiddleware.git
-    GIT_TAG        v2.0.2
+    GIT_TAG        v3.0.0
 )
 FetchContent_MakeAvailable(LibreMiddleware)
 
@@ -210,6 +210,18 @@ Takođe možete koristiti bilo koji PKCS#11 modul treće strane (npr. `opensc-pk
 **Izbor ključa:** Parametar `keyAlias` se poklapa sa `CKA_LABEL` atributom na objektu privatnog ključa. Za srpske eID kartice, oznaka ključa za potpisivanje je obično `"SIGN"`.
 
 **Rukovanje PIN-om:** Parametar `pin` je `std::span<const uint8_t>` — pogled koji ne poseduje memoriju i koji upućuje na memoriju kojom upravlja pozivalac. U produkcionom kodu, čuvajte PIN u `smartcard::SecureBuffer` koji automatski briše memoriju pri destrukciji. Servis za potpisivanje ne zadržava PIN nakon povratka iz `sign()` poziva.
+
+---
+
+## Tolerancija PDF ulaza
+
+Za PAdES potpisivanje, engine prati Adobe Acrobat Implementation Notes §H.3 pri obradi PDF ulaza, čime se ponaša isto kao Acrobat, Foxit, qpdf i pdfinfo:
+
+- Do **1024 bajta** ne-PDF prefiksa pre `%PDF-` zaglavlja se tolerišu i uklanjaju (npr. `multipart/form-data` omotač iz otpremanja preko veb formi).
+- Prateći podaci posle poslednjeg `%%EOF` se uklanjaju (opcioni jedan CR/LF se zadržava).
+- Kada `startxref` pokazuje na offset na kom se ne nalazi `xref` ključna reč (često nakon uklanjanja prefiksa, ili zbog greške generatora), engine prelazi na rezervno skeniranje poslednjih ~10 KB u potrazi za samostalnom `xref` ključnom rečju i ponovo pokušava.
+
+Ako prvih 1024 bajta ne sadrže `%PDF-` zaglavlje, ulaz se i dalje odbija sa porukom `Input is not a valid PDF (missing %PDF- header)`. Nisu potrebne izmene u pozivnom kodu — tolerancija se primenjuje interno u `PAdESModule::sign`.
 
 ---
 

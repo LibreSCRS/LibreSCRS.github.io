@@ -50,13 +50,16 @@ Kompletan tok od korisničke akcije do potpisanog dokumenta:
 
 Engine za potpisivanje se nalazi u `lib/libresign/` unutar LibreMiddleware-a. Organizovan je u tri sloja:
 
+Javna zaglavlja se nalaze u `include/libresign/` (tipovi najvišeg nivoa) i `include/libresign/native/` (klase native backend-a). Implementacije i interni helperi backend-a žive u `src/`.
+
 ### Sloj osnovnog servisa
 
 | Fajl | Namena |
 |---|---|
-| `signing_service.h` | `SigningService` apstraktni interfejs — `configure()`, `sign()`, `isAvailable()` |
-| `signing_service_factory.h` | Fabrička funkcija `createSigningService(Backend)` |
-| `types.h` | Tipovi podataka: `SigningRequest`, `SigningResult`, `TrustConfig`, `TSAConfig`, enumeracije |
+| `include/libresign/signing_service.h` | `SigningService` apstraktni interfejs — `configure()`, `sign()`, `isAvailable()` |
+| `include/libresign/signing_service_factory.h` | Fabrička funkcija `createSigningService(Backend)` |
+| `include/libresign/types.h` | Tipovi podataka: `SigningRequest`, `SigningResult`, `TrustConfig`, `TSAConfig`, enumeracije |
+| `include/libresign/trust_store_manager.h` | `TrustStoreManager` — agregira sistemske, ugrađene i TL-izvedene sertifikate za različite potrošače, i one koji potpisuju i one koji ne |
 
 ### Format moduli
 
@@ -64,11 +67,11 @@ Svaki format potpisa je implementiran kao nezavisan modul. Svi moduli prate isti
 
 | Modul | Fajl | Standard |
 |---|---|---|
-| PAdES | `native/pades_module.cpp` | PDF inkrementalno čuvanje sa CMS potpisom |
-| CAdES | `native/cades_module.cpp` | Detached CMS/PKCS#7 potpis |
-| XAdES | `native/xades_module.cpp` | XML Digital Signature sa XAdES svojstvima |
-| JAdES | `native/jades_module.cpp` | JSON Web Signature sa JAdES zaglavljem |
-| ASiC-E | `native/asic_module.cpp` | ZIP kontejner sa XAdES potpisom (koristi miniz) |
+| PAdES | `src/native/pades_module.cpp` | PDF inkrementalno čuvanje sa CMS potpisom |
+| CAdES | `src/native/cades_module.cpp` | Detached CMS/PKCS#7 potpis |
+| XAdES | `src/native/xades_module.cpp` | XML Digital Signature sa XAdES svojstvima |
+| JAdES | `src/native/jades_module.cpp` | JSON Web Signature sa JAdES zaglavljem |
+| ASiC-E | `src/native/asic_module.cpp` | ZIP kontejner sa XAdES potpisom (koristi miniz) |
 
 Format moduli primaju `Pkcs11Token&` referencu za operacije potpisivanja. Token interno upravlja PKCS#11 sesijom, pretragom ključeva i sirovim potpisivanjem.
 
@@ -76,16 +79,16 @@ Format moduli primaju `Pkcs11Token&` referencu za operacije potpisivanja. Token 
 
 | Komponenta | Fajlovi | Namena |
 |---|---|---|
-| `Pkcs11Token` | `native/pkcs11_token.h/.cpp` | Upravljanje PKCS#11 sesijom — učitavanje modula, prijava, pretraga ključeva, sirovo potpisivanje, ekstrakcija sertifikata |
-| `TSAClient` | `native/tsa_client.h/.cpp` | RFC 3161 zahtevi za vremenske pečate putem HTTP-a (libcurl) |
-| `RevocationClient` | `native/revocation_client.h/.cpp` | Preuzimanje CRL-ova i OCSP-a za B-LT/B-LTA nivoe |
-| `SigningProvider` | `native/signing_provider.h/.cpp` | Apstrakcija nad Pkcs11Token za spoljne korisnike |
-| `TrustedListParser` | `native/trusted_list_parser.h/.cpp` | XML parser za EU Trusted Lists (LOTL i TL) |
-| `TlCache` | (interni) `native/tl_cache.h/.cpp` | Keš na disku za preuzete Trusted List XML fajlove |
-| `TlSignatureVerifier` | (interni) `native/tl_signature_verifier.h/.cpp` | XML-DSIG verifikacija potpisa Trusted List-a |
-| `TrustStoreManager` | (interni) | Agregira sistemske, ugrađene i TL-izvedene sertifikate |
-| PDF parser | (interni) `native/pdf_parser.h/.cpp` | Minimalan PDF parser za PAdES inkrementalno čuvanje — pronalazi xref, dodaje rečnik potpisa |
-| OpenSSL RAII | (interni) `native/openssl_raii.h` | RAII omotači za OpenSSL tipove (`BIO`, `X509`, `EVP_PKEY`, itd.) |
+| `Pkcs11Token` | `include/libresign/native/pkcs11_token.h` + `src/native/pkcs11_token.cpp` | Upravljanje PKCS#11 sesijom — učitavanje modula, prijava, pretraga ključeva, sirovo potpisivanje, ekstrakcija sertifikata |
+| `TSAClient` | `include/libresign/native/tsa_client.h` + `src/native/tsa_client.cpp` | RFC 3161 zahtevi za vremenske pečate putem HTTP-a (libcurl) |
+| `RevocationClient` | `include/libresign/native/revocation_client.h` + `src/native/revocation_client.cpp` | Preuzimanje CRL-ova i OCSP-a za B-LT/B-LTA nivoe |
+| `SigningProvider` | `include/libresign/native/signing_provider.h` + `src/native/signing_provider.cpp` | Apstrakcija nad Pkcs11Token za spoljne korisnike |
+| `TrustedListParser` | `include/libresign/native/trusted_list_parser.h` + `src/native/trusted_list_parser.cpp` | XML parser za EU Trusted Lists (LOTL i TL) |
+| `TlCache` | (interni) `src/native/tl_cache.h/.cpp` | Keš na disku za preuzete Trusted List XML fajlove |
+| `TlSignatureVerifier` | (interni) `src/native/tl_signature_verifier.h/.cpp` | XML-DSIG verifikacija potpisa Trusted List-a |
+| `PinnedTlCerts` | (interni) `src/native/pinned_tl_certs.h/.cpp` | Kompajlirani LOTL sertifikati za potpis koji služe kao koren poverenja |
+| PDF parser | (interni) `src/native/pdf_parser.h/.cpp` | Minimalan PDF parser za PAdES inkrementalno čuvanje — pronalazi xref, dodaje rečnik potpisa |
+| OpenSSL RAII | (interni) `src/native/openssl_raii.h` | RAII omotači za OpenSSL tipove (`BIO`, `X509`, `EVP_PKEY`, itd.) |
 
 ---
 
@@ -181,7 +184,7 @@ LibreCelik (GUI) i LibreMiddleware (engine) su odvojeni projekti sa čistom gran
 
 Za dodavanje novog format modula:
 
-1. Kreirajte `native/newformat_module.h` i `native/newformat_module.cpp`
+1. Kreirajte `include/libresign/native/newformat_module.h` i `src/native/newformat_module.cpp`
 2. Implementirajte `sign()` funkciju koja prima dokument, `Pkcs11Token&` i parametre specifične za format
 3. Registrujte format u `NativeSigningService::sign()` dodavanjem slučaja za novu `SignatureFormat` enum vrednost
 4. Dodajte novu enum vrednost u `SignatureFormat` u `types.h`

@@ -50,13 +50,16 @@ The complete flow from user action to signed document:
 
 The signing engine lives in `lib/libresign/` within LibreMiddleware. It is organized into three layers:
 
+Public headers live under `include/libresign/` (top-level types) and `include/libresign/native/` (native backend classes). Implementations and backend-internal helpers live under `src/`.
+
 ### Core Service Layer
 
 | File | Purpose |
 |---|---|
-| `signing_service.h` | `SigningService` abstract interface — `configure()`, `sign()`, `isAvailable()` |
-| `signing_service_factory.h` | Factory function `createSigningService(Backend)` |
-| `types.h` | Data types: `SigningRequest`, `SigningResult`, `TrustConfig`, `TSAConfig`, enums |
+| `include/libresign/signing_service.h` | `SigningService` abstract interface — `configure()`, `sign()`, `isAvailable()` |
+| `include/libresign/signing_service_factory.h` | Factory function `createSigningService(Backend)` |
+| `include/libresign/types.h` | Data types: `SigningRequest`, `SigningResult`, `TrustConfig`, `TSAConfig`, enums |
+| `include/libresign/trust_store_manager.h` | `TrustStoreManager` — aggregates system, bundled, and TL-derived certificates across signing and non-signing consumers |
 
 ### Format Modules
 
@@ -64,11 +67,11 @@ Each signature format is implemented as an independent module. All modules follo
 
 | Module | File | Standard |
 |---|---|---|
-| PAdES | `native/pades_module.cpp` | PDF incremental save with CMS signature |
-| CAdES | `native/cades_module.cpp` | Detached CMS/PKCS#7 signature |
-| XAdES | `native/xades_module.cpp` | XML Digital Signature with XAdES properties |
-| JAdES | `native/jades_module.cpp` | JSON Web Signature with JAdES header |
-| ASiC-E | `native/asic_module.cpp` | ZIP container with XAdES signature (uses miniz) |
+| PAdES | `src/native/pades_module.cpp` | PDF incremental save with CMS signature |
+| CAdES | `src/native/cades_module.cpp` | Detached CMS/PKCS#7 signature |
+| XAdES | `src/native/xades_module.cpp` | XML Digital Signature with XAdES properties |
+| JAdES | `src/native/jades_module.cpp` | JSON Web Signature with JAdES header |
+| ASiC-E | `src/native/asic_module.cpp` | ZIP container with XAdES signature (uses miniz) |
 
 Format modules receive a `Pkcs11Token&` reference for signing operations. The token handles PKCS#11 session management, key lookup, and raw signing internally.
 
@@ -76,16 +79,16 @@ Format modules receive a `Pkcs11Token&` reference for signing operations. The to
 
 | Component | Files | Purpose |
 |---|---|---|
-| `Pkcs11Token` | `native/pkcs11_token.h/.cpp` | PKCS#11 session management — module loading, login, key lookup, raw sign, certificate extraction |
-| `TSAClient` | `native/tsa_client.h/.cpp` | RFC 3161 timestamp requests via HTTP (libcurl) |
-| `RevocationClient` | `native/revocation_client.h/.cpp` | CRL and OCSP fetching for B-LT/B-LTA levels |
-| `SigningProvider` | `native/signing_provider.h/.cpp` | Abstraction over Pkcs11Token for downstream consumers |
-| `TrustedListParser` | `native/trusted_list_parser.h/.cpp` | XML parser for EU Trusted Lists (LOTL and TL) |
-| `TlCache` | (internal) `native/tl_cache.h/.cpp` | Disk cache for downloaded Trusted List XML files |
-| `TlSignatureVerifier` | (internal) `native/tl_signature_verifier.h/.cpp` | XML-DSIG verification of Trusted List signatures |
-| `TrustStoreManager` | (internal) | Aggregates system, bundled, and TL-derived certificates |
-| PDF parser | (internal) `native/pdf_parser.h/.cpp` | Minimal PDF parser for PAdES incremental save — finds xref, appends signature dictionary |
-| OpenSSL RAII | (internal) `native/openssl_raii.h` | RAII wrappers for OpenSSL types (`BIO`, `X509`, `EVP_PKEY`, etc.) |
+| `Pkcs11Token` | `include/libresign/native/pkcs11_token.h` + `src/native/pkcs11_token.cpp` | PKCS#11 session management — module loading, login, key lookup, raw sign, certificate extraction |
+| `TSAClient` | `include/libresign/native/tsa_client.h` + `src/native/tsa_client.cpp` | RFC 3161 timestamp requests via HTTP (libcurl) |
+| `RevocationClient` | `include/libresign/native/revocation_client.h` + `src/native/revocation_client.cpp` | CRL and OCSP fetching for B-LT/B-LTA levels |
+| `SigningProvider` | `include/libresign/native/signing_provider.h` + `src/native/signing_provider.cpp` | Abstraction over Pkcs11Token for downstream consumers |
+| `TrustedListParser` | `include/libresign/native/trusted_list_parser.h` + `src/native/trusted_list_parser.cpp` | XML parser for EU Trusted Lists (LOTL and TL) |
+| `TlCache` | (internal) `src/native/tl_cache.h/.cpp` | Disk cache for downloaded Trusted List XML files |
+| `TlSignatureVerifier` | (internal) `src/native/tl_signature_verifier.h/.cpp` | XML-DSIG verification of Trusted List signatures |
+| `PinnedTlCerts` | (internal) `src/native/pinned_tl_certs.h/.cpp` | Compiled-in LOTL signing certificates used to bootstrap trust |
+| PDF parser | (internal) `src/native/pdf_parser.h/.cpp` | Minimal PDF parser for PAdES incremental save — finds xref, appends signature dictionary |
+| OpenSSL RAII | (internal) `src/native/openssl_raii.h` | RAII wrappers for OpenSSL types (`BIO`, `X509`, `EVP_PKEY`, etc.) |
 
 ---
 
@@ -181,7 +184,7 @@ LibreCelik (the GUI) and LibreMiddleware (the engine) are separate projects with
 
 To add a new format module:
 
-1. Create `native/newformat_module.h` and `native/newformat_module.cpp`
+1. Create `include/libresign/native/newformat_module.h` and `src/native/newformat_module.cpp`
 2. Implement a `sign()` function that accepts the document, `Pkcs11Token&`, and format-specific parameters
 3. Register the format in `NativeSigningService::sign()` by adding a case for the new `SignatureFormat` enum value
 4. Add the new enum value to `SignatureFormat` in `types.h`

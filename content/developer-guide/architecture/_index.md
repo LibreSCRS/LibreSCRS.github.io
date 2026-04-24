@@ -1,263 +1,200 @@
 ---
 layout: "simple"
 title: "Architecture Overview"
-description: "System components, data flow, plugin architecture, and design patterns"
+description: "System components, public API surface, plugin model, and data flow"
 ---
 
-LibreSCRS consists of two main projects that work together to read, process, and display smart card data.
+LibreSCRS is two cooperating projects that together read, process, and display Serbian government smart-card data. The public 4.0 API surface is stable C++20 + LGPL in LibreMiddleware; the Qt desktop GUI sits on top under GPL-3.0.
 
-## Components
+## Projects
 
 ### LibreMiddleware (LGPL-2.1)
 
-A Qt-free C++20 static library collection for smart card communication. It handles everything from low-level APDU command/response exchanges to high-level card data extraction. **All PC/SC communication lives exclusively in LibreMiddleware** — LibreCelik has no direct dependency on PC/SC.
-
-| Library | Purpose |
-|---|---|
-| `smartcard` | PCSCConnection, Monitor (card event polling), APDU command/response, TLV and BER-TLV parsing (ISO 7816-4), TransmitFilter (transparent Secure Messaging layer) |
-| `plugin` | CardPlugin interface (with streaming support), CardData model, CardPluginRegistry (dlopen), AutoReader (Monitor + plugin discovery bridge) |
-| `pkcs15` | Generic PKCS#15/ISO 7816-15 parser and card library — EF.ODF/EF.DIR discovery, certificate and key enumeration. Works with any PKCS#15-compliant card |
-| `rs-eid` | Serbian eID card API with card reader implementations (Apollo 2008, Gemalto 2014+, Foreigner IF2020) |
-| `eu-vrc` | EU Vehicle Registration Certificate (Directive 2003/127/EC) |
-| `rs-health` | Serbian health insurance card (RFZO) |
-| `cardedge` | CardEdge PKI applet for Serbian smart cards — certificates, PIN management, digital signing |
-| `emrtd` | eMRTD e-passport communication — data group reading, MRZ parsing |
-| `emrtd-crypto` | eMRTD cryptography — BAC, PACE (ECDH-GM), Secure Messaging |
-| `piv` | PIV card communication (NIST SP 800-73) |
-| `pkcs11` | PKCS#11 shared library (`librescrs-pkcs11`) — supports all card types |
-| `*-plugin` | Card plugins (`.so`): rs-eid, rs-health, eu-vrc, emrtd, piv, pkcs15, cardedge, opensc |
+A Qt-free C++20 static-library collection. All PC/SC and card-protocol code lives here. Consumers link against the public targets and reach everything through the `LibreSCRS::*` namespaces.
 
 ### LibreCelik (GPL-3.0)
 
-A Qt6 desktop GUI application that displays card data. It is a **pure presentation layer** — no PC/SC, no APDU, no card protocol knowledge. It receives `CardData` from middleware plugins and renders it through GUI plugins.
+A Qt6 desktop application that consumes LibreMiddleware. **Pure presentation layer** — no PC/SC, no APDU, no cryptographic protocol knowledge. It takes `LibreSCRS::Plugin::CardData` from middleware plugins and renders it through GUI plugins.
 
-| Module | Purpose |
+LibreCelik fetches LibreMiddleware via CMake `FetchContent`. For local development, point it at a local checkout through `FETCHCONTENT_SOURCE_DIR_LIBREMIDDLEWARE`.
+
+---
+
+## Public API surface
+
+Everything consumers are expected to use lives under one of five namespaces.
+
+| Namespace | Purpose |
 |---|---|
-| `smartcard` | SmartCardReaderListener — Qt adapter wrapping middleware `smartcard::Monitor` |
-| `plugin` | CardWidgetPlugin interface and CardWidgetPluginRegistry (QPluginLoader) |
-| `asynccardreader` | Generic async card reader using middleware CardPlugin fallback chain |
-| `document` | Shared PKI UI (TokenSection), PIN change dialog, printing |
-| `certificate` | X.509 certificate viewer (tree model + dialog) |
-| `plugins/` | GUI plugins (rs-eid, rs-health, eu-vrc, emrtd, piv, token) as Qt MODULE `.so` files |
+| `LibreSCRS::Auth` | Credential-collection vocabulary — `AuthRequirement` with `forPreRead` / `forSigning` / `forChangePin` / `forUnblockPin` factories, `FieldDescriptor`, `CredentialProvider` callback alias, `CredentialResult`, `LocalizedText` i18n bundle |
+| `LibreSCRS::SmartCard` | PC/SC reader access — `Monitor` (multi-subscriber reader/card-event fan-out), `CardSession` (pimpl session handle opened via the noexcept `open()` factory returning `OpenSessionResult`) |
+| `LibreSCRS::Plugin` | Plugin framework — `CardPlugin` abstract base, `CardPluginRegistry`, `CardData` / `CardFieldGroup` / `CardField`, `ReadResult`, `PinStatusEntry`, `SecurityCheck` / `SecurityStatus`, `AutoReader` |
+| `LibreSCRS::Signing` | PAdES / XAdES / JAdES / CAdES / ASiC-E signing — `SigningService` (pure-DI, move-only), `SigningRequest::Builder`, `VisualSignatureParams::Builder`, `TsaProvider` runtime-secret callback, `TrustConfig`, `SigningResult` |
+| `LibreSCRS::Secure` | Cleansing types for short-lived secret material — `Secure::String` (PIN/token text; zeroed on destruction and move-from), `Secure::Buffer` (binary keys / APDU bytes) |
 
-LibreCelik fetches LibreMiddleware via CMake `FetchContent`. For local development, you can point it to a local checkout instead.
-
----
-
-## Plugin Architecture
-
-The entire system is built around plugins. There are two independent plugin layers — **middleware plugins** handle card communication, **GUI plugins** handle display. They connect through `CardData`, a universal data model that any middleware plugin produces and any GUI plugin consumes.
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                      LibreCelik (GUI)                   │
-│                                                         │
-│  ┌──────────────────────┐ ┌────────────────────────┐    │
-│  │SmartCardReaderListener│ │ CardWidgetPluginRegistry│    │
-│  │(Qt adapter for Monitor│ │ (QPluginLoader)        │    │
-│  └──────────────────────┘ └──────────┬─────────────┘    │
-│           ▲                          │ loads             │
-│           │ wraps             ┌──────▼──────────────┐   │
-│           │                   │  GUI Plugins (.so)   │   │
-│           │                   │ ┌──────┐ ┌────────┐ │   │
-│           │                   │ │rs-eid│ │eu-vrc  │ │   │
-│           │                   │ ├──────┤ ├────────┤ │   │
-│           │                   │ │rs-   │ │ emrtd  │ │   │
-│           │                   │ │health│ ├────────┤ │   │
-│           │                   │ ├──────┤ │  piv   │ │   │
-│           │                   │ │token │ └────────┘ │   │
-│           │                   │ └──────┘            │   │
-│           │                   └─────────────────────┘   │
-│           │                          ▲                  │
-│           │                          │ CardData         │
-├───────────┼──────────────────────────┼──────────────────┤
-│           │           LibreMiddleware│                   │
-│           │                          │                  │
-│  ┌────────┴─────────┐ ┌─────────────┴──────────┐       │
-│  │ smartcard::Monitor│ │ CardPluginRegistry     │       │
-│  │ (PC/SC polling)  │ │ (dlopen)               │       │
-│  └──────────────────┘ └──────────┬─────────────┘       │
-│                                  │ loads                │
-│  ┌───────────────────────────────▼─────────────────┐   │
-│  │           Middleware Plugins (.so)                │   │
-│  │ ┌─────────┐ ┌──────────┐ ┌───────────────────┐ │   │
-│  │ │ rs-eid  │ │  emrtd   │ │     opensc         │ │   │
-│  │ ├─────────┤ ├──────────┤ │ (PKI fallback)     │ │   │
-│  │ │ eu-vrc  │ │ cardedge │ └───────────────────┘ │   │
-│  │ ├─────────┤ ├──────────┤ ┌───────────────────┐ │   │
-│  │ │rs-health│ │   piv    │ │     pkcs15         │ │   │
-│  │ └─────────┘ └──────────┘ └───────────────────┘ │   │
-│  └─────────────────────────────────────────────────┘   │
-│                          │                             │
-│                          │ APDU (ISO 7816-4)           │
-│                          ▼                             │
-│                   ┌──────────────┐                     │
-│                   │PCSCConnection│                     │
-│                   │  (PC/SC)     │                     │
-│                   └──────┬──────┘                      │
-└──────────────────────────┼─────────────────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │ Smart Card  │
-                    └─────────────┘
-```
-
-### Card Detection: smartcard::Monitor
-
-Card detection lives in LibreMiddleware as `smartcard::Monitor` — a pure C++20 class with no Qt dependency. It polls PC/SC for card insert/remove events on a background thread and notifies subscribers via callbacks:
-
-- **`subscribe(MonitorCallback)`** — register for `MonitorEvent` notifications (card inserted/removed, reader name, ATR)
-- **`unsubscribe(id)`** — stop receiving events
-
-The monitor lazy-starts its polling thread on the first subscription and stops when the last subscriber unsubscribes. In LibreCelik, `SmartCardReaderListener` wraps the monitor and marshals events to the Qt main thread via signals.
-
-### Middleware Plugins (CardPlugin)
-
-A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPluginRegistry` via `dlopen` at runtime. Each plugin implements:
-
-- **`canHandle(const std::vector<uint8_t>& atr)`** — fast ATR-only check. Returns `bool` — does this plugin recognize the ATR? No card communication needed. Plugins also expose `probePriority()` (an `int`) so the registry can rank candidates.
-- **`canHandleConnection(PCSCConnection& conn)`** — live connection probe. Sends SELECT commands for known AIDs to confirm card support. Called only on plugins that did **not** match in `canHandle()` — giving them a second chance to claim the card via live communication.
-- **`readCard(PCSCConnection& conn)`** — extract all data from the card. Sends APDU commands, parses TLV/BER-TLV responses, and returns a `CardData` object containing typed field groups (personal data, document data, photos, certificates).
-
-**Two-phase probe:** The registry first calls `canHandle(atr)` on all plugins — those that return `true` go into the candidate list immediately, ranked by `probePriority()`. Then `canHandleConnection(conn)` is called only on plugins that returned `false` in Phase 1, giving generic plugins (like OpenSC) a chance to claim the card by probing the live connection. This avoids unnecessary card communication for plugins that already matched by ATR.
-
-**Streaming support:** Plugins can implement `readCardStreaming()` in addition to `readCard()`. Streaming delivers `CardData` incrementally — fields appear in the GUI as they are read from the card, rather than waiting for the entire read to complete. This is especially useful for eMRTD where data groups are read sequentially through encrypted channels.
-
-**Fallback chain:** If the top-ranked plugin's `readCard()` fails, the next candidate is tried automatically. The OpenSC plugin serves as a generic fallback for any card it doesn't natively support.
-
-**PKI fallback:** Data plugins (eID, vehicle, health) read demographic data but do not handle PKI operations. After a data plugin finishes, the system can trigger a separate PKI plugin (CardEdge, PKCS#15, or OpenSC) to provide certificate discovery, signing, and PIN management. This decoupling means data plugins don't need to know about PKI.
-
-**To add a new card type:** Write a class that inherits `CardPlugin`, implement `canHandle()`, `canHandleConnection()`, and `readCard()` (optionally `readCardStreaming()`), build as a shared library, and drop it into the plugin directory. The registry discovers it automatically at next startup.
-
-### GUI Plugins (CardWidgetPlugin)
-
-A GUI plugin is a Qt shared library loaded by `CardWidgetPluginRegistry` via `QPluginLoader`. Each plugin implements:
-
-- **`cardType()`** — returns the card type string this plugin can display (must match what the middleware plugin sets in `CardData`).
-- **`createWidget(const CardData&, QWidget* parent)`** — builds and returns a Qt widget that renders the card data. Full control over layout — text fields, photos, certificates, whatever the card contains.
-
-**To add a new card display:** Write a class that inherits `CardWidgetPlugin` and `Q_PLUGIN_METADATA`, implement `cardType()` and `createWidget()`, build as a Qt MODULE library.
-
-### How They Connect
-
-Adding support for a completely new card type requires two plugins:
-
-1. **Middleware plugin** — knows how to talk to the card (SELECT, READ BINARY, parse response)
-2. **GUI plugin** — knows how to display the data (layout, labels, formatting)
-
-The bridge is `CardData` — a map of field groups, where each group contains key-value pairs. The middleware plugin populates it, the GUI plugin reads it. Neither needs to know about the other. No recompilation of the core application is needed — just drop in the `.so` files.
-
-### eMRTD: Cryptographic Card Access
-
-The eMRTD plugin demonstrates the most complex card communication in the system. E-passports require cryptographic key agreement before any data can be read:
-
-- **BAC** (Basic Access Control) — derives session keys from the Machine Readable Zone (MRZ) printed on the passport
-- **PACE** (Password Authenticated Connection Establishment) — elliptic curve Diffie-Hellman key agreement, the modern replacement for BAC. May require the user to enter the CAN (Card Access Number) printed on the passport.
-- **Secure Messaging** — all subsequent APDU commands and responses are encrypted and MACed with session keys. Implemented as a `TransmitFilter` on `PCSCConnection` — once installed, encryption is transparent to all higher-level code.
-
-The `emrtd-crypto` library implements these protocols from the ICAO 9303 specification, while the `emrtd` library handles data group reading and MRZ parsing. The `emrtd-plugin` ties them together as a standard `CardPlugin` with streaming support — data groups are read progressively and delivered to the GUI as they become available. From the rest of the system's perspective, it's just another plugin that returns `CardData`.
+Everything outside these namespaces — `smartcard::*`, `libresign::*`, `pkcs11::*`, `pkcs15::*`, internal `detail::*` headers — is implementation detail. It may change in any release without semver impact.
 
 ---
 
-## Data Flow
+## Plugin model
 
-The complete flow when a smart card is inserted:
+The system has two independent plugin layers: **middleware plugins** handle card communication, **GUI plugins** handle display. They meet at `CardData`, a universal data model produced by a middleware plugin and consumed by a GUI plugin.
+
+```
+┌───────────────────────────────────────────────────────────┐
+│                      LibreCelik (GUI)                     │
+│                                                           │
+│  ┌──────────────────────────┐ ┌───────────────────────┐   │
+│  │ QSmartCardMonitor        │ │ CardWidgetPluginReg.  │   │
+│  │ (Qt adapter for Monitor) │ │ (QPluginLoader)       │   │
+│  └──────────────────────────┘ └──────────┬────────────┘   │
+│           ▲                              │ loads           │
+│           │ wraps                 ┌──────▼──────────────┐  │
+│           │                       │  GUI Plugins (.so)   │  │
+│           │                       └─────────────────────┘  │
+│           │                              ▲                 │
+│           │                              │ CardData        │
+├───────────┼──────────────────────────────┼─────────────────┤
+│           │         LibreMiddleware      │                 │
+│           │                              │                 │
+│  ┌────────┴────────────┐  ┌──────────────┴───────────┐     │
+│  │ LibreSCRS::SmartCard│  │ LibreSCRS::Plugin::       │     │
+│  │          ::Monitor  │  │   CardPluginRegistry     │     │
+│  │ (PC/SC event poll)  │  │ (dlopen + ABI v6 static  │     │
+│  └─────────────────────┘  │  assert + ATR/AID probe) │     │
+│                           └──────────┬───────────────┘     │
+│                                      │ loads                │
+│  ┌───────────────────────────────────▼─────────────────┐   │
+│  │           Middleware Plugins (.so)                   │   │
+│  │   cardedge, emrtd, pkcs15, piv, opensc, …           │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                      │                     │
+│                                      │ APDU (ISO 7816-4)   │
+│                                      ▼                     │
+│                               ┌────────────┐               │
+│                               │ PC/SC      │               │
+│                               └─────┬──────┘               │
+└─────────────────────────────────────┼─────────────────────┘
+                                      │
+                               ┌──────▼──────┐
+                               │ Smart Card  │
+                               └─────────────┘
+```
+
+### Middleware plugins — `LibreSCRS::Plugin::CardPlugin`
+
+A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPluginRegistry` via `dlopen` at runtime. Each plugin is a subclass of `CardPlugin` that calls `setIdentity(id, displayName, probePriority)` in its constructor and overrides the virtual methods relevant to the card family it supports. Declarative surface:
+
+- **`CardCapabilities capabilities() const`** — bitfield advertising which categories the plugin implements: `None`, `PKI`, `IdentityData`, `EmrtdCrypto`, `PinManagement`. The host reads this at load time; methods outside the advertised set return `NotImplemented` by default.
+- **`bool canHandle(const std::vector<uint8_t>& atr) const`** — fast ATR-only test. No card I/O.
+- **`bool canHandleConnection(const std::vector<uint8_t>& atr, CardSession& session) const`** — connection probe for plugins that didn't match on ATR alone. The session's ATR is pre-passed so plugins don't re-read it.
+- **`ReadResult readCard(CardSession& session, GroupCallback onGroup = {}) const`** — extract card data. Returns a status-coded `ReadResult`; the optional callback receives each `CardFieldGroup` as it becomes available so hosts can render progressively (replaces the older separate `readCardStreaming` method).
+- **Signing methods** (when `CardCapabilities::PKI` is advertised) — `discoverKeyReferences`, `sign`, `getPINList`, `verifyPIN`, `changePIN`, `unblockPIN`. Return structured `SignResult` / `PINResult` with `bool ok()` predicate.
+
+The plugin ABI is independently versioned as an integer constant `LibreSCRS::Plugin::kCardPluginAbiVersion` (current: **v6**). The one-line `LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 6)` macro emits the three C-linkage factory symbols (`create_card_plugin`, `destroy_card_plugin`, `card_plugin_abi_version`) and pins the version with a compile-time `static_assert`. Exceptions MUST NOT cross the plugin ABI boundary — the macro wraps `new MyPlugin()` in a `noexcept` try/catch; failures surface as `LoadOutcome::Status::FactoryThrew`.
+
+**Two-phase probe.** `CardPluginRegistry::findAllCandidates(atr, session)` first calls `canHandle(atr)` on every loaded plugin. Plugins that return `true` enter the candidate list immediately, ordered by `probePriority` (lower number wins). Plugins that returned `false` get a second chance via `canHandleConnection(atr, session)` — letting generic drivers (OpenSC, PKCS#15) claim the card by live AID probe.
+
+**Fallback chain.** If the top-ranked candidate's `readCard` fails, the next is tried automatically. Data plugins (eID, vehicle, health) read demographic data; PKI plugins (CardEdge, PKCS#15, OpenSC) are triggered separately for signing and certificate operations. Decoupling means a data plugin never needs to know about PKI and vice versa.
+
+### GUI plugins — `CardWidgetPlugin`
+
+A GUI plugin is a Qt MODULE library loaded by `CardWidgetPluginRegistry` via `QPluginLoader`. Each plugin declares a `cardType()` string (matching the `LibreSCRS::Plugin::CardData::cardType` its paired middleware plugin emits) and implements `createWidget(const CardData&, QWidget* parent)` returning a fully-built Qt widget. Adding a new card display requires no core recompilation — drop in the `.so`, the registry discovers it.
+
+---
+
+## Ownership model
+
+The Export.h top-of-tree doc states the project-wide convention explicitly: **every public service that depends on another service takes the dependency by `std::shared_ptr`**. This eliminates the "must outlive" destruction-order footgun that plagued pre-4.0 code at process shutdown.
+
+Concrete consequences:
+
+- `LibreSCRS::Signing::SigningService::sign(request, credProvider, plugin, session)` — `plugin` and `session` are `shared_ptr`; internal workers promote from `weak_ptr` at use.
+- `LibreSCRS::Plugin::AutoReader` ctor — `monitor` and `registry` are `shared_ptr`.
+- `LibreSCRS::Plugin::CardPluginRegistry::plugins()` — returns `vector<shared_ptr<CardPlugin>>`; the custom deleter runs the plugin's destructor and then calls `dlclose`, so the underlying `.so` stays mapped until the last external reference drops.
+
+**Move-only** where duplication would be wrong: `SigningRequest` (two concurrent sign operations against the same I/O files is a footgun), `Secure::Buffer` (no accidental secret duplication), `CardSession` (hardware handle), `SigningService` (the object *is* the configured pipeline), `Monitor` (owns a live poll thread and subscription table keyed by stable tokens).
+
+**Copyable** where value semantics are the natural fit: `AuthRequirement` (plain-data plus `std::vector<FieldDescriptor>`), `VisualSignatureParams` (pimpl deep-copies small-data), `CredentialResult` and `SigningResult` (each copy carries its own cleansed `Secure::String` storage), `LocalizedText`.
+
+---
+
+## Error-handling model
+
+API-POLICY §5 splits errors into three shapes, applied uniformly across the public surface:
+
+1. **Construction / validation errors — throw.** Builders, factories, and constructors that validate caller-supplied inputs throw `std::invalid_argument` identifying the bad field. Examples: `VisualSignatureParams::Builder::rect(r)` with non-positive dimensions, `SigningRequest::Builder::build()` with missing required fields, `AuthRequirement::forSigning(label, retries)` with an empty label. Callers scope exception handling around the construction phase.
+
+2. **Runtime / environmental errors — structured status.** Methods that can fail for environmental reasons (card absent, network, user cancellation, protocol mismatch) return a result type carrying a `Status` enum + optional payload + optional translator-friendly message. These methods **do not throw** across the 4.0 public boundary. Examples: `SigningService::sign` → `SigningResult`, `CardPlugin::readCard` → `ReadResult`, `CardSession::open` → `OpenSessionResult {optional<CardSession>, optional<OpenError>}`, `Monitor::listReaders` → `optional<vector<string>>`.
+
+3. **Pure accessors — `noexcept`.** Getters return by `const&` or by value without throwing. Accessors on a moved-from pimpl object are undefined behaviour; `explicit operator bool()` on every pimpl-backed type lets callers defensively check without triggering UB.
+
+The plugin ABI boundary is a hard exception barrier: `readCard` and the plugin factory are `noexcept`; internal throws are translated into `ReadResult::Status::CommunicationError` / `ParseError` and `LoadOutcome::Status::FactoryThrew` at the boundary.
+
+---
+
+## Data flow
+
+The complete path from card insertion to display:
 
 ```
 1. Card inserted into reader
 
-2. smartcard::Monitor (LibreMiddleware, PC/SC polling thread)
-   └─ SCardGetStatusChange detects card presence
+2. LibreSCRS::SmartCard::Monitor (LibreMiddleware, PC/SC poll thread)
+   └─ detects card presence via SCardGetStatusChange
    └─ creates MonitorEvent { CardInserted, readerName, atr }
-   └─ notifies subscribers via callback
+   └─ fans out to every subscriber callback (thread-safe subscription table)
 
-3. SmartCardReaderListener (LibreCelik, Qt adapter)
+3. QSmartCardMonitor (LibreCelik, Qt adapter)
    └─ receives MonitorEvent on monitor thread
    └─ marshals to Qt main thread via QMetaObject::invokeMethod
-   └─ emits signal with MonitorEvent
+   └─ emits Qt signal
 
-4. Main window receives signal, starts two-phase plugin discovery:
-   Phase 1 — ATR filtering (no card communication):
-   └─ CardPluginRegistry::findAllCandidates(atr, connection)
-      ├─ eidcard-plugin::canHandle(atr)     → true  (recognized Serbian eID ATR)
-      ├─ vehicle-plugin::canHandle(atr)     → false
-      ├─ emrtd-plugin::canHandle(atr)       → false
-      └─ opensc-plugin::canHandle(atr)      → false
-      Candidates so far: [eidcard-plugin (priority 100)]
-   Phase 2 — connection probe (only on plugins that returned false):
-      ├─ vehicle-plugin::canHandleConnection(conn)  → false
-      ├─ emrtd-plugin::canHandleConnection(conn)    → false
-      └─ opensc-plugin::canHandleConnection(conn)   → true (found PKCS#15)
-      Final candidates: [eidcard-plugin (100), opensc-plugin (50)]
+4. Main window starts two-phase plugin discovery:
+   Phase 1 — ATR filter (no card I/O):
+   └─ CardPluginRegistry::findAllCandidates(atr, session)
+      ├─ cardedge-plugin::canHandle(atr)  → true
+      ├─ emrtd-plugin::canHandle(atr)     → false
+      └─ pkcs15-plugin::canHandle(atr)    → false
+      Candidates: [cardedge (priority 840)]
+   Phase 2 — connection probe (only plugins that returned false):
+      ├─ emrtd-plugin::canHandleConnection(atr, session)  → false
+      └─ pkcs15-plugin::canHandleConnection(atr, session) → true (found EF.ODF)
+      Final: [cardedge (840), pkcs15 (2000)]  — lower wins
 
 5. AsyncCardReader::requestData(topCandidate)
    └─ std::async → background thread
-   └─ eidcard-plugin::readCard(connection)
-      ├─ SELECT AID, READ BINARY personal data
-      ├─ parse BER-TLV response
-      └─ return CardData { type: "rs.eid", fields: {...} }
+   └─ cardedge-plugin::readCard(session, options, groupCallback)
+      ├─ SELECT AID, SM setup if required
+      ├─ parse BER-TLV responses
+      └─ emits CardFieldGroups progressively via callback
+      └─ returns ReadResult::Status::Ok
 
-6. Result marshalled back to Qt main thread (QMetaObject::invokeMethod)
+6. Main thread marshals results back via QMetaObject::invokeMethod
 
-7. CardWidgetPluginRegistry::findByCardType("rs.eid")
-   └─ rseid-gui-plugin matches
+7. CardWidgetPluginRegistry::findByCardType(cardData.cardType)
+   └─ cardedge-gui-plugin matches
 
-8. rseid-gui-plugin::createWidget(cardData, parent)
-   └─ builds widget: photo, name, address, document number, certificates
+8. createWidget(cardData, parent) → rendered Qt widget
 
 9. Widget displayed in main window
 ```
 
 ---
 
-## Design Patterns
-
-### Strategy
-
-`CardReaderBase` defines the interface for communicating with a specific card reader chip. Concrete implementations — `CardReaderApollo` (Apollo 2008 chips) and `CardReaderGemalto` (Gemalto 2014+ chips) — encapsulate the differences in APDU sequences and file structures.
-
-### Async
-
-`AsyncCardReader` wraps middleware plugin calls with `std::async` to keep the GUI responsive. Results are marshalled back to the Qt main thread via `QMetaObject::invokeMethod` and Qt signals. Supports both batch (`readCard`) and streaming (`readCardStreaming`) modes. In the middleware layer, `AutoReader` provides a convenience wrapper that bridges `smartcard::Monitor` events directly to `CardPluginRegistry` discovery and card reading — useful for applications that want automatic card handling without manual wiring.
-
-### Observer
-
-`smartcard::Monitor` uses a callback-based subscription model in the middleware layer. In the GUI layer, `SmartCardReaderListener` wraps the monitor and re-emits events as Qt signals, propagating card insert/remove events to the main window and any registered listeners.
-
-### Singleton
-
-`SmartCardReaderListener::instance()` provides a single dispatch point for card events across the GUI application.
-
----
-
-## Namespaces
-
-| Namespace | Scope |
-|---|---|
-| `smartcard::` | SmartCard library — APDU, TLV, BER, PCSCConnection, Monitor |
-| `plugin::` | Plugin system types — CardData, CardPlugin, CertificateData, CardPluginRegistry |
-| `eidcard::` | Serbian eID library types and API |
-| `euvrc::` | EU Vehicle Registration Certificate types and API |
-| `healthcard::` | Serbian health insurance card types |
-| `cardedge::` | CardEdge PKI applet — certificates, PIN, signing |
-| `emrtd::` | eMRTD data structures and MRZ parsing |
-| `emrtd::crypto` | eMRTD cryptography — BAC, PACE, Secure Messaging |
-| `piv::` | PIV card types and API |
-| `pkcs15::` | PKCS#15 parser types |
-| `LibreSCRS::` | GUI application types |
-
----
-
 ## Standards
 
-The following standards are relevant to the codebase:
+The public API interoperates with or cites these standards:
 
 | Standard | Usage |
 |---|---|
-| ISO 7816-4 | Smart card communication — APDU command/response structure, TLV and BER-TLV encoding |
-| PC/SC | Reader access layer — card detection, connection management, transaction control |
-| PKCS#11 | Cryptographic token interface — browser authentication, digital signatures |
-| PKCS#15 | Cryptographic information application — certificate and key discovery on smart cards |
-| ICAO 9303 | eMRTD (e-passports) — BAC and PACE key agreement, Secure Messaging, data group structure |
-| NIST SP 800-73 | PIV card interface — certificate discovery, authentication, digital signing |
-| BSI TR-03110 | PACE protocol — password-authenticated key agreement for eMRTD |
+| ISO 7816-4 | Smart card communication — APDU command/response, TLV / BER-TLV encoding |
+| PC/SC | Reader access layer — card detection, connection management |
+| PKCS#11 | Cryptographic token interface — `librescrs-pkcs11.so` for browsers and desktop PKI clients |
+| PKCS#15 / ISO 7816-15 | Cryptographic information application — certificate and key discovery |
+| ICAO 9303 | eMRTD — Basic Access Control, PACE, Secure Messaging, data group structure |
+| NIST SP 800-73 | PIV card interface — certificate discovery, authentication, signing |
+| BSI TR-03110 | PACE protocol — password-authenticated key agreement |
+| ISO 32000-1 | PDF signature dictionary fields (reason, location, contactInfo) |
+| ETSI EN 319 412 / 319 102 | AdES profiles — CAdES / PAdES / XAdES / JAdES / ASiC-E signing levels |
+| RFC 3161 / 7617 / 6750 / 7230 | TSA timestamping + HTTP auth + header semantics |

@@ -1,263 +1,200 @@
 ---
 layout: "simple"
 title: "Преглед архитектуре"
-description: "Компоненте система, ток података, архитектура додатака и пројектни обрасци"
+description: "Компоненте система, површина јавног API-ја, модел додатака и ток података"
 ---
 
-LibreSCRS се састоји од два главна пројекта који заједно читају, обрађују и приказују податке са смарт картица.
+LibreSCRS су два пројекта која заједно читају, обрађују и приказују податке српских државних смарт картица. Јавна површина 4.0 API-ја је стабилан C++20 + LGPL у LibreMiddleware-у; Qt десктоп GUI седи изнад, под GPL-3.0.
 
-## Компоненте
+## Пројекти
 
 ### LibreMiddleware (LGPL-2.1)
 
-Колекција статичких C++20 библиотека за комуникацију са смарт картицама, без зависности од Qt-а. Обрађује све од APDU команди ниског нивоа до екстракције података са картице. **Сва PC/SC комуникација живи искључиво у LibreMiddleware-у** — LibreCelik нема директну зависност од PC/SC-а.
-
-| Библиотека | Намена |
-|---|---|
-| `smartcard` | PCSCConnection, Monitor (детекција картица), APDU команда/одговор, TLV и BER-TLV парсирање (ISO 7816-4), TransmitFilter (транспарентни Secure Messaging слој) |
-| `plugin` | CardPlugin интерфејс (са подршком за streaming), CardData модел, CardPluginRegistry (dlopen), AutoReader (мост између Monitor-а и откривања додатака) |
-| `pkcs15` | Генерички PKCS#15/ISO 7816-15 парсер и библиотека — EF.ODF/EF.DIR откривање, енумерација сертификата и кључева. Ради са било којом PKCS#15-компатибилном картицом |
-| `rs-eid` | API за српску eID картицу са имплементацијама читача (Apollo 2008, Gemalto 2014+, Foreigner IF2020) |
-| `eu-vrc` | ЕУ саобраћајна дозвола (Директива 2003/127/EC) |
-| `rs-health` | Картица српског здравственог осигурања (РФЗО) |
-| `cardedge` | CardEdge PKI аплет за српске смарт картице — сертификати, управљање PIN-ом, дигитално потписивање |
-| `emrtd` | eMRTD комуникација са е-пасошем — читање група података, парсирање MRZ-а |
-| `emrtd-crypto` | eMRTD криптографија — BAC, PACE (ECDH-GM), Secure Messaging |
-| `piv` | PIV комуникација са картицом (NIST SP 800-73) |
-| `pkcs11` | PKCS#11 дељена библиотека (`librescrs-pkcs11`) — подржава све типове картица |
-| `*-plugin` | Додаци за картице (`.so`): rs-eid, rs-health, eu-vrc, emrtd, piv, pkcs15, cardedge, opensc |
+Колекција C++20 статичких библиотека без Qt зависности. Сав PC/SC и код протокола картице живи овде. Потрошачи линкују на јавне циљеве и приступају свему кроз `LibreSCRS::*` просторе имена.
 
 ### LibreCelik (GPL-3.0)
 
-Qt6 десктоп GUI апликација за приказ података са картица. **Чист презентацијски слој** — без PC/SC-а, без APDU-а, без знања о протоколима картица. Прима `CardData` од middleware додатака и приказује га кроз GUI додатке.
+Qt6 десктоп апликација која користи LibreMiddleware. **Чист презентацијски слој** — без PC/SC-а, без APDU-а, без знања о криптографским протоколима. Прима `LibreSCRS::Plugin::CardData` од middleware додатака и приказује га кроз GUI додатке.
 
-| Модул | Намена |
-|---|---|
-| `smartcard` | SmartCardReaderListener — Qt адаптер који обавија middleware `smartcard::Monitor` |
-| `plugin` | CardWidgetPlugin интерфејс и CardWidgetPluginRegistry (QPluginLoader) |
-| `asynccardreader` | Генерички асинхрони читач картица кроз middleware CardPlugin ланац |
-| `document` | Дељени PKI кориснички интерфејс (TokenSection), дијалог за промену PIN-а, штампање |
-| `certificate` | Прегледач X.509 сертификата (модел стабла + дијалог) |
-| `plugins/` | GUI додаци (rs-eid, rs-health, eu-vrc, emrtd, piv, token) као Qt MODULE `.so` датотеке |
-
-LibreCelik преузима LibreMiddleware преко CMake `FetchContent`. За локални развој можете усмерити на локалну копију.
+LibreCelik преузима LibreMiddleware преко CMake `FetchContent`. За локални развој, усмерите га на локалну копију кроз `FETCHCONTENT_SOURCE_DIR_LIBREMIDDLEWARE`.
 
 ---
 
-## Архитектура додатака
+## Површина јавног API-ја
 
-Цео систем је изграђен око додатака. Постоје два независна слоја — **middleware додаци** за комуникацију са картицом, **GUI додаци** за приказ. Повезани су кроз `CardData`, универзални модел података који сваки middleware додатак производи, а сваки GUI додатак конзумира.
+Све што се очекује да потрошачи користе живи у једном од пет простора имена.
+
+| Простор имена | Намена |
+|---|---|
+| `LibreSCRS::Auth` | Речник за прикупљање креденцијала — `AuthRequirement` са `forPreRead` / `forSigning` / `forChangePin` / `forUnblockPin` фабрикама, `FieldDescriptor`, `CredentialProvider` callback псеудоним, `CredentialResult`, `LocalizedText` i18n пакет |
+| `LibreSCRS::SmartCard` | Приступ PC/SC читачу — `Monitor` (fan-out догађаја читача/картице за више претплатника), `CardSession` (pimpl сесијски handle отворен преко noexcept `open()` фабрике која враћа `OpenSessionResult`) |
+| `LibreSCRS::Plugin` | Плугин оквир — `CardPlugin` апстрактна база, `CardPluginRegistry`, `CardData` / `CardFieldGroup` / `CardField`, `ReadResult`, `PinStatusEntry`, `SecurityCheck` / `SecurityStatus`, `AutoReader` |
+| `LibreSCRS::Signing` | PAdES / XAdES / JAdES / CAdES / ASiC-E потписивање — `SigningService` (pure-DI, move-only), `SigningRequest::Builder`, `VisualSignatureParams::Builder`, `TsaProvider` runtime-secret callback, `TrustConfig`, `SigningResult` |
+| `LibreSCRS::Secure` | Типови који нулирају бајтове, за краткотрајне тајне — `Secure::String` (PIN/токен текст; нулиран при destrukciji и move-from), `Secure::Buffer` (бинарни кључеви / APDU бајтови) |
+
+Све ван ових простора имена — `smartcard::*`, `libresign::*`, `pkcs11::*`, `pkcs15::*`, интерни `detail::*` хедери — је детаљ имплементације. Може се мењати у било ком издању без semver утицаја.
+
+---
+
+## Модел додатака
+
+Систем има два независна слоја додатака: **middleware додаци** обрађују комуникацију са картицом, **GUI додаци** обрађују приказ. Срећу се на `CardData`-и, универзалном моделу података који производи middleware додатак, а конзумира GUI додатак.
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                      LibreCelik (GUI)                   │
-│                                                         │
-│  ┌──────────────────────┐ ┌────────────────────────┐    │
-│  │SmartCardReaderListener│ │ CardWidgetPluginRegistry│    │
-│  │(Qt адаптер за Monitor)│ │ (QPluginLoader)        │    │
-│  └──────────────────────┘ └──────────┬─────────────┘    │
-│           ▲                          │ учитава           │
-│           │ обавија          ┌──────▼──────────────┐   │
-│           │                   │  GUI додаци (.so)    │   │
-│           │                   │ ┌──────┐ ┌────────┐ │   │
-│           │                   │ │rs-eid│ │eu-vrc  │ │   │
-│           │                   │ ├──────┤ ├────────┤ │   │
-│           │                   │ │rs-   │ │ emrtd  │ │   │
-│           │                   │ │health│ ├────────┤ │   │
-│           │                   │ ├──────┤ │  piv   │ │   │
-│           │                   │ │token │ └────────┘ │   │
-│           │                   │ └──────┘            │   │
-│           │                   └─────────────────────┘   │
-│           │                          ▲                  │
-│           │                          │ CardData         │
-├───────────┼──────────────────────────┼──────────────────┤
-│           │           LibreMiddleware│                   │
-│           │                          │                  │
-│  ┌────────┴─────────┐ ┌─────────────┴──────────┐       │
-│  │ smartcard::Monitor│ │ CardPluginRegistry     │       │
-│  │ (PC/SC polling)  │ │ (dlopen)               │       │
-│  └──────────────────┘ └──────────┬─────────────┘       │
-│                                  │ учитава              │
-│  ┌───────────────────────────────▼─────────────────┐   │
-│  │         Middleware додаци (.so)                   │   │
-│  │ ┌─────────┐ ┌──────────┐ ┌───────────────────┐ │   │
-│  │ │ rs-eid  │ │  emrtd   │ │     opensc         │ │   │
-│  │ ├─────────┤ ├──────────┤ │ (PKI резервна)     │ │   │
-│  │ │ eu-vrc  │ │ cardedge │ └───────────────────┘ │   │
-│  │ ├─────────┤ ├──────────┤ ┌───────────────────┐ │   │
-│  │ │rs-health│ │   piv    │ │     pkcs15         │ │   │
-│  │ └─────────┘ └──────────┘ └───────────────────┘ │   │
-│  └─────────────────────────────────────────────────┘   │
-│                          │                             │
-│                          │ APDU (ISO 7816-4)           │
-│                          ▼                             │
-│                   ┌──────────────┐                     │
-│                   │PCSCConnection│                     │
-│                   │  (PC/SC)     │                     │
-│                   └──────┬──────┘                      │
-└──────────────────────────┼─────────────────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │ Смарт картица│
-                    └─────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                      LibreCelik (GUI)                     │
+│                                                           │
+│  ┌──────────────────────────┐ ┌───────────────────────┐   │
+│  │ QSmartCardMonitor        │ │ CardWidgetPluginReg.  │   │
+│  │ (Qt адаптер за Monitor)  │ │ (QPluginLoader)       │   │
+│  └──────────────────────────┘ └──────────┬────────────┘   │
+│           ▲                              │ учитава         │
+│           │ обавија               ┌──────▼──────────────┐  │
+│           │                       │  GUI додаци (.so)    │  │
+│           │                       └─────────────────────┘  │
+│           │                              ▲                 │
+│           │                              │ CardData        │
+├───────────┼──────────────────────────────┼─────────────────┤
+│           │         LibreMiddleware      │                 │
+│           │                              │                 │
+│  ┌────────┴────────────┐  ┌──────────────┴───────────┐     │
+│  │ LibreSCRS::SmartCard│  │ LibreSCRS::Plugin::       │     │
+│  │          ::Monitor  │  │   CardPluginRegistry     │     │
+│  │ (PC/SC event poll)  │  │ (dlopen + ABI v6 static  │     │
+│  └─────────────────────┘  │  assert + ATR/AID probe) │     │
+│                           └──────────┬───────────────┘     │
+│                                      │ учитава              │
+│  ┌───────────────────────────────────▼─────────────────┐   │
+│  │         Middleware додаци (.so)                      │   │
+│  │   cardedge, emrtd, pkcs15, piv, opensc, …           │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                      │                     │
+│                                      │ APDU (ISO 7816-4)   │
+│                                      ▼                     │
+│                               ┌────────────┐               │
+│                               │ PC/SC      │               │
+│                               └─────┬──────┘               │
+└─────────────────────────────────────┼─────────────────────┘
+                                      │
+                               ┌──────▼──────┐
+                               │ Смарт картица│
+                               └─────────────┘
 ```
 
-### Детекција картице: smartcard::Monitor
+### Middleware додаци — `LibreSCRS::Plugin::CardPlugin`
 
-Детекција картице живи у LibreMiddleware-у као `smartcard::Monitor` — чиста C++20 класа без зависности од Qt-а. На позадинској нити прозива PC/SC за догађаје убацивања/вађења картице и обавештава претплатнике кроз повратне позиве:
+Middleware додатак је дељена библиотека (`.so` / `.dylib`) коју `CardPluginRegistry` учитава преко `dlopen` у време извршавања. Сваки додатак је подкласа `CardPlugin`-а која у свом конструктору позива `setIdentity(id, displayName, probePriority)` и прегласава виртуелне методе релевантне за породицу картица коју подржава. Декларативна површина:
 
-- **`subscribe(MonitorCallback)`** — регистрација за `MonitorEvent` обавештења (картица убачена/извађена, име читача, ATR)
-- **`unsubscribe(id)`** — престанак примања догађаја
+- **`CardCapabilities capabilities() const`** — битфилд који оглашава које категорије додатак имплементира: `None`, `PKI`, `IdentityData`, `EmrtdCrypto`, `PinManagement`. Домаћин чита ову вредност при учитавању; методе ван оглашеног скупа по подразумеваном враћају `NotImplemented`.
+- **`bool canHandle(const std::vector<uint8_t>& atr) const`** — брз тест само по ATR-у. Без I/O картице.
+- **`bool canHandleConnection(const std::vector<uint8_t>& atr, CardSession& session) const`** — проба на живој вези за додатке који нису прошли сам ATR. ATR сесије се прослеђује унапред да додаци не би морали поново да га читају.
+- **`ReadResult readCard(CardSession& session, GroupCallback onGroup = {}) const`** — екстрахује податке картице. Враћа status-coded `ReadResult`; опциони callback прима сваку `CardFieldGroup` како постане доступна, тако да домаћини могу прогресивно да рендерују (замењује ранију одвојену `readCardStreaming` методу).
+- **Signing методе** (када се оглашава `CardCapabilities::PKI`) — `discoverKeyReferences`, `sign`, `getPINList`, `verifyPIN`, `changePIN`, `unblockPIN`. Враћају структуриране `SignResult` / `PINResult` са `bool ok()` предикатом.
 
-Монитор лењо покреће нит за прозивање при првој претплати и зауставља је када се последњи претплатник одјави. У LibreCelik-у, `SmartCardReaderListener` обавија монитор и маршалира догађаје на Qt главну нит кроз сигнале.
+ABI додатка је независно верзионисан као integer константа `LibreSCRS::Plugin::kCardPluginAbiVersion` (тренутно: **v6**). Макро у једној линији `LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 6)` емитује три C-linkage фабричка симбола (`create_card_plugin`, `destroy_card_plugin`, `card_plugin_abi_version`) и фиксира верзију кроз compile-time `static_assert`. Изузеци НЕ СМЕЈУ да прелазе ABI границу додатка — макро обавија `new MyPlugin()` у `noexcept` try/catch; неуспеси стижу као `LoadOutcome::Status::FactoryThrew`.
 
-### Middleware додаци (CardPlugin)
+**Двофазна провера.** `CardPluginRegistry::findAllCandidates(atr, session)` прво позива `canHandle(atr)` на сваком учитаном додатку. Додаци који врате `true` одмах улазе у листу кандидата, сортирану по `probePriority` (мањи број побеђује). Додаци који су вратили `false` добијају другу шансу кроз `canHandleConnection(atr, session)` — дозвољавајући генеричким драјверима (OpenSC, PKCS#15) да преузму картицу кроз живу AID пробу.
 
-Middleware додатак је дељена библиотека (`.so` / `.dylib`) коју `CardPluginRegistry` учитава преко `dlopen` у време извршавања. Сваки додатак имплементира:
+**Fallback ланац.** Ако `readCard` најбоље рангираног кандидата не успе, следећи се покушава аутоматски. Додаци за податке (еИД, саобраћајна, здравствена) читају демографске податке; PKI додаци (CardEdge, PKCS#15, OpenSC) се покрећу засебно за потписивање и операције са сертификатима. Раздвајање значи да додатак за податке никад не мора да зна за PKI и обрнуто.
 
-- **`canHandle(const std::vector<uint8_t>& atr)`** — брза провера само по ATR-у. Враћа `bool` — да ли овај додатак препознаје ATR? Без комуникације са картицом. Додаци такође излажу `probePriority()` (`int`) тако да регистар може рангирати кандидате.
-- **`canHandleConnection(PCSCConnection& conn)`** — провера на живој конекцији. Шаље SELECT команде за познате AID-ове ради потврде подршке. Позива се само на додацима који **нису** прошли `canHandle()` — даје им другу шансу да преузму картицу кроз живу комуникацију.
-- **`readCard(PCSCConnection& conn)`** — екстрахује све податке са картице. Шаље APDU команде, парсира TLV/BER-TLV одговоре и враћа `CardData` објекат са типизираним групама поља (лични подаци, подаци документа, фотографије, сертификати).
+### GUI додаци — `CardWidgetPlugin`
 
-**Двофазна провера:** Регистар прво позива `canHandle(atr)` на свим додацима — они који врате `true` иду одмах у листу кандидата, рангирани по `probePriority()`. Затим се `canHandleConnection(conn)` позива само на додацима који су вратили `false` у Фази 1, дајући генеричким додацима (попут OpenSC-а) шансу да преузму картицу провером живе конекције. Ово избегава непотребну комуникацију за додатке који су већ препознали картицу по ATR-у.
+GUI додатак је Qt MODULE библиотека коју `CardWidgetPluginRegistry` учитава преко `QPluginLoader`. Сваки додатак декларише `cardType()` стринг (који одговара `LibreSCRS::Plugin::CardData::cardType`-у који његов парни middleware додатак емитује) и имплементира `createWidget(const CardData&, QWidget* parent)` враћајући потпуно изграђен Qt виџет. Додавање новог приказа не захтева поновну компилацију језгра — испустите `.so`, регистар га открива.
 
-**Streaming подршка:** Додаци могу имплементирати `readCardStreaming()` поред `readCard()`. Streaming испоручује `CardData` инкрементално — поља се појављују у GUI-ју док се читају са картице, уместо чекања да се цело читање заврши. Ово је посебно корисно за eMRTD где се групе података читају секвенцијално кроз шифроване канале.
+---
 
-**Ланац резервних опција:** Ако `readCard()` најбоље рангираног додатка не успе, аутоматски се покушава следећи кандидат. OpenSC додатак служи као генеричка резервна опција за сваку картицу коју нема нативно подржану.
+## Модел власништва
 
-**PKI резервна опција:** Додаци за податке (еИД, саобраћајна, здравствена) читају демографске податке, али не обрађују PKI операције. Након што додатак за податке заврши, систем може покренути засебан PKI додатак (CardEdge, PKCS#15 или OpenSC) за откривање сертификата, потписивање и управљање PIN-ом. Ово раздвајање значи да додаци за податке не морају знати за PKI.
+Документ Export.h на врху стабла изричито наводи пројектно-општу конвенцију: **сваки јавни сервис који зависи од другог сервиса узима зависност кроз `std::shared_ptr`**. Ово елиминише „must outlive” класу greshaka у редоследу уништавања која је мучила код пре 4.0 приликом гашења процеса.
 
-**Додавање новог типа картице:** Напишите класу која наслеђује `CardPlugin`, имплементирајте `canHandle()`, `canHandleConnection()` и `readCard()` (опционо `readCardStreaming()`), компајлирајте као дељену библиотеку и поставите је у директоријум за додатке. Регистар је аутоматски открива при следећем покретању.
+Конкретне последице:
 
-### GUI додаци (CardWidgetPlugin)
+- `LibreSCRS::Signing::SigningService::sign(request, credProvider, plugin, session)` — `plugin` и `session` су `shared_ptr`; интерни радници промовишу из `weak_ptr`-а при употреби.
+- `LibreSCRS::Plugin::AutoReader` конструктор — `monitor` и `registry` су `shared_ptr`.
+- `LibreSCRS::Plugin::CardPluginRegistry::plugins()` — враћа `vector<shared_ptr<CardPlugin>>`; custom deleter покреће destruktor додатка и затим позива `dlclose`, тако да основни `.so` остаје mapped док се последња спољна референца не пусти.
 
-GUI додатак је Qt дељена библиотека коју `CardWidgetPluginRegistry` учитава преко `QPluginLoader`. Сваки додатак имплементира:
+**Само-move** где би дупликација била погрешна: `SigningRequest` (две конкурентне sign операције над истим I/O фајлом су footgun), `Secure::Buffer` (без случајне дупликације тајни), `CardSession` (хардверски handle), `SigningService` (објекат *је* конфигурисан пипелајн), `Monitor` (поседује живу poll нит и табелу претплата оквирену стабилним токенима).
 
-- **`cardType()`** — враћа тип картице који овај додатак може да прикаже (мора да одговара ономе што middleware додатак поставља у `CardData`).
-- **`createWidget(const CardData&, QWidget* parent)`** — гради и враћа Qt виџет који приказује податке са картице. Пуна контрола над распоредом — текстуална поља, фотографије, сертификати, шта год картица садржи.
+**Копирљив** где је вредносна семантика природан избор: `AuthRequirement` (обичан податак + `std::vector<FieldDescriptor>`), `VisualSignatureParams` (pimpl deep-copies small-data), `CredentialResult` и `SigningResult` (свака копија носи сопствено нулирано `Secure::String` складиште), `LocalizedText`.
 
-**Додавање новог приказа картице:** Напишите класу која наслеђује `CardWidgetPlugin` и `Q_PLUGIN_METADATA`, имплементирајте `cardType()` и `createWidget()`, компајлирајте као Qt MODULE библиотеку.
+---
 
-### Како се повезују
+## Модел руковања грешкама
 
-Додавање подршке за потпуно нови тип картице захтева два додатка:
+API-POLICY §5 дели грешке у три облика, униформно примењена на целу јавну површину:
 
-1. **Middleware додатак** — зна како да комуницира са картицом (SELECT, READ BINARY, парсирање одговора)
-2. **GUI додатак** — зна како да прикаже податке (распоред, ознаке, форматирање)
+1. **Грешке конструкције / валидације — throw.** Builder-и, фабрике и конструктори који валидирају корисничке улазе бацају `std::invalid_argument` идентификујући лоше поље. Примери: `VisualSignatureParams::Builder::rect(r)` са непозитивним димензијама, `SigningRequest::Builder::build()` са недостајућим обавезним пољима, `AuthRequirement::forSigning(label, retries)` са празним label-ом. Позиваоци обавијају руковање изузецима око фазе конструкције.
 
-Мост између њих је `CardData` — мапа група поља, где свака група садржи парове кључ-вредност. Middleware додатак га попуњава, GUI додатак га чита. Ниједан не мора да зна за други. Поновна компилација основне апликације није потребна — само поставите `.so` датотеке.
+2. **Runtime / environmental грешке — структурисан статус.** Методе које могу неуспешно завршити из environmental разлога (картица одсутна, мрежа, отказивање корисника, mismatch протокола) враћају result тип који носи `Status` enum + опциони payload + опциону поруку прилагођену преводиоцу. Ове методе **не бацају** преко 4.0 јавне границе. Примери: `SigningService::sign` → `SigningResult`, `CardPlugin::readCard` → `ReadResult`, `CardSession::open` → `OpenSessionResult {optional<CardSession>, optional<OpenError>}`, `Monitor::listReaders` → `optional<vector<string>>`.
 
-### eMRTD: Криптографски приступ картици
+3. **Чисти accessor-и — `noexcept`.** Getter-и враћају по `const&` или по вредности без бацања. Accessor-и на moved-from pimpl објекту су неодређено понашање; `explicit operator bool()` на сваком pimpl-backed типу дозвољава позиваоцима да безбедно провере без изазивања UB-а.
 
-eMRTD додатак демонстрира најсложенију комуникацију са картицом у систему. Е-пасоши захтевају криптографско договарање кључева пре него што се било који податак може прочитати:
-
-- **BAC** (Basic Access Control) — изводи сесијске кључеве из машински читљиве зоне (MRZ) штампане на пасошу
-- **PACE** (Password Authenticated Connection Establishment) — Diffie-Hellman договарање кључева на елиптичним кривама, модерна замена за BAC. Може захтевати од корисника унос CAN броја (Card Access Number) штампаног на пасошу.
-- **Secure Messaging** — све наредне APDU команде и одговори су шифровани и МАЦ-овани сесијским кључевима. Имплементирано као `TransmitFilter` на `PCSCConnection` — једном инсталиран, шифровање је транспарентно за сав код вишег нивоа.
-
-Библиотека `emrtd-crypto` имплементира ове протоколе из ICAO 9303 спецификације, док библиотека `emrtd` обрађује читање група података и парсирање MRZ-а. `emrtd-plugin` их повезује као стандардни `CardPlugin` са streaming подршком — групе података се читају прогресивно и испоручују GUI-ју како постану доступне. Из перспективе остатка система, то је само још један додатак који враћа `CardData`.
+ABI граница додатка је тврда баријера за изузетке: `readCard` и плугин фабрика су `noexcept`; интерни throw-ови се преводе у `ReadResult::Status::CommunicationError` / `ParseError` и `LoadOutcome::Status::FactoryThrew` на граници.
 
 ---
 
 ## Ток података
 
-Комплетан ток када се смарт картица убаци:
+Комплетан пут од убацивања картице до приказа:
 
 ```
 1. Картица убачена у читач
 
-2. smartcard::Monitor (LibreMiddleware, PC/SC нит за прозивање)
-   └─ SCardGetStatusChange детектује присуство картице
+2. LibreSCRS::SmartCard::Monitor (LibreMiddleware, PC/SC поллинг нит)
+   └─ детектује присуство картице преко SCardGetStatusChange
    └─ креира MonitorEvent { CardInserted, readerName, atr }
-   └─ обавештава претплатнике кроз повратни позив
+   └─ fan-out-ује до сваке subscriber callback-е (thread-safe табела претплата)
 
-3. SmartCardReaderListener (LibreCelik, Qt адаптер)
+3. QSmartCardMonitor (LibreCelik, Qt адаптер)
    └─ прима MonitorEvent на нити монитора
-   └─ маршалира на Qt главну нит преко QMetaObject::invokeMethod
-   └─ емитује сигнал са MonitorEvent
+   └─ marshal-ира на Qt главну нит преко QMetaObject::invokeMethod
+   └─ емитује Qt сигнал
 
-4. Главни прозор прима сигнал, покреће двофазно откривање додатака:
-   Фаза 1 — ATR филтрирање (без комуникације са картицом):
-   └─ CardPluginRegistry::findAllCandidates(atr, connection)
-      ├─ eidcard-plugin::canHandle(atr)     → true  (препознат ATR српске еИД)
-      ├─ vehicle-plugin::canHandle(atr)     → false
-      ├─ emrtd-plugin::canHandle(atr)       → false
-      └─ opensc-plugin::canHandle(atr)      → false
-      Кандидати до сад: [eidcard-plugin (приоритет 100)]
-   Фаза 2 — провера на конекцији (само додаци који су вратили false):
-      ├─ vehicle-plugin::canHandleConnection(conn)  → false
-      ├─ emrtd-plugin::canHandleConnection(conn)    → false
-      └─ opensc-plugin::canHandleConnection(conn)   → true (нађен PKCS#15)
-      Коначни кандидати: [eidcard-plugin (100), opensc-plugin (50)]
+4. Главни прозор почиње двофазно откривање додатака:
+   Фаза 1 — ATR филтар (без I/O-а картице):
+   └─ CardPluginRegistry::findAllCandidates(atr, session)
+      ├─ cardedge-plugin::canHandle(atr)  → true
+      ├─ emrtd-plugin::canHandle(atr)     → false
+      └─ pkcs15-plugin::canHandle(atr)    → false
+      Кандидати: [cardedge (приоритет 840)]
+   Фаза 2 — провера на вези (само додаци који су вратили false):
+      ├─ emrtd-plugin::canHandleConnection(atr, session)  → false
+      └─ pkcs15-plugin::canHandleConnection(atr, session) → true (нађен EF.ODF)
+      Коначно: [cardedge (840), pkcs15 (2000)]  — мањи побеђује
 
 5. AsyncCardReader::requestData(topCandidate)
    └─ std::async → позадинска нит
-   └─ eidcard-plugin::readCard(connection)
-      ├─ SELECT AID, READ BINARY лични подаци
+   └─ cardedge-plugin::readCard(session, options, groupCallback)
+      ├─ SELECT AID, SM постављање ако је потребно
       ├─ парсирање BER-TLV одговора
-      └─ враћа CardData { type: "rs.eid", fields: {...} }
+      └─ прогресивно емитује CardFieldGroups преко callback-е
+      └─ враћа ReadResult::Status::Ok
 
-6. Резултат маршалиран назад на Qt главну нит (QMetaObject::invokeMethod)
+6. Главна нит враћа резултате преко QMetaObject::invokeMethod
 
-7. CardWidgetPluginRegistry::findByCardType("rs.eid")
-   └─ rseid-gui-plugin одговара
+7. CardWidgetPluginRegistry::findByCardType(cardData.cardType)
+   └─ cardedge-gui-plugin одговара
 
-8. rseid-gui-plugin::createWidget(cardData, parent)
-   └─ гради виџет: фотографија, име, адреса, број документа, сертификати
+8. createWidget(cardData, parent) → рендерован Qt виџет
 
 9. Виџет приказан у главном прозору
 ```
 
 ---
 
-## Пројектни обрасци
-
-### Strategy
-
-`CardReaderBase` дефинише интерфејс за комуникацију са одређеним чипом читача. Конкретне имплементације — `CardReaderApollo` (Apollo 2008 чипови) и `CardReaderGemalto` (Gemalto 2014+ чипови) — енкапсулирају разлике у APDU секвенцама и структурама датотека.
-
-### Async
-
-`AsyncCardReader` обавија позиве middleware додатака са `std::async` да би GUI остао одзиван. Резултати се маршалирају назад на Qt главну нит преко `QMetaObject::invokeMethod` и Qt сигнала. Подржава и batch (`readCard`) и streaming (`readCardStreaming`) режиме. У middleware слоју, `AutoReader` пружа удобан омотач који повезује `smartcard::Monitor` догађаје директно са `CardPluginRegistry` откривањем и читањем картице — корисно за апликације које желе аутоматско руковање картицама без ручног повезивања.
-
-### Observer
-
-`smartcard::Monitor` користи модел претплате заснован на повратним позивима у middleware слоју. У GUI слоју, `SmartCardReaderListener` обавија монитор и поново емитује догађаје као Qt сигнале, пропагирајући догађаје убацивања/вађења картице до главног прозора и свих регистрованих слушалаца.
-
-### Singleton
-
-`SmartCardReaderListener::instance()` пружа јединствену тачку за диспечовање догађаја картице кроз GUI апликацију.
-
----
-
-## Простори имена
-
-| Простор имена | Опсег |
-|---|---|
-| `smartcard::` | Библиотека SmartCard — APDU, TLV, BER, PCSCConnection, Monitor |
-| `plugin::` | Типови система додатака — CardData, CardPlugin, CertificateData, CardPluginRegistry |
-| `eidcard::` | Типови и API библиотеке за српску eID картицу |
-| `euvrc::` | Типови и API за ЕУ саобраћајну дозволу |
-| `healthcard::` | Типови за картицу здравственог осигурања |
-| `cardedge::` | CardEdge PKI аплет — сертификати, PIN, потписивање |
-| `emrtd::` | eMRTD структуре података и парсирање MRZ-а |
-| `emrtd::crypto` | eMRTD криптографија — BAC, PACE, Secure Messaging |
-| `piv::` | PIV типови и API за картицу |
-| `pkcs15::` | PKCS#15 типови парсера |
-| `LibreSCRS::` | Типови GUI апликације |
-
----
-
 ## Стандарди
 
-Следећи стандарди су релевантни за базу кода:
+Јавни API интероперише са или цитира ове стандарде:
 
-| Стандард | Примена |
+| Стандард | Употреба |
 |---|---|
-| ISO 7816-4 | Комуникација са смарт картицом — структура APDU команде/одговора, TLV и BER-TLV кодирање |
-| PC/SC | Слој за приступ читачу — детекција картице, управљање конекцијом, контрола трансакција |
-| PKCS#11 | Интерфејс криптографског токена — аутентификација у прегледачу, дигитални потписи |
-| PKCS#15 | Апликација криптографских информација — откривање сертификата и кључева на смарт картицама |
-| ICAO 9303 | eMRTD (е-пасоши) — BAC и PACE договарање кључева, Secure Messaging, структура група података |
-| NIST SP 800-73 | PIV интерфејс картице — откривање сертификата, аутентификација, дигитално потписивање |
-| BSI TR-03110 | PACE протокол — договарање кључева аутентификованих лозинком за eMRTD |
+| ISO 7816-4 | Комуникација са смарт картицом — APDU команда/одговор, TLV / BER-TLV кодирање |
+| PC/SC | Слој приступа читачу — детекција картице, управљање везом |
+| PKCS#11 | Интерфејс криптографског токена — `librescrs-pkcs11.so` за прегледаче и PKI клијенте |
+| PKCS#15 / ISO 7816-15 | Апликација криптографских информација — откривање сертификата и кључева |
+| ICAO 9303 | eMRTD — Basic Access Control, PACE, Secure Messaging, структура група података |
+| NIST SP 800-73 | PIV интерфејс картице — откривање сертификата, аутентификација, потписивање |
+| BSI TR-03110 | PACE протокол — договарање кључева аутентификованих лозинком |
+| ISO 32000-1 | PDF потписни dictionary поља (reason, location, contactInfo) |
+| ETSI EN 319 412 / 319 102 | AdES профили — CAdES / PAdES / XAdES / JAdES / ASiC-E нивои потписивања |
+| RFC 3161 / 7617 / 6750 / 7230 | TSA timestamping + HTTP auth + семантика хедера |

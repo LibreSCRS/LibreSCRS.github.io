@@ -25,7 +25,7 @@ The plugin architecture makes it straightforward to add support for new card typ
 
 When a card is inserted into the reader, LibreCelik:
 
-1. Detects the card event via `smartcard::Monitor` (PC/SC polling in LibreMiddleware)
+1. Detects the card event via the PC/SC reader monitor in LibreMiddleware
 2. Queries all middleware plugins — first by ATR, then by live connection probe
 3. The highest-ranked plugin reads the card data
 4. Displays the data using the matching GUI plugin

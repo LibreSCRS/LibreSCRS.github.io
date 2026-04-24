@@ -24,15 +24,29 @@ LibreMiddleware is a standalone C++20 library with no Qt dependency.
 ```bash
 git clone https://github.com/LibreSCRS/LibreMiddleware.git
 cd LibreMiddleware
-cmake -B build
-cmake --build build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j4
 ```
 
 Run the test suite:
 
 ```bash
-cd build && ctest --output-on-failure
+cd build && ctest --output-on-failure -E 'Hardware|E2E'
 ```
+
+The `Hardware` and `E2E` filters skip tests that require a physical smart card or a PKCS#11 token — include them only when you have real hardware connected and the `LIBRESCRS_TEST_PIN` / `LIBRESCRS_TEST_TOKEN` environment variables set.
+
+### SDK consumer example
+
+Add `-DLIBRESCRS_BUILD_EXAMPLES=ON` to build a minimal ~90-line program that demonstrates idiomatic public-API usage (opening a session, listing readers, constructing a `SigningService`, building a `SigningRequest`):
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DLIBRESCRS_BUILD_EXAMPLES=ON
+cmake --build build -j4
+./build/examples/sdk-consumer/sdk-consumer
+```
+
+The example source at `examples/sdk-consumer/main.cpp` is the shortest path to understand what a consumer's code looks like.
 
 ---
 
@@ -44,7 +58,7 @@ LibreCelik is the Qt6 GUI application. It fetches LibreMiddleware automatically 
 git clone https://github.com/LibreSCRS/LibreCelik.git
 cd LibreCelik
 cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+cmake --build build -j4
 ```
 
 ---

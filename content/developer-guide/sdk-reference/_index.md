@@ -150,7 +150,7 @@ Digital signing against a smart-card-resident key.
 ```cpp
 LibreSCRS::Signing::TrustConfig trust;
 auto tsa = LibreSCRS::Signing::staticTsaChecked("https://tsa.example.com");  // validates URL
-auto service = std::make_shared<LibreSCRS::Signing::SigningService>(std::move(trust), tsa);
+LibreSCRS::Signing::SigningService service{std::move(trust), tsa};
 
 LibreSCRS::Signing::SigningRequest::Builder sb;
 sb.inputFile("/tmp/document.pdf");
@@ -161,7 +161,9 @@ sb.reason("Approval");
 sb.contactInfo("signer@example.com");
 auto request = std::move(sb).build();  // throws invalid_argument on missing required fields
 
-auto result = service->sign(request, credentialProvider, cardPlugin, cardSession);
+// cardPlugin and cardSession are std::shared_ptr<...> — sign() takes shared
+// ownership for the duration of the call.
+auto result = service.sign(request, credentialProvider, cardPlugin, cardSession);
 switch (result.status) {
     case LibreSCRS::Signing::SigningResult::Status::Ok:
         log("signed: {}", result.outputPath->string());
@@ -169,13 +171,40 @@ switch (result.status) {
     case LibreSCRS::Signing::SigningResult::Status::UserCancelled:
     case LibreSCRS::Signing::SigningResult::Status::PinVerificationFailed:
     case LibreSCRS::Signing::SigningResult::Status::TsaUnreachable:
-        showUserMessage(result.message);
+        if (result.userMessage) showUserMessage(*result.userMessage);
         break;
     // ... other Status values ...
 }
 ```
 
-`build()` is rvalue-qualified — always `std::move(builder).build()`. The chain form `Builder{}.x().y().build()` does NOT compile.
+`build()` is rvalue-qualified — always `std::move(builder).build()`. The chain form `Builder{}.x().y().build()` does NOT compile (the `Builder&` setters return lvalue refs to a temporary, but `build() &&` requires an rvalue).
+
+### Unicode visual signature appearance — 4.0+
+
+Visible signature text on PAdES PDFs renders any Latin-Extended and Cyrillic
+character correctly. The engine embeds and subsets a Liberation Sans font
+program per signed document, with a `/ToUnicode` CMap so the rendered text
+is searchable, copy-pasteable, and accessible. Pre-4.0 signatures used a
+Helvetica Type1 font with single-byte StandardEncoding — non-ASCII signer
+names rendered as garbled glyphs (e.g. `Hiršl` displayed as `Hir¯¡l`).
+
+The fix is entirely below the public API: the same `VisualSignatureParams`
+shape (geometry + `textTemplate`) carries the user-visible text; nothing
+needs to change in calling code.
+
+```cpp
+// 4.0: any Unicode text in visual signatures renders correctly.
+LibreSCRS::Signing::VisualSignatureParams::Builder vb;
+vb.pageIndex(0);
+vb.rect({50, 50, 250, 60});
+vb.textTemplate("Potpisao: Hiršl Ćirković\nDatum: 2026-04-25");
+auto visual = std::move(vb).build();
+```
+
+The font subset is per-signature: each signed PDF carries only the glyphs it
+references (~5-10 KB typical). Liberation Sans 2.1.5 is bundled under the SIL
+Open Font License 1.1; the engine's TTF subsetter is implemented from
+scratch with no external font dependency.
 
 ---
 

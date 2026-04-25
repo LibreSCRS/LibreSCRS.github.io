@@ -150,7 +150,7 @@ for (const auto& plugin : candidates) {
 ```cpp
 LibreSCRS::Signing::TrustConfig trust;
 auto tsa = LibreSCRS::Signing::staticTsaChecked("https://tsa.example.com");  // валидира URL
-auto service = std::make_shared<LibreSCRS::Signing::SigningService>(std::move(trust), tsa);
+LibreSCRS::Signing::SigningService service{std::move(trust), tsa};
 
 LibreSCRS::Signing::SigningRequest::Builder sb;
 sb.inputFile("/tmp/document.pdf");
@@ -161,7 +161,9 @@ sb.reason("Одобрење");
 sb.contactInfo("signer@example.com");
 auto request = std::move(sb).build();  // баца invalid_argument ако недостаје обавезно поље
 
-auto result = service->sign(request, credentialProvider, cardPlugin, cardSession);
+// cardPlugin и cardSession су std::shared_ptr<...> — sign() преузима делиоче
+// власништво за време позива.
+auto result = service.sign(request, credentialProvider, cardPlugin, cardSession);
 switch (result.status) {
     case LibreSCRS::Signing::SigningResult::Status::Ok:
         log("потписано: {}", result.outputPath->string());
@@ -169,13 +171,42 @@ switch (result.status) {
     case LibreSCRS::Signing::SigningResult::Status::UserCancelled:
     case LibreSCRS::Signing::SigningResult::Status::PinVerificationFailed:
     case LibreSCRS::Signing::SigningResult::Status::TsaUnreachable:
-        showUserMessage(result.message);
+        if (result.userMessage) showUserMessage(*result.userMessage);
         break;
     // ... остали Status-и ...
 }
 ```
 
-`build()` је rvalue-qualified — увек `std::move(builder).build()`. Форма `Builder{}.x().y().build()` НЕ компајлира.
+`build()` је rvalue-qualified — увек `std::move(builder).build()`. Форма `Builder{}.x().y().build()` НЕ компајлира (`Builder&` setter-и враћају lvalue референцу на привремени објекат, али `build() &&` захтева rvalue).
+
+### Unicode визуелни потпис — 4.0+
+
+Текст видљивог потписа на PAdES PDF-овима сад исправно ренderује све
+карактере из Latin-Extended и ћириличног опсега. Engine уграђује и сечује
+(subsets) програм Liberation Sans фонта по сваком потписаном документу, са
+пратећим `/ToUnicode` CMap-ом тако да је renderовани текст претражив,
+копирајући и доступан асистивним технологијама. Пре 4.0 визуелни потписи су
+користили Helvetica Type1 фонт са једнобајтним StandardEncoding-ом — non-ASCII
+имена потписника су се ренderовала као искривљене глифе (нпр. `Hiršl` као
+`Hir¯¡l`).
+
+Исправка је у потпуности испод public API-ја: исти `VisualSignatureParams`
+облик (геометрија + `textTemplate`) носи видљив текст — позивајући код се
+не мења.
+
+```cpp
+// 4.0: било који Unicode текст у визуелним потписима ренderује исправно.
+LibreSCRS::Signing::VisualSignatureParams::Builder vb;
+vb.pageIndex(0);
+vb.rect({50, 50, 250, 60});
+vb.textTemplate("Potpisao: Hiršl Ćirković\nDatum: 2026-04-25");
+auto visual = std::move(vb).build();
+```
+
+Фонт subset је по потпису: сваки потписани PDF носи само глифе које користи
+(~5-10 KB типично). Liberation Sans 2.1.5 је укључен под SIL Open Font
+License 1.1; engine-ов TTF subsetter је имплементиран from-scratch без
+спољних font-dependency-ја.
 
 ---
 

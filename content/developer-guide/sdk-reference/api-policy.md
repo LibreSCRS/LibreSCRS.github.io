@@ -123,3 +123,27 @@ try {
 ## 6. 3.0 → 4.0 Transition (historical note)
 
 The hardening in spec `2026-04-21-api-boundary-hardening-design.md` is itself the 4.0 major bump. 3.0 ships without any `[[deprecated]]` annotations; the 4.0 migration guide documents the full set of removed `smartcard::*` / `libresign::*` symbols with their `LibreSCRS::*` replacements. Subsequent cycles (4.x → 5.0, 5.x → 6.0, ...) follow the formal deprecate-in-minor → remove-in-major pattern in §3 above.
+
+## 7. Enum value naming
+
+LibreSCRS enums use **PascalCase** for value identifiers by default:
+
+- `SignatureFormat::Pades`, `Cades`, `Xades`, `Jades`, `AsicE`
+- `Status::Ok`, `Cancelled`, `Error`
+
+Two deliberate exceptions:
+
+1. **Standardised acronyms (3-letter or longer) stay all-caps** when they appear as standalone tokens in identifiers: `PKI`, `EID`, `MRZ`, `CAN`, `PIN`, `PUK`. Compound words use PascalCase: `EmrtdCrypto`, not `EMRTDCrypto`.
+2. **ETSI-spec tokens preserve underscores**: `SignatureLevel::B_B`, `B_T`, `B_LT`, `B_LTA` mirror the AdES standards' canonical form. Underscores here stand for the spec's hyphens.
+
+When in doubt, prefer PascalCase. Acronym-vs-PascalCase tie-breakers go to PascalCase for readability.
+
+## 8. Implementation details consumers should not rely on
+
+The library reads a small number of environment variables at runtime. These are **internal escape hatches** — not part of the public API surface and subject to change without an ABI bump:
+
+| Variable | Effect |
+|---|---|
+| `LIBRESCRS_SIGNING_BACKEND` | Switches between `native` (default) and `dss` (Java Digital Signature Services oracle, used for cross-validation in tests). |
+
+Consumers should not set these in production. The names use the `LIBRESCRS_*` prefix; if a future release exposes a stable knob, it will move to a typed configuration field on the relevant Builder.

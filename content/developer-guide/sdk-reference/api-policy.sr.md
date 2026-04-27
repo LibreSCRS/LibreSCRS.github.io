@@ -123,3 +123,27 @@ try {
 ## 6. 3.0 → 4.0 прелаз (историјска белешка)
 
 Hardening у спецификацији `2026-04-21-api-boundary-hardening-design.md` је сам 4.0 major bump. 3.0 се испоручује без `[[deprecated]]` анотација; миграциони водич 4.0 документује комплетан сет уклоњених `smartcard::*` / `libresign::*` симбола са њиховим `LibreSCRS::*` заменама. Наредни циклуси (4.x → 5.0, 5.x → 6.0, ...) прате формални deprecate-in-minor → remove-in-major образац из §3 изнад.
+
+## 7. Именовање enum вредности
+
+LibreSCRS enum-ови користе **PascalCase** за идентификаторе вредности подразумевано:
+
+- `SignatureFormat::Pades`, `Cades`, `Xades`, `Jades`, `AsicE`
+- `Status::Ok`, `Cancelled`, `Error`
+
+Два намерна изузетка:
+
+1. **Стандардизовани акроними (3 слова или дужи) остају великим словима** када се појављују као самостални токени у идентификаторима: `PKI`, `EID`, `MRZ`, `CAN`, `PIN`, `PUK`. Сложене речи користе PascalCase: `EmrtdCrypto`, не `EMRTDCrypto`.
+2. **ETSI-spec токени задржавају подвлаке**: `SignatureLevel::B_B`, `B_T`, `B_LT`, `B_LTA` пресликавају канонички облик из AdES стандарда. Подвлаке овде стоје за цртице из спецификације.
+
+Када си у недоумици, користи PascalCase. Између акронима и PascalCase, приоритет иде на PascalCase ради читљивости.
+
+## 8. Имплементациони детаљи на које consumer-и не треба да се ослањају
+
+Библиотека чита неколико environment променљивих током извршавања. То су **интерни escape hatch-еви** — нису део public API-ја и подложни су промени без ABI bump-а:
+
+| Променљива | Ефекат |
+|---|---|
+| `LIBRESCRS_SIGNING_BACKEND` | Пребацује између `native` (подразумевано) и `dss` (Java Digital Signature Services oracle, користи се за cross-validation у тестовима). |
+
+Consumer-и не треба да их подешавају у production-у. Имена користе `LIBRESCRS_*` префикс; ако будући release изложи стабилну опцију, биће премештена у типизирано configuration поље на одговарајућем Builder-у.

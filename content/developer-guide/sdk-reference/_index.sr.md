@@ -257,6 +257,10 @@ auto b = LibreSCRS::Secure::Buffer{std::span<const std::uint8_t>{apduBytes.data(
 | `PINResult.success` / `SignResult.success` bool | `bool ok() const noexcept` изведен из `.outcome` |
 | `extraHeaders` био `std::map` | `std::vector<std::pair>` — чува ред уметања, дозвољава дупликате |
 | `SigningResult::invalidRequest(std::string)` | `SigningResult::invalidRequestDiagnosticOnly(std::string)` — име оглашава „без корисничке LocalizedText” trade-off |
+| `PCSCConnection::Pcsc(reader)` (баца изузетак на грешци) | `CardSession::open(reader)` враћа `OpenSessionResult{session, error}` (`noexcept`) |
+| `CredentialResult::errorMessage` | `CredentialResult::userMessage` (преименовано ради конзистентности преко result типова) |
+| `OpenError::message` | `OpenError::userMessage` (преименовано ради конзистентности преко result типова) |
+| `MonitorEvent::errorDetail` | `MonitorEvent::diagnosticDetail` (преименовано ради конзистентности преко result типова) |
 
 **Plugin ABI:** v5 (3.x) → **v6** (4.0). Third-party додаци МОРАЈУ бити поновно компилирани против 4.0 хедера. `static_assert` макроа `LIBRESCRS_DECLARE_CARD_PLUGIN(T, 6)` хвата mismatch верзије у compile-time.
 

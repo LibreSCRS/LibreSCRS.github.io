@@ -255,6 +255,10 @@ The 4.0 umbrella refactor removed every non-`LibreSCRS::*` public namespace. If 
 | `PINResult.success` / `SignResult.success` bool | `bool ok() const noexcept` derived from `.outcome` |
 | `extraHeaders` was `std::map` | `std::vector<std::pair>` — preserves insertion order, allows duplicates |
 | `SigningResult::invalidRequest(std::string)` | `SigningResult::invalidRequestDiagnosticOnly(std::string)` — the name advertises the "no user-visible LocalizedText" trade-off |
+| `PCSCConnection::Pcsc(reader)` (throws on failure) | `CardSession::open(reader)` returns `OpenSessionResult{session, error}` (`noexcept`) |
+| `CredentialResult::errorMessage` | `CredentialResult::userMessage` (renamed for consistency across result types) |
+| `OpenError::message` | `OpenError::userMessage` (renamed for consistency across result types) |
+| `MonitorEvent::errorDetail` | `MonitorEvent::diagnosticDetail` (renamed for consistency across result types) |
 
 **Plugin ABI:** v5 (3.x) → **v6** (4.0). Third-party plugins MUST be rebuilt against 4.0 headers. The `LIBRESCRS_DECLARE_CARD_PLUGIN(T, 6)` macro's `static_assert` catches version mismatch at compile time.
 

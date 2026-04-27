@@ -198,3 +198,42 @@ ABI граница додатка је тврда баријера за изуз
 | ISO 32000-1 | PDF потписни dictionary поља (reason, location, contactInfo) |
 | ETSI EN 319 412 / 319 102 | AdES профили — CAdES / PAdES / XAdES / JAdES / ASiC-E нивои потписивања |
 | RFC 3161 / 7617 / 6750 / 7230 | TSA timestamping + HTTP auth + семантика хедера |
+
+---
+
+## Проширивање SDK-а
+
+4.0 површина је намерно уска. Додавање нове функционалности генерално захтева мењање N независних фајлова усклађено — секције испод су упутства за уобичајене случајеве.
+
+### Додавање новог формата потписа
+
+Нпр. додавање PKCS#7-enveloping или хипотетичке CAdES-Enveloping варијанте:
+
+1. Додајте формат у `LibreSCRS::Signing::SignatureFormat` enum (`include/LibreSCRS/Signing/Enums.h`).
+2. Додајте одговарајући backend модул у `lib/libresign/src/native/`, по узору на `pades_module.{h,cpp}` (типизована `Module` класа, `sign()` која враћа `SigningResult`).
+3. Додајте dispatch грану за формат у `lib/LibreSCRS/Signing/detail/RequestBridge.cpp::mapFormat()`.
+4. Додајте тест путању у `test/native_*_test.cpp` (нови фајл или нова fixture у постојећем).
+5. Ажурирајте секцију „Signing" у [SDK Референци]({{< ref "developer-guide/sdk-reference" >}}) да помиње нови формат.
+
+Дизајн затвореног enum-а чини корак 4 ухватљивим — сваки `switch` по `SignatureFormat`-у којем недостаје нова вредност ће издати упозорење под `-Wswitch-enum`.
+
+### Додавање нове `SigningResult::Status` вредности
+
+1. Додајте у `LibreSCRS::Signing::SigningResult::Status` enum.
+2. Додајте именовану фабрику (`SigningResult::myNewStatus(...)`) у `SigningResult.h`.
+3. Додајте libresign-интерно → јавно мапирање у `lib/LibreSCRS/Signing/detail/ErrorClassifier.h::classify()`.
+4. Ажурирајте табелу статуса у [SDK Референци]({{< ref "developer-guide/sdk-reference" >}}).
+
+### Додавање новог типа картице (Plugin)
+
+Plugin ABI је `kCardPluginAbiVersion = 6` (видети `include/LibreSCRS/Plugin/PluginTypes.h`). Нови типови картица се испоручују као засебне дељене библиотеке у `LIBRESCRS_PLUGIN_PATH`. Аутори додатака:
+
+1. Изводе класу из `LibreSCRS::Plugin::CardPlugin`.
+2. У конструктору позивају `setIdentity(id, displayName, probePriority)`.
+3. Override-ују `capabilities()` да оглашавају bitfield подржаних могућности (`PKI`, `IdentityData`, `EmrtdCrypto`, итд.).
+4. Override-ују одговарајуће виртуелне методе по оглашеној могућности.
+5. Извозе entry-point преко `LIBRESCRS_DECLARE_CARD_PLUGIN(MyType, 6)`.
+
+`LIBRESCRS_DECLARE_CARD_PLUGIN` макро `static_assert`-ује на compile-time да додатак одговара тренутној ABI верзији.
+
+Видети `lib/cardedge/`, `lib/pkcs15/` и `lib/piv/` за production примере.

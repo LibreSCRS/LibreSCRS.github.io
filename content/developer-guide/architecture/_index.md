@@ -198,3 +198,42 @@ The public API interoperates with or cites these standards:
 | ISO 32000-1 | PDF signature dictionary fields (reason, location, contactInfo) |
 | ETSI EN 319 412 / 319 102 | AdES profiles — CAdES / PAdES / XAdES / JAdES / ASiC-E signing levels |
 | RFC 3161 / 7617 / 6750 / 7230 | TSA timestamping + HTTP auth + header semantics |
+
+---
+
+## Extending the SDK
+
+The 4.0 surface is intentionally narrow. Adding new functionality generally requires touching N independent files in coordination — the sections below are cookbooks for the common cases.
+
+### Adding a new signature format
+
+E.g. adding PKCS#7-enveloping or a hypothetical CAdES-Enveloping variant:
+
+1. Add the format to `LibreSCRS::Signing::SignatureFormat` enum (`include/LibreSCRS/Signing/Enums.h`).
+2. Add the matching backend module under `lib/libresign/src/native/`, following the pattern of `pades_module.{h,cpp}` (typed `Module` class, `sign()` returning `SigningResult`).
+3. Add the format dispatch case to `lib/LibreSCRS/Signing/detail/RequestBridge.cpp::mapFormat()`.
+4. Add a test path in `test/native_*_test.cpp` (one new file or a new fixture in an existing one).
+5. Update the [SDK Reference]({{< ref "developer-guide/sdk-reference" >}})'s "Signing" section to mention the new format.
+
+The closed-enum design makes step 4 catchable — any switch over `SignatureFormat` that the new value isn't added to will warn under `-Wswitch-enum`.
+
+### Adding a new SigningResult::Status
+
+1. Add to `LibreSCRS::Signing::SigningResult::Status` enum.
+2. Add a named factory (`SigningResult::myNewStatus(...)`) in `SigningResult.h`.
+3. Add the libresign-internal → public mapping in `lib/LibreSCRS/Signing/detail/ErrorClassifier.h::classify()`.
+4. Update the [SDK Reference]({{< ref "developer-guide/sdk-reference" >}})'s status table.
+
+### Adding a new card type (Plugin)
+
+The plugin ABI is `kCardPluginAbiVersion = 6` (see `include/LibreSCRS/Plugin/PluginTypes.h`). New card types ship as separate shared libraries under `LIBRESCRS_PLUGIN_PATH`. Plugin authors:
+
+1. Subclass `LibreSCRS::Plugin::CardPlugin`.
+2. In the constructor call `setIdentity(id, displayName, probePriority)`.
+3. Override `capabilities()` to advertise the bitfield of supported features (`PKI`, `IdentityData`, `EmrtdCrypto`, etc.).
+4. Override the relevant virtual methods per advertised capability.
+5. Export the entry points via `LIBRESCRS_DECLARE_CARD_PLUGIN(MyType, 6)`.
+
+The `LIBRESCRS_DECLARE_CARD_PLUGIN` macro `static_assert`s at compile time that the plugin matches the current ABI version.
+
+See `lib/cardedge/`, `lib/pkcs15/`, and `lib/piv/` for production examples.

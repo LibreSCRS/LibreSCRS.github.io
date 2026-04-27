@@ -103,7 +103,7 @@ public:
     }
     LibreSCRS::Plugin::ReadResult readCard(
         LibreSCRS::SmartCard::CardSession& session,
-        LibreSCRS::Plugin::GroupCallback onGroup = {}) const override
+        GroupCallback onGroup = {}) const override   // GroupCallback is nested inside CardPlugin
     {
         // ...send APDUs via session, emit CardFieldGroups via onGroup callback...
         return LibreSCRS::Plugin::ReadResult::ok({});
@@ -177,7 +177,15 @@ switch (result.status) {
 }
 ```
 
-`build()` is rvalue-qualified — always `std::move(builder).build()`. The chain form `Builder{}.x().y().build()` does NOT compile (the `Builder&` setters return lvalue refs to a temporary, but `build() &&` requires an rvalue).
+`build()` is rvalue-qualified. The named-builder form is the canonical pattern:
+
+```cpp
+LibreSCRS::Signing::SigningRequest::Builder b;
+b.inputFile(...).outputFile(...);    // setters return Builder&
+auto request = std::move(b).build(); // explicit rvalue cast
+```
+
+A pure single-expression chain off a temporary works because the temporary outlives the full expression — `auto p = SigningRequest::Builder{}.inputFile(...).outputFile(...).build();` is well-formed (the rvalue temporary satisfies `build() &&`). The shape that does NOT compile is mixing the two: a *named lvalue* builder cannot satisfy `build() &&` without an explicit `std::move`. In practice the named-builder form is preferred — error paths read more clearly when each setter is its own statement, and the diagnostics on a missing `std::move` at the call site are friendlier than on a runaway chain.
 
 ### Unicode visual signature appearance — 4.0+
 

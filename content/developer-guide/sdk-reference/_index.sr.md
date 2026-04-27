@@ -103,7 +103,7 @@ public:
     }
     LibreSCRS::Plugin::ReadResult readCard(
         LibreSCRS::SmartCard::CardSession& session,
-        LibreSCRS::Plugin::GroupCallback onGroup = {}) const override
+        GroupCallback onGroup = {}) const override   // GroupCallback је угнежден унутар CardPlugin-а
     {
         // ...слање APDU-а кроз session, емитовање CardFieldGroups преко onGroup callback-е...
         return LibreSCRS::Plugin::ReadResult::ok({});
@@ -177,7 +177,15 @@ switch (result.status) {
 }
 ```
 
-`build()` је rvalue-qualified — увек `std::move(builder).build()`. Форма `Builder{}.x().y().build()` НЕ компајлира (`Builder&` setter-и враћају lvalue референцу на привремени објекат, али `build() &&` захтева rvalue).
+`build()` је rvalue-qualified. Канонска форма је именовани builder:
+
+```cpp
+LibreSCRS::Signing::SigningRequest::Builder b;
+b.inputFile(...).outputFile(...);    // setter-и враћају Builder&
+auto request = std::move(b).build(); // експлицитни rvalue cast
+```
+
+Чисто једно-изразни ланац над привременим builder-ом ради јер темпорари живи до краја целог израза — `auto p = SigningRequest::Builder{}.inputFile(...).outputFile(...).build();` је well-formed (rvalue темпорари задовољава `build() &&`). НЕ компајлира се мешана форма: *именован lvalue* builder без експлицитног `std::move`-а не може да задовољи `build() &&`. У пракси је именована форма пожељнија — error путеви се читљивије мапирају кад је сваки setter сопствена линија, а дијагностике на пропуштени `std::move` су пријатељскије од оних на заглушени ланац.
 
 ### Unicode визуелни потпис — 4.0+
 

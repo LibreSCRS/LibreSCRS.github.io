@@ -46,7 +46,7 @@ Da verifikuješ artefakt:
 cosign verify-blob LibreCelik-4.0.0.AppImage \
   --bundle LibreCelik-4.0.0.AppImage.sigstore.json \
   --certificate-identity-regexp 'https://github\.com/LibreSCRS/LibreCelik/\.github/workflows/release\.yml@refs/tags/.*' \
-  --certificate-oidc-issuer 'https://token\.actions\.githubusercontent\.com'
+  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com'
 ```
 
 Transparency log entry javno je pretraživ na [search.sigstore.dev](https://search.sigstore.dev).

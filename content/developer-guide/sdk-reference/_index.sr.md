@@ -19,8 +19,11 @@ LibreMiddleware испоручује C++20 SDK под `LibreSCRS::*` umbrella-о
 - `AuthRequirement` — захтев. Гради се кроз closed-set фабрике:
   - `forPreRead(PreReadAuthMethod::BacMrz | PaceCan | None)` — материјал за откључавање путног документа.
   - `forSigning(pinLabel, retriesLeft)` — један PIN за потписивање.
+  - `forSigning(LocalizedText pinLabel, retriesLeft)` — преводива варијанта (4.0); чува `i18nKey` од почетка до краја.
   - `forChangePin(pinLabel, retriesLeft)` — тренутни + нови + потврда (три поља).
+  - `forChangePin(LocalizedText pinLabel, retriesLeft)` — преводива варијанта (4.0); исти bundle на сва три поља, улога се разликује преко идентификатора поља.
   - `forUnblockPin(pinLabel)` — PUK + нови + потврда (три поља).
+  - `forUnblockPin(LocalizedText pinLabel)` — преводива варијанта (4.0).
 - `FieldDescriptor` — сваки улаз који провajдер мора да прикупи (по један `std::vector` ових по захтеву).
 - `CredentialProvider` — `std::function<CredentialResult(const AuthRequirement&)>` који домаћин имплементира.
 - `CredentialResult` — враћени bundle; вредности кључеване по `FieldDescriptor::id`-у, свака чувана као `Secure::String` који се нулира.

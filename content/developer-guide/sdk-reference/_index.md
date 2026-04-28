@@ -19,8 +19,11 @@ Describes **what the middleware needs from the user** (PIN, PUK, MRZ, CAN) and h
 - `AuthRequirement` — the request. Built via closed-set factories:
   - `forPreRead(PreReadAuthMethod::BacMrz | PaceCan | None)` — travel-document unlock material.
   - `forSigning(pinLabel, retriesLeft)` — single PIN for signing.
+  - `forSigning(LocalizedText pinLabel, retriesLeft)` — translatable variant (4.0); preserves `i18nKey` end-to-end.
   - `forChangePin(pinLabel, retriesLeft)` — current + new + confirm triple.
+  - `forChangePin(LocalizedText pinLabel, retriesLeft)` — translatable variant (4.0); same bundle on all three fields, role distinguished via field id.
   - `forUnblockPin(pinLabel)` — PUK + new + confirm triple.
+  - `forUnblockPin(LocalizedText pinLabel)` — translatable variant (4.0).
 - `FieldDescriptor` — each input the provider must collect (one `std::vector` of these per requirement).
 - `CredentialProvider` — `std::function<CredentialResult(const AuthRequirement&)>` the host implements.
 - `CredentialResult` — returned bundle; values keyed by `FieldDescriptor::id`, each stored as a cleansing `Secure::String`.

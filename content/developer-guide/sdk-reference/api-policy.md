@@ -40,7 +40,7 @@ Applies to every symbol users outside this repo can observe — public headers, 
 
 ### 3.2 Transitional in-repo deprecation (exception — internal refactors only)
 
-Applies when an internal refactor needs to switch in-tree callers from an old overload/signature to a new one ACROSS MULTIPLE COMMITS on the SAME branch, with NO external consumers affected between the first and last commit. Example: Task 5.2 → 5.3 → 5.4 which replaced `TSAClient::timestamp(hash, url, timeout)` with `TSAClient::timestamp(hash, TSARequest)`.
+Applies when an internal refactor needs to switch in-tree callers from an old overload/signature to a new one ACROSS MULTIPLE COMMITS on the SAME branch, with NO external consumers affected between the first and last commit. Example: a multi-commit refactor that replaced `TSAClient::timestamp(hash, url, timeout)` with `TSAClient::timestamp(hash, TSARequest)` over three commits on the same branch — first commit added the new overload alongside the old, second migrated all in-tree callers, third removed the old overload.
 
 Rules:
 
@@ -122,7 +122,7 @@ try {
 
 ## 6. 3.0 → 4.0 Transition (historical note)
 
-The hardening in spec `2026-04-21-api-boundary-hardening-design.md` is itself the 4.0 major bump. 3.0 ships without any `[[deprecated]]` annotations; the 4.0 migration guide documents the full set of removed `smartcard::*` / `libresign::*` symbols with their `LibreSCRS::*` replacements. Subsequent cycles (4.x → 5.0, 5.x → 6.0, ...) follow the formal deprecate-in-minor → remove-in-major pattern in §3 above.
+The API-boundary hardening pass is itself the 4.0 major bump. 3.0 ships without any `[[deprecated]]` annotations; the 4.0 migration guide documents the full set of removed `smartcard::*` / `libresign::*` symbols with their `LibreSCRS::*` replacements. Subsequent cycles (4.x → 5.0, 5.x → 6.0, ...) follow the formal deprecate-in-minor → remove-in-major pattern in §3 above.
 
 ## 7. Enum value naming
 

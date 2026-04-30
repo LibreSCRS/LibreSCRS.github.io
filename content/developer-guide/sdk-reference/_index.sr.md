@@ -302,9 +302,9 @@ auto b = LibreSCRS::Secure::Buffer{std::span<const std::uint8_t>{apduBytes.data(
 | `readCardStreaming` засебна метода | Спојено у `readCard` са опционом `GroupCallback` — имплементирате једну методу, streaming укључујете позивом callback-а |
 | `canHandleConnection(PCSCConnection&)` | `canHandleConnection(const vector<uint8_t>& atr, CardSession&)` — ATR проследен унапред |
 | `SigningService::instance()` / `configure*()` | Уклоњено — конструишите једном кроз `make_shared<SigningService>(trustService, tsa)` по политици |
-| `SigningService(TrustConfig, TsaProvider)` (3.x preview / Tier 2 Phase 5) | `SigningService(shared_ptr<Trust::TrustStoreService>, TsaProvider)` — животни циклус поверења је померен у засебан first-class сервис. Миграција: замените `SigningService(trustConfig, tsa)` са `Trust::TrustStoreService::create(trustConfig)` па онда `SigningService(trustService, tsa)`. |
+| `SigningService(TrustConfig, TsaProvider)` (3.x preview) | `SigningService(shared_ptr<Trust::TrustStoreService>, TsaProvider)` — животни циклус поверења је померен у засебан first-class сервис. Миграција: замените `SigningService(trustConfig, tsa)` са `Trust::TrustStoreService::create(trustConfig)` па онда `SigningService(trustService, tsa)`. |
 | `Signing::SigningService::trustStore()` getter | Уклоњено — читајте store из сервиса који га поседује: `trustService->trustStore()` |
-| `Signing::TrustStoreManager` (legacy) | Уклоњено — `Trust::TrustStoreService` је јединствени власник животног циклуса |
+| `Signing::TrustStoreManager` | Уклоњено — `Trust::TrustStoreService` је јединствени власник животног циклуса |
 | Празан `SignResult` значио „додатак не потписује” | `SignResult::outcome == NotImplemented` — експлицитан сигнал |
 | `PINResult.success` / `SignResult.success` bool | `bool ok() const noexcept` изведен из `.outcome` |
 | `extraHeaders` био `std::map` | `std::vector<std::pair>` — чува ред уметања, дозвољава дупликате |

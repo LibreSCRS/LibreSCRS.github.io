@@ -8,17 +8,15 @@ aliases:
 
 # 4.0 SDK Migration Guide
 
-LibreSCRS 4.0 is the first release tagged from the post-hardening surface. Versions tagged 3.x predate the API-POLICY work and are no longer supported. SDK consumers tracking `feature/api-boundary-hardening` during the 3.x preview cycle will need the changes documented below to compile against 4.0.
+LibreSCRS 4.0 is the first release tagged from the post-hardening surface. Versions tagged 3.x predate the API-POLICY work and are no longer supported. SDK consumers who tracked the 3.x preview cycle will need the changes documented below to compile against 4.0.
 
-This guide covers ABI breaks landed in the **Tier 2** trust-service extraction and the **Tier 2.5 + Tier 3** SOTA hardening pass. Each entry names the public symbol affected, the 3.x shape, the 4.0 shape, and a short "what changes for the call site" note.
+This guide covers ABI breaks landed across the trust-service extraction and the API-boundary hardening pass. Each entry names the public symbol affected, the 3.x shape, the 4.0 shape, and a short "what changes for the call site" note.
 
 For the full API policy (versioning, deprecation, validation-vs-runtime errors), see [API Policy]({{< ref "developer-guide/sdk-reference/api-policy" >}}).
 
 ---
 
 ## Trust lifecycle moves to `Trust::TrustStoreService`
-
-**Audit refs:** Tier 2 follow-up
 
 Before:
 
@@ -40,8 +38,6 @@ auto store = trustService->trustStore();
 ---
 
 ## `LocalizedText` moves to top-level `LibreSCRS::` namespace
-
-**Audit refs:** LM-I2 / CC3
 
 Before:
 
@@ -67,8 +63,6 @@ The type is consumed across `Auth`, `SmartCard`, `Plugin`, and `Signing` — kee
 
 ## `SyncProvider<Result, Context>` template alias
 
-**Audit refs:** LM-I3
-
 `Auth::CredentialProvider` and `Signing::TsaProvider` now alias a single canonical generic:
 
 ```cpp
@@ -84,8 +78,6 @@ Source-compatible at the call site — both pre-existing aliases keep their name
 
 ## `CardPlugin` private members renamed
 
-**Audit refs:** LM-C2
-
 Affects plugin authors compiling against the protected/private surface of `LibreSCRS::Plugin::CardPlugin`. Public accessor names are unchanged.
 
 | 3.x preview | 4.0 |
@@ -99,8 +91,6 @@ Public accessors unchanged: `pluginId()`, `displayName()`, `probePriority()`. Pl
 ---
 
 ## `CardPlugin::canHandle` / `canHandleConnection` take `std::span`
-
-**Audit refs:** LM-I5
 
 Before:
 
@@ -124,8 +114,6 @@ Each plugin override updates the parameter type. Implementations that read `.siz
 
 ## `AutoReaderError::Kind::RegistryEmpty` enum value
 
-**Audit refs:** LM-C3
-
 `Plugin::AutoReader::AutoReaderError::Kind` gains a new value `RegistryEmpty` distinguishing "no plugins installed or all plugins failed to load" from "card present but no plugin matched its ATR". Any host code that exhaustively switches on `AutoReaderError::Kind` MUST add a case for `RegistryEmpty` (or a `default:` branch per [API-POLICY §9](api-policy/#9-enum-exhaustiveness-and-forward-compatibility)).
 
 `Plugin::CardPluginRegistry::isUsable() noexcept` is the corresponding probe — use it at host startup to surface "no plugins installed" before the first card insert.
@@ -133,8 +121,6 @@ Each plugin override updates the parameter type. Implementations that read `.siz
 ---
 
 ## `CardData::groupAt` / `fieldAt` bounds policy
-
-**Audit refs:** LM-I8
 
 Before (3.x preview): `noexcept` accessors with undefined behaviour on out-of-range indices.
 
@@ -156,8 +142,6 @@ Host-supplied indices flow through the throwing form per [API-POLICY §5.1](api-
 ---
 
 ## `SigningResult` / `CredentialResult` factory `userMessage` uniformity
-
-**Audit refs:** LM-I11 / CC4
 
 Every error-producing factory now takes `std::optional<LocalizedText> userMessage = std::nullopt` followed by `std::optional<std::string> diagnosticDetail = std::nullopt`.
 
@@ -190,8 +174,6 @@ Migration: positional callers move the `LocalizedText` argument into a `std::opt
 
 ## `TrustConfig::Builder` (additive)
 
-**Audit refs:** LM-I12
-
 The aggregate `Trust::TrustConfig` remains a plain-data struct with public fields; existing callers that prefer designated-initialiser syntax (`TrustConfig{.includeSystemTrustStore = false}`) continue to compile.
 
 The 4.0 release introduces a `TrustConfig::Builder` with per-setter validation per [API-POLICY §5.1](api-policy/#51-construction--validation-failures--throw):
@@ -211,8 +193,6 @@ Setters throw `std::invalid_argument` on bad URLs (empty, wrong scheme, duplicat
 
 ## `Secure::String::equalConstantTime`
 
-**Audit refs:** LM-I7
-
 Before: `Secure::String::operator==` only — byte-identity, not constant-time. Documentation suggested callers "implement your own constant-time comparison."
 
 After:
@@ -231,15 +211,11 @@ The new member runs in time proportional to the longer input regardless of where
 
 ## `Trust::TrustStore::ChainStatus` keeps current shape
 
-**Audit refs:** LM-I4
-
-Per the [resolution decision](https://github.com/LibreSCRS/knowledge/blob/main/reviews/2026-04-29-lm-i4-resolution.md), `ChainStatus` does NOT add an `Unsettled` value. Consumers that need to disambiguate "really untrusted" from "still loading" query `Trust::TrustStoreService::status()` (or `sourceStatuses()`) in addition to inspecting the `ChainStatus` value. The two-source check is strictly more informative than a collapsed `Unsettled` enum value would be — the service's status enum distinguishes `Loading`, `PartialFailure`, `Settled`, etc.
+`ChainStatus` does NOT add an `Unsettled` value. Consumers that need to disambiguate "really untrusted" from "still loading" query `Trust::TrustStoreService::status()` (or `sourceStatuses()`) in addition to inspecting the `ChainStatus` value. The two-source check is strictly more informative than a collapsed `Unsettled` enum value would be — the service's status enum distinguishes `Loading`, `PartialFailure`, `Settled`, etc.
 
 ---
 
 ## Plugin-internal: `smartcard::PCSCConnection` no longer in public CardSession.h
-
-**Audit refs:** LM-I10
 
 Plugin authors continue to call `LibreSCRS::SmartCard::detail::unwrap(session)` exactly as before — the call shape is unchanged. The internal change is structural: the public `<LibreSCRS/SmartCard/CardSession.h>` no longer forward-declares `namespace smartcard`. Plugin source files that include `<LibreSCRS/SmartCard/detail/Unwrap.h>` (the LM-internal-only header that exposes `unwrap`) keep working without modification.
 
@@ -247,9 +223,7 @@ If your plugin's source ever forward-declared `smartcard::PCSCConnection` itself
 
 ---
 
-## Service-suffix consistency rename (Tier 4 Phase F)
-
-**Audit refs:** CC6
+## Service-suffix consistency rename
 
 The three service-flavoured types in `LibreSCRS::Plugin` and `LibreSCRS::SmartCard` adopt the `*Service` suffix that `Signing::SigningService` and `Trust::TrustStoreService` already established. Pure data / event / outcome types (e.g. `MonitorEvent`, `AutoReaderError`, `LoadOutcome`) keep their current names.
 
@@ -279,9 +253,7 @@ Take care not to globally rename the unrelated 3.x internal `smartcard::Monitor`
 
 ---
 
-## `CardSession::open` returns `std::variant` (Tier 4 Phase G)
-
-**Audit refs:** CC7
+## `CardSession::open` returns `std::variant`
 
 `OpenSessionResult` migrates from a struct of two `std::optional` slots to a `std::variant<CardSession, OpenError>` — exactly one alternative is held, eliminating the "both empty / both populated" invariant the previous shape silently allowed.
 

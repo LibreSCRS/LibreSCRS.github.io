@@ -40,7 +40,7 @@ Public API = све под LibreSCRS::{Auth,SmartCard,Secure,Plugin,Signing}::*,
 
 ### 3.2 Транзиционо in-repo застаревање (изузетак — само за interne рефакторе)
 
-Примењује се када interni refactor треба да пребаци in-tree пазиваче са старог overload-а/потписа на нови КРОЗ ВИШЕ КОМИТА на ИСТОЈ грани, БЕЗ external consumer-а између првог и последњег комита. Пример: Task 5.2 → 5.3 → 5.4 које су заменили `TSAClient::timestamp(hash, url, timeout)` са `TSAClient::timestamp(hash, TSARequest)`.
+Примењује се када interni refactor треба да пребаци in-tree пазиваче са старог overload-а/потписа на нови КРОЗ ВИШЕ КОМИТА на ИСТОЈ грани, БЕЗ external consumer-а између првог и последњег комита. Пример: refactor у више комита који је заменио `TSAClient::timestamp(hash, url, timeout)` са `TSAClient::timestamp(hash, TSARequest)` кроз три комита на истој грани — први комит је додао нови overload поред старог, други је мигрирао све in-tree позиваче, трећи је уклонио стари overload.
 
 Правила:
 
@@ -122,7 +122,7 @@ try {
 
 ## 6. 3.0 → 4.0 прелаз (историјска белешка)
 
-Hardening у спецификацији `2026-04-21-api-boundary-hardening-design.md` је сам 4.0 major bump. 3.0 се испоручује без `[[deprecated]]` анотација; миграциони водич 4.0 документује комплетан сет уклоњених `smartcard::*` / `libresign::*` симбола са њиховим `LibreSCRS::*` заменама. Наредни циклуси (4.x → 5.0, 5.x → 6.0, ...) прате формални deprecate-in-minor → remove-in-major образац из §3 изнад.
+Сам пролаз за стабилизацију API границе је 4.0 major bump. 3.0 се испоручује без `[[deprecated]]` анотација; миграциони водич 4.0 документује комплетан сет уклоњених `smartcard::*` / `libresign::*` симбола са њиховим `LibreSCRS::*` заменама. Наредни циклуси (4.x → 5.0, 5.x → 6.0, ...) прате формални deprecate-in-minor → remove-in-major образац из §3 изнад.
 
 ## 7. Именовање enum вредности
 

@@ -8,17 +8,15 @@ aliases:
 
 # 4.0 SDK миграциони водич
 
-LibreSCRS 4.0 је прво издање означено са пост-хардеnинг површине. Верзије означене као 3.x претходе раду на API политици и више нису подржане. SDK потрошачи који су пратили `feature/api-boundary-hardening` током 3.x циклуса прегледа треба да примене промене документоване у наставку да би се компилирали против 4.0.
+LibreSCRS 4.0 је прво издање означено са пост-хардеnинг површине. Верзије означене као 3.x претходе раду на API политици и више нису подржане. SDK потрошачи који су пратили 3.x циклус прегледа треба да примене промене документоване у наставку да би се компилирали против 4.0.
 
-Овај водич покрива ABI прекиде направљене у **Tier 2** Trust-Service екстракцији и **Tier 2.5 + Tier 3** SOTA-2026 пролазу за стабилизацију. Сваки унос именује јавни симбол на који се односи, облик пре 3.x, нови облик у 4.0, и кратко објашњење шта се мења на месту позива.
+Овај водич покрива ABI прекиде направљене кроз Trust-Service екстракцију и пролаз за стабилизацију API границе. Сваки унос именује јавни симбол на који се односи, облик пре 3.x, нови облик у 4.0, и кратко објашњење шта се мења на месту позива.
 
 За пуну API политику (верзионисање, застаревање, валидација-наспрам-извршавања), погледајте [API политику]({{< ref "developer-guide/sdk-reference/api-policy" >}}).
 
 ---
 
 ## Trust животни циклус прелази на `Trust::TrustStoreService`
-
-**Аудит ознаке:** Tier 2 follow-up
 
 Пре:
 
@@ -40,8 +38,6 @@ auto store = trustService->trustStore();
 ---
 
 ## `LocalizedText` се сели на врх `LibreSCRS::` именског простора
-
-**Аудит ознаке:** LM-I2 / CC3
 
 Пре:
 
@@ -67,8 +63,6 @@ LibreSCRS::Auth::AuthRequirement::forSigning(LibreSCRS::LocalizedText{...}, retr
 
 ## `SyncProvider<Result, Context>` шаблонски алијас
 
-**Аудит ознаке:** LM-I3
-
 `Auth::CredentialProvider` и `Signing::TsaProvider` сада обоје алијасују једну канонску генеричку дефиницију:
 
 ```cpp
@@ -84,8 +78,6 @@ using SyncProvider = std::function<Result(const Context&)>;
 
 ## Преименовани приватни чланови `CardPlugin`
 
-**Аудит ознаке:** LM-C2
-
 Утиче на ауторе додатака који се компилирају против заштићене/приватне површине `LibreSCRS::Plugin::CardPlugin`. Имена јавних приступних метода су непромењена.
 
 | 3.x преглед | 4.0 |
@@ -99,8 +91,6 @@ using SyncProvider = std::function<Result(const Context&)>;
 ---
 
 ## `CardPlugin::canHandle` / `canHandleConnection` примају `std::span`
-
-**Аудит ознаке:** LM-I5
 
 Пре:
 
@@ -124,8 +114,6 @@ bool canHandleConnection(std::span<const std::uint8_t> atr,
 
 ## `AutoReaderError::Kind::RegistryEmpty` нова вредност енум-а
 
-**Аудит ознаке:** LM-C3
-
 `Plugin::AutoReader::AutoReaderError::Kind` добија нову вредност `RegistryEmpty` која разликује „нема инсталираних додатака или су сви додаци пали при учитавању" од „картица присутна али ниједан додатак није одговарао њеном ATR-у". Сваки код домаћина који исцрпно прелази преко `AutoReaderError::Kind` MORA додати случај за `RegistryEmpty` (или `default:` грану по [API политици §9](api-policy/#9-enum-exhaustiveness-and-forward-compatibility)).
 
 `Plugin::CardPluginRegistry::isUsable() noexcept` је одговарајућа сонда — користите је при покретању домаћина да би се појавило „нема инсталираних додатака" пре прве убациване картице.
@@ -133,8 +121,6 @@ bool canHandleConnection(std::span<const std::uint8_t> atr,
 ---
 
 ## `CardData::groupAt` / `fieldAt` граничне политике
-
-**Аудит ознаке:** LM-I8
 
 Пре (3.x преглед): `noexcept` акцесори са недефинисаним понашањем за индексе ван опсега.
 
@@ -156,8 +142,6 @@ CardField&             fieldAtUnchecked(std::size_t g, std::size_t f) noexcept;
 ---
 
 ## Уједначавање `userMessage` параметара у `SigningResult` / `CredentialResult` фабрикама
-
-**Аудит ознаке:** LM-I11 / CC4
 
 Свака фабрика која производи грешку сада прима `std::optional<LocalizedText> userMessage = std::nullopt` праћен `std::optional<std::string> diagnosticDetail = std::nullopt`.
 
@@ -190,8 +174,6 @@ CredentialResult::error(std::optional<LocalizedText> userMessage = nullopt);
 
 ## `TrustConfig::Builder` (адитивно)
 
-**Аудит ознаке:** LM-I12
-
 Агрегат `Trust::TrustConfig` остаје обична-податковна структура са јавним пољима; постојећи позиваоци који преферирају синтаксу са одређеним иницијализаторима (`TrustConfig{.includeSystemTrustStore = false}`) настављају да се компилирају.
 
 Издање 4.0 уводи `TrustConfig::Builder` са валидацијом по сетеру по [API политици §5.1](api-policy/#51-construction--validation-failures--throw):
@@ -211,8 +193,6 @@ auto cfg = std::move(LibreSCRS::Trust::TrustConfig::Builder{}
 
 ## `Secure::String::equalConstantTime`
 
-**Аудит ознаке:** LM-I7
-
 Пре: само `Secure::String::operator==` — идентитет бајта, не у константном времену. Документација је сугерисала позиваоцима да „имплементирају своје упоређивање у константном времену."
 
 После:
@@ -231,15 +211,11 @@ if (stored.equalConstantTime(candidate)) {
 
 ## `Trust::TrustStore::ChainStatus` задржава тренутни облик
 
-**Аудит ознаке:** LM-I4
-
-По [одлуци о решењу](https://github.com/LibreSCRS/knowledge/blob/main/reviews/2026-04-29-lm-i4-resolution.md), `ChainStatus` НЕ додаје вредност `Unsettled`. Потрошачи којима треба разликовање „заиста неповерено" од „још се учитава" упитују `Trust::TrustStoreService::status()` (или `sourceStatuses()`) поред инспекције вредности `ChainStatus`. Провера два извора је строго информативнија него што би била сажета `Unsettled` вредност енум-а — статус сервиса разликује `Loading`, `PartialFailure`, `Settled`, итд.
+`ChainStatus` НЕ додаје вредност `Unsettled`. Потрошачи којима треба разликовање „заиста неповерено" од „још се учитава" упитују `Trust::TrustStoreService::status()` (или `sourceStatuses()`) поред инспекције вредности `ChainStatus`. Провера два извора је строго информативнија него што би била сажета `Unsettled` вредност енум-а — статус сервиса разликује `Loading`, `PartialFailure`, `Settled`, итд.
 
 ---
 
 ## Интерно за додатке: `smartcard::PCSCConnection` није више у јавном CardSession.h
-
-**Аудит ознаке:** LM-I10
 
 Аутори додатака настављају да позивају `LibreSCRS::SmartCard::detail::unwrap(session)` тачно као пре — облик позива је непромењен. Интерна промена је структурна: јавни `<LibreSCRS/SmartCard/CardSession.h>` више не декларише унапред `namespace smartcard`. Изворни фајлови додатака који укључују `<LibreSCRS/SmartCard/detail/Unwrap.h>` (LM-интерно-само заглавље које излаже `unwrap`) настављају да раде без модификације.
 
@@ -247,9 +223,7 @@ if (stored.equalConstantTime(candidate)) {
 
 ---
 
-## Доследност `*Service` суфикса (Tier 4 Phase F)
-
-**Аудит ознаке:** CC6
+## Доследност `*Service` суфикса
 
 Три service-flavoured типа у `LibreSCRS::Plugin` и `LibreSCRS::SmartCard` усвајају `*Service` суфикс који су `Signing::SigningService` и `Trust::TrustStoreService` већ устоличили. Чисти data / event / outcome типови (нпр. `MonitorEvent`, `AutoReaderError`, `LoadOutcome`) задржавају своја тренутна имена.
 
@@ -279,9 +253,7 @@ sed -i \
 
 ---
 
-## `CardSession::open` враћа `std::variant` (Tier 4 Phase G)
-
-**Аудит ознаке:** CC7
+## `CardSession::open` враћа `std::variant`
 
 `OpenSessionResult` мигрира са структуре две `std::optional` слотова на `std::variant<CardSession, OpenError>` — тачно једна алтернатива се чува, елиминишући „оба празна / оба попуњена" инваријанту коју је претходни облик тихо дозвољавао.
 

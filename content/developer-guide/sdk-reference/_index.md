@@ -300,9 +300,9 @@ The 4.0 umbrella refactor removed every non-`LibreSCRS::*` public namespace. If 
 | `readCardStreaming` separate method | Merged into `readCard` with optional `GroupCallback` — implement one method, opt into streaming by calling the callback |
 | `canHandleConnection(PCSCConnection&)` | `canHandleConnection(const vector<uint8_t>& atr, CardSession&)` — ATR pre-passed |
 | `SigningService::instance()` / `configure*()` | Removed — construct once via `make_shared<SigningService>(trustService, tsa)` per policy |
-| `SigningService(TrustConfig, TsaProvider)` (3.x preview / Tier 2 Phase 5) | `SigningService(shared_ptr<Trust::TrustStoreService>, TsaProvider)` — trust lifecycle moved into a separate first-class service. Migration: replace `SigningService(trustConfig, tsa)` with `Trust::TrustStoreService::create(trustConfig)` followed by `SigningService(trustService, tsa)`. |
+| `SigningService(TrustConfig, TsaProvider)` (3.x preview) | `SigningService(shared_ptr<Trust::TrustStoreService>, TsaProvider)` — trust lifecycle moved into a separate first-class service. Migration: replace `SigningService(trustConfig, tsa)` with `Trust::TrustStoreService::create(trustConfig)` followed by `SigningService(trustService, tsa)`. |
 | `Signing::SigningService::trustStore()` getter | Removed — read the store from the service that owns it: `trustService->trustStore()` |
-| `Signing::TrustStoreManager` (legacy) | Removed — `Trust::TrustStoreService` is the single lifecycle owner |
+| `Signing::TrustStoreManager` | Removed — `Trust::TrustStoreService` is the single lifecycle owner |
 | Empty `SignResult` meant "plugin does not sign" | `SignResult::outcome == NotImplemented` — explicit signal |
 | `PINResult.success` / `SignResult.success` bool | `bool ok() const noexcept` derived from `.outcome` |
 | `extraHeaders` was `std::map` | `std::vector<std::pair>` — preserves insertion order, allows duplicates |

@@ -4,7 +4,7 @@ description: "Per-namespace developer reference for the LibreSCRS 4.0 public API
 weight: 30
 ---
 
-LibreMiddleware ships a C++20 SDK under the `LibreSCRS::*` umbrella. The surface is intentionally narrow — five namespaces, ~27 public headers — and is stable across the 4.x line per the [API Policy]({{< ref "developer-guide/sdk-reference/api-policy" >}}).
+LibreMiddleware ships a C++20 SDK under the `LibreSCRS::*` umbrella. The surface is intentionally narrow — six namespaces, ~28 public headers — and is stable across the 4.x line per the [API Policy]({{< ref "developer-guide/sdk-reference/api-policy" >}}).
 
 This page is the **narrative reference**: what each namespace is for, when you reach for it, and one idiomatic snippet per component. For the full auto-generated entity list (every class, every member, every parameter) consult the Doxygen output on the project's GitHub Pages.
 
@@ -139,21 +139,67 @@ for (const auto& plugin : candidates) {
 
 ---
 
+## `LibreSCRS::Trust` — trust anchors & async TL fetch
+
+Lifecycle owner of the unified trust store: bundled CA anchors, optional OS root store, and any number of asynchronously-fetched eIDAS Trusted Lists.
+
+- `TrustStore` — the read-only composed anchor set. Grows monotonically as eager and lazy TL fetches complete; safe for concurrent reads.
+- `TrustConfig` — declarative inputs: TL sources, cache directory, system-trust toggle, optional local TL file.
+- `TrustStoreService` — the lifecycle owner. **Asynchronous, non-throwing factory.** `create(TrustConfig)` returns a usable service immediately with bundled + system anchors; eager TL fetches run on internal worker threads and merge into the public store as they complete. Consumers observe completion via `status()`, `addObserver(...)`, or the opt-in `waitForEagerFetches(deadline, stop_token)`.
+
+```cpp
+namespace Trust = LibreSCRS::Trust;
+
+Trust::TrustConfig config;
+config.trustedListSources.push_back({
+    "https://www.mit.gov.rs/TrustedList/TSL-RS.xml", /*lazy=*/false, /*verify=*/true});
+config.includeSystemTrustStore = true;
+
+// create() never blocks on network IO and never throws.
+auto trustService = Trust::TrustStoreService::create(std::move(config));
+
+// Render UI immediately with bundled + system anchors; new TL anchors land
+// asynchronously. GUI consumers should subscribe via addObserver:
+auto handle = trustService->addObserver(
+    [](std::string_view url, Trust::TrustStoreService::SourceStatus s) {
+        // marshal back to the UI thread (e.g. QMetaObject::invokeMethod) and
+        // refresh anything that depends on chain resolution.
+    });
+
+// Tests / CLI tooling that legitimately want a synchronous wait:
+auto status = trustService->waitForEagerFetches(std::chrono::seconds(5));
+
+// Read-only access to the composed store:
+std::shared_ptr<const Trust::TrustStore> store = trustService->trustStore();
+```
+
+`TrustStoreService` is constructed via private ctor + factory; ownership is always `std::shared_ptr` because internal worker threads hold weak references to its `Impl`. The dtor cancels in-flight fetches via `std::stop_source` and joins workers with a bounded grace period.
+
+**Threading.** All public methods are thread-safe. Observer callbacks fire on internal worker threads — UI consumers must marshal to their main thread via the platform's queued-invocation primitive.
+
+**Behavioural note.** TL anchors arrive asynchronously. Consumers that absolutely require synchronous availability (rare — typically only test fixtures) call `waitForEagerFetches`. GUI consumers tolerate eventual consistency: render with whatever the store has at open time and refresh on observer events.
+
+---
+
 ## `LibreSCRS::Signing` — PAdES / XAdES / JAdES / CAdES / ASiC-E
 
 Digital signing against a smart-card-resident key.
 
-- `SigningService` — the entry point. **Pure DI**: takes a `TrustConfig` + `TsaProvider` in its constructor and never mutates afterwards. Move-only. Construct once per trust/TSA policy; reuse across sign calls.
+- `SigningService` — the entry point. **Pure DI**: takes a `shared_ptr<Trust::TrustStoreService>` + `TsaProvider` in its constructor and never mutates afterwards. Move-only. Construct once per trust/TSA policy; reuse across sign calls.
 - `SigningRequest` + `SigningRequest::Builder` — one sign operation's parameters (input/output paths, format, level, visual params, TSA override, contactInfo, reason, location). Builder validates at `build() &&`.
 - `VisualSignatureParams` + `VisualSignatureParams::Builder` — PAdES annotation appearance. Geometry validated per setter. `kDefaultVisualSignatureRect` exposed for hosts that just want "the default".
 - `TsaProvider` — `std::function<TsaRequest(const TsaContext&)>`. Invoked per sign to fetch URL + credentials (Basic / Bearer / mTLS / extra headers).
-- `TrustConfig` — trust-material injection: offline TL cache, bundled anchors, TSA trust-root toggles.
 - `SigningResult` — status enum + `outputPath` (signed-document path on success) + optional translator-friendly message + diagnostic detail.
 
+Trust material is injected via `Trust::TrustStoreService` (see the `LibreSCRS::Trust` section above) — `SigningService` no longer owns trust lifecycle.
+
 ```cpp
-LibreSCRS::Signing::TrustConfig trust;
+LibreSCRS::Trust::TrustConfig trust;
+trust.includeSystemTrustStore = true;
+auto trustService = LibreSCRS::Trust::TrustStoreService::create(std::move(trust));
+
 auto tsa = LibreSCRS::Signing::staticTsaChecked("https://tsa.example.com");  // validates URL
-LibreSCRS::Signing::SigningService service{std::move(trust), tsa};
+LibreSCRS::Signing::SigningService service{trustService, tsa};
 
 LibreSCRS::Signing::SigningRequest::Builder sb;
 sb.inputFile("/tmp/document.pdf");
@@ -253,7 +299,10 @@ The 4.0 umbrella refactor removed every non-`LibreSCRS::*` public namespace. If 
 | `readCard` throws on failure | `readCard` returns `LibreSCRS::Plugin::ReadResult` with a status enum (exceptions no longer cross the plugin boundary) |
 | `readCardStreaming` separate method | Merged into `readCard` with optional `GroupCallback` — implement one method, opt into streaming by calling the callback |
 | `canHandleConnection(PCSCConnection&)` | `canHandleConnection(const vector<uint8_t>& atr, CardSession&)` — ATR pre-passed |
-| `SigningService::instance()` / `configure*()` | Removed — construct once via `make_shared<SigningService>(trust, tsa)` per policy |
+| `SigningService::instance()` / `configure*()` | Removed — construct once via `make_shared<SigningService>(trustService, tsa)` per policy |
+| `SigningService(TrustConfig, TsaProvider)` (3.x preview / Tier 2 Phase 5) | `SigningService(shared_ptr<Trust::TrustStoreService>, TsaProvider)` — trust lifecycle moved into a separate first-class service. Migration: replace `SigningService(trustConfig, tsa)` with `Trust::TrustStoreService::create(trustConfig)` followed by `SigningService(trustService, tsa)`. |
+| `Signing::SigningService::trustStore()` getter | Removed — read the store from the service that owns it: `trustService->trustStore()` |
+| `Signing::TrustStoreManager` (legacy) | Removed — `Trust::TrustStoreService` is the single lifecycle owner |
 | Empty `SignResult` meant "plugin does not sign" | `SignResult::outcome == NotImplemented` — explicit signal |
 | `PINResult.success` / `SignResult.success` bool | `bool ok() const noexcept` derived from `.outcome` |
 | `extraHeaders` was `std::map` | `std::vector<std::pair>` — preserves insertion order, allows duplicates |

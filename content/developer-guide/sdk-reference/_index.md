@@ -51,19 +51,19 @@ Factories are preferred here (closed-shape requirement) over a Builder; see [`Au
 
 Two services on top of PC/SC, both pimpl-backed.
 
-- `Monitor` — reader + card event source. Non-copyable, non-movable (lifetime coupling with its subscription table). Multi-subscriber fan-out: the polling thread auto-starts on first `subscribe` and auto-stops on last `unsubscribe`.
-- `CardSession` — opaque session handle. Construct via the noexcept `open(readerName)` factory returning `OpenSessionResult {optional<CardSession>, optional<OpenError>}`. Move-only.
+- `MonitorService` — reader + card event source. Non-copyable, non-movable (lifetime coupling with its subscription table). Multi-subscriber fan-out: the polling thread auto-starts on first `subscribe` and auto-stops on last `unsubscribe`.
+- `CardSession` — opaque session handle. Construct via the noexcept `open(readerName)` factory returning `OpenSessionResult (std::variant<CardSession, OpenError>)`. Move-only.
 
 ```cpp
-auto mon = std::make_shared<SmartCard::Monitor>();
+auto mon = std::make_shared<SmartCard::MonitorService>();
 auto readers = mon->listReaders();               // optional<vector<string>>
 if (!readers) return;                            // PC/SC subsystem unavailable
 
 auto token = mon->subscribe([](const SmartCard::MonitorEvent& e) {
     if (e.kind == SmartCard::MonitorEvent::Kind::CardInserted) {
         auto sessionResult = SmartCard::CardSession::open(e.readerName);
-        if (sessionResult.session.has_value()) {
-            handleCard(std::move(*sessionResult.session));
+        if (auto* session = std::get_if<SmartCard::CardSession>(&sessionResult)) {
+            handleCard(std::move(*session));
         }
     }
 });
@@ -79,11 +79,11 @@ auto token = mon->subscribe([](const SmartCard::MonitorEvent& e) {
 Everything about extending support to new card types.
 
 - `CardPlugin` — abstract base. Every `.so` plugin implements a subclass, calls `setIdentity(id, displayName, probePriority)` in its ctor, and overrides whichever virtuals its `CardCapabilities` flags advertise.
-- `CardPluginRegistry` — load-at-construction, multi-directory. Returns structured `LoadOutcome` per file so hosts surface plugin errors rather than silently ignoring them.
+- `CardPluginService` — load-at-construction, multi-directory. Returns structured `LoadOutcome` per file so hosts surface plugin errors rather than silently ignoring them.
 - `CardData` / `CardFieldGroup` / `CardField` — the universal payload type a plugin produces.
 - `ReadResult` — structured `readCard` outcome (status enum + payload).
 - `PinStatusEntry`, `SecurityCheck` / `SecurityStatus` — per-PIN and verification-check reporting.
-- `AutoReader` — convenience wrapper that pairs a `Monitor` with a `CardPluginRegistry` and hands you `CardData` on insert events.
+- `AutoReaderService` — convenience wrapper that pairs a `MonitorService` with a `CardPluginService` and hands you `CardData` on insert events.
 
 ### Authoring a plugin
 
@@ -116,12 +116,12 @@ public:
 LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 6)  // ABI version pinned at compile time
 ```
 
-Build as a `.so`, install to the directory passed to `CardPluginRegistry`. The registry's ABI `static_assert` will fire at compile time if you target the wrong version. Exceptions MUST NOT cross the plugin boundary — the factory macro wraps `new MyPlugin()` in a noexcept try/catch; throws surface as `LoadOutcome::Status::FactoryThrew`.
+Build as a `.so`, install to the directory passed to `CardPluginService`. The registry's ABI `static_assert` will fire at compile time if you target the wrong version. Exceptions MUST NOT cross the plugin boundary — the factory macro wraps `new MyPlugin()` in a noexcept try/catch; throws surface as `LoadOutcome::Status::FactoryThrew`.
 
 ### Consuming the registry
 
 ```cpp
-LibreSCRS::Plugin::CardPluginRegistry registry{std::filesystem::path{"/usr/lib/librescrs/plugins"}};
+LibreSCRS::Plugin::CardPluginService registry{std::filesystem::path{"/usr/lib/librescrs/plugins"}};
 
 for (const auto& outcome : registry.loadReport()) {
     if (outcome.status != LibreSCRS::Plugin::LoadOutcome::Status::Loaded) {
@@ -291,10 +291,10 @@ The 4.0 umbrella refactor removed every non-`LibreSCRS::*` public namespace. If 
 
 | 3.x | 4.0 |
 |---|---|
-| `smartcard::PCSCConnection`, `smartcard::Monitor` (public) | `LibreSCRS::SmartCard::CardSession`, `LibreSCRS::SmartCard::Monitor`; internal transport stays `smartcard::*` but is no longer shipped in the install tree |
+| `smartcard::PCSCConnection`, `smartcard::MonitorService` (public) | `LibreSCRS::SmartCard::CardSession`, `LibreSCRS::SmartCard::MonitorService`; internal transport stays `smartcard::*` but is no longer shipped in the install tree |
 | `plugin::CardPlugin`, `plugin::CardData` | `LibreSCRS::Plugin::CardPlugin`, `LibreSCRS::Plugin::CardData` — see per-method changes below |
 | `libresign::SigningService`, `libresign::SignRequest` | `LibreSCRS::Signing::SigningService`, `LibreSCRS::Signing::SigningRequest` + `Builder` |
-| `eidcard::`, `healthcard::`, `euvrc::`, `piv::` public APIs | Removed — consumers now drive everything through `LibreSCRS::Plugin::CardPluginRegistry` + `CardData`. Per-card-family fields still exist inside the plugins. |
+| `eidcard::`, `healthcard::`, `euvrc::`, `piv::` public APIs | Removed — consumers now drive everything through `LibreSCRS::Plugin::CardPluginService` + `CardData`. Per-card-family fields still exist inside the plugins. |
 | `smartcard::SecureBuffer` | `LibreSCRS::Secure::Buffer` (binary) + `LibreSCRS::Secure::String` (text) |
 | `readCard` throws on failure | `readCard` returns `LibreSCRS::Plugin::ReadResult` with a status enum (exceptions no longer cross the plugin boundary) |
 | `readCardStreaming` separate method | Merged into `readCard` with optional `GroupCallback` — implement one method, opt into streaming by calling the callback |
@@ -307,7 +307,7 @@ The 4.0 umbrella refactor removed every non-`LibreSCRS::*` public namespace. If 
 | `PINResult.success` / `SignResult.success` bool | `bool ok() const noexcept` derived from `.outcome` |
 | `extraHeaders` was `std::map` | `std::vector<std::pair>` — preserves insertion order, allows duplicates |
 | `SigningResult::invalidRequest(std::string)` | `SigningResult::invalidRequestDiagnosticOnly(std::string)` — the name advertises the "no user-visible LocalizedText" trade-off |
-| `PCSCConnection::Pcsc(reader)` (throws on failure) | `CardSession::open(reader)` returns `OpenSessionResult{session, error}` (`noexcept`) |
+| `PCSCConnection::Pcsc(reader)` (throws on failure) | `CardSession::open(reader)` returns `OpenSessionResult (std::variant<CardSession, OpenError>)` (`noexcept`) |
 | `CredentialResult::errorMessage` | `CredentialResult::userMessage` (renamed for consistency across result types) |
 | `OpenError::message` | `OpenError::userMessage` (renamed for consistency across result types) |
 | `MonitorEvent::errorDetail` | `MonitorEvent::diagnosticDetail` (renamed for consistency across result types) |

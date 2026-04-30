@@ -51,19 +51,19 @@ auto answer = Auth::CredentialResult::ok(std::move(values));
 
 Два сервиса изнад PC/SC-а, оба pimpl-backed.
 
-- `Monitor` — извор догађаја читача + картице. Non-copyable, non-movable (везан животни век са табелом претплата). Fan-out за више претплатника: polling нит се ауто-покреће на први `subscribe` и ауто-зауставља на последњи `unsubscribe`.
-- `CardSession` — opaque сесијски handle. Конструише се преко noexcept `open(readerName)` фабрике која враћа `OpenSessionResult {optional<CardSession>, optional<OpenError>}`. Move-only.
+- `MonitorService` — извор догађаја читача + картице. Non-copyable, non-movable (везан животни век са табелом претплата). Fan-out за више претплатника: polling нит се ауто-покреће на први `subscribe` и ауто-зауставља на последњи `unsubscribe`.
+- `CardSession` — opaque сесијски handle. Конструише се преко noexcept `open(readerName)` фабрике која враћа `OpenSessionResult (std::variant<CardSession, OpenError>)`. Move-only.
 
 ```cpp
-auto mon = std::make_shared<SmartCard::Monitor>();
+auto mon = std::make_shared<SmartCard::MonitorService>();
 auto readers = mon->listReaders();               // optional<vector<string>>
 if (!readers) return;                            // PC/SC подсистем недоступан
 
 auto token = mon->subscribe([](const SmartCard::MonitorEvent& e) {
     if (e.kind == SmartCard::MonitorEvent::Kind::CardInserted) {
         auto sessionResult = SmartCard::CardSession::open(e.readerName);
-        if (sessionResult.session.has_value()) {
-            handleCard(std::move(*sessionResult.session));
+        if (auto* session = std::get_if<SmartCard::CardSession>(&sessionResult)) {
+            handleCard(std::move(*session));
         }
     }
 });
@@ -79,11 +79,11 @@ auto token = mon->subscribe([](const SmartCard::MonitorEvent& e) {
 Све око проширења подршке за нове типове картица.
 
 - `CardPlugin` — апстрактна база. Сваки `.so` додатак имплементира подкласу, зове `setIdentity(id, displayName, probePriority)` у ктору и прегласава виртуелне методе које његови `CardCapabilities` флагови оглашавају.
-- `CardPluginRegistry` — учита-при-конструкцији, multi-directory. Враћа структурисан `LoadOutcome` по фајлу тако да домаћини приказују грешке додатака уместо да их тихо игноришу.
+- `CardPluginService` — учита-при-конструкцији, multi-directory. Враћа структурисан `LoadOutcome` по фајлу тако да домаћини приказују грешке додатака уместо да их тихо игноришу.
 - `CardData` / `CardFieldGroup` / `CardField` — универзални payload тип који додатак производи.
 - `ReadResult` — структурисан исход `readCard`-а (status enum + payload).
 - `PinStatusEntry`, `SecurityCheck` / `SecurityStatus` — извештавање по PIN-у и по верификационој провери.
-- `AutoReader` — wrapper који спаја `Monitor` са `CardPluginRegistry`-јем и даје `CardData` на insert догађаје.
+- `AutoReaderService` — wrapper који спаја `MonitorService` са `CardPluginService`-јем и даје `CardData` на insert догађаје.
 
 ### Писање додатка
 
@@ -116,12 +116,12 @@ public:
 LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 6)  // ABI верзија закачена у compile-time
 ```
 
-Изградите као `.so`, инсталирајте у директоријум прослеђен `CardPluginRegistry`-ју. Регистрарски ABI `static_assert` ће се окинути у compile-time ако циљате погрешну верзију. Изузеци НЕ СМЕЈУ да прелазе ABI границу додатка — макро обавија `new MyPlugin()` у noexcept try/catch; throw-ови стижу као `LoadOutcome::Status::FactoryThrew`.
+Изградите као `.so`, инсталирајте у директоријум прослеђен `CardPluginService`-ју. Регистрарски ABI `static_assert` ће се окинути у compile-time ако циљате погрешну верзију. Изузеци НЕ СМЕЈУ да прелазе ABI границу додатка — макро обавија `new MyPlugin()` у noexcept try/catch; throw-ови стижу као `LoadOutcome::Status::FactoryThrew`.
 
 ### Коришћење регистра
 
 ```cpp
-LibreSCRS::Plugin::CardPluginRegistry registry{std::filesystem::path{"/usr/lib/librescrs/plugins"}};
+LibreSCRS::Plugin::CardPluginService registry{std::filesystem::path{"/usr/lib/librescrs/plugins"}};
 
 for (const auto& outcome : registry.loadReport()) {
     if (outcome.status != LibreSCRS::Plugin::LoadOutcome::Status::Loaded) {
@@ -293,10 +293,10 @@ auto b = LibreSCRS::Secure::Buffer{std::span<const std::uint8_t>{apduBytes.data(
 
 | 3.x | 4.0 |
 |---|---|
-| `smartcard::PCSCConnection`, `smartcard::Monitor` (јавно) | `LibreSCRS::SmartCard::CardSession`, `LibreSCRS::SmartCard::Monitor`; интерни транспорт остаје `smartcard::*` али више није у install stablu |
+| `smartcard::PCSCConnection`, `smartcard::MonitorService` (јавно) | `LibreSCRS::SmartCard::CardSession`, `LibreSCRS::SmartCard::MonitorService`; интерни транспорт остаје `smartcard::*` али више није у install stablu |
 | `plugin::CardPlugin`, `plugin::CardData` | `LibreSCRS::Plugin::CardPlugin`, `LibreSCRS::Plugin::CardData` — видети промене по методи испод |
 | `libresign::SigningService`, `libresign::SignRequest` | `LibreSCRS::Signing::SigningService`, `LibreSCRS::Signing::SigningRequest` + `Builder` |
-| Јавни API `eidcard::`, `healthcard::`, `euvrc::`, `piv::` | Уклоњени — потрошачи сада воде све кроз `LibreSCRS::Plugin::CardPluginRegistry` + `CardData`. Поља по породици картица и даље постоје унутар додатака. |
+| Јавни API `eidcard::`, `healthcard::`, `euvrc::`, `piv::` | Уклоњени — потрошачи сада воде све кроз `LibreSCRS::Plugin::CardPluginService` + `CardData`. Поља по породици картица и даље постоје унутар додатака. |
 | `smartcard::SecureBuffer` | `LibreSCRS::Secure::Buffer` (бинарно) + `LibreSCRS::Secure::String` (текст) |
 | `readCard` баца на грешку | `readCard` враћа `LibreSCRS::Plugin::ReadResult` са status enum-ом (изузеци више не прелазе границу додатка) |
 | `readCardStreaming` засебна метода | Спојено у `readCard` са опционом `GroupCallback` — имплементирате једну методу, streaming укључујете позивом callback-а |
@@ -309,7 +309,7 @@ auto b = LibreSCRS::Secure::Buffer{std::span<const std::uint8_t>{apduBytes.data(
 | `PINResult.success` / `SignResult.success` bool | `bool ok() const noexcept` изведен из `.outcome` |
 | `extraHeaders` био `std::map` | `std::vector<std::pair>` — чува ред уметања, дозвољава дупликате |
 | `SigningResult::invalidRequest(std::string)` | `SigningResult::invalidRequestDiagnosticOnly(std::string)` — име оглашава „без корисничке LocalizedText” trade-off |
-| `PCSCConnection::Pcsc(reader)` (баца изузетак на грешци) | `CardSession::open(reader)` враћа `OpenSessionResult{session, error}` (`noexcept`) |
+| `PCSCConnection::Pcsc(reader)` (баца изузетак на грешци) | `CardSession::open(reader)` враћа `OpenSessionResult (std::variant<CardSession, OpenError>)` (`noexcept`) |
 | `CredentialResult::errorMessage` | `CredentialResult::userMessage` (преименовано ради конзистентности преко result типова) |
 | `OpenError::message` | `OpenError::userMessage` (преименовано ради конзистентности преко result типова) |
 | `MonitorEvent::errorDetail` | `MonitorEvent::diagnosticDetail` (преименовано ради конзистентности преко result типова) |

@@ -86,7 +86,7 @@ Methods that can fail for environmental reasons (card absent, file I/O, network,
 
 - `SigningService::sign(...)` → `SigningResult` with `SigningResult::Status`.
 - `CardPlugin::verifyPIN(...)`, `changePIN(...)`, `unblockPIN(...)` → `PINResult` (plugin ABI).
-- `CardPluginRegistry` (ctor) — catches dlopen failures, factory throws, and ABI mismatches internally; each file scanned produces a `LoadOutcome` entry in `loadReport()` rather than propagating an exception.
+- `CardPluginService` (ctor) — catches dlopen failures, factory throws, and ABI mismatches internally; each file scanned produces a `LoadOutcome` entry in `loadReport()` rather than propagating an exception.
 
 Engine-internal errors that truly cannot be classified as one of the `Status` values are reported via `SigningResult::Status::SigningEngineError` + a `diagnosticDetail` string for logs. Callers never receive thrown exceptions from `sign()`.
 

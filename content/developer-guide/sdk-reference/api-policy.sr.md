@@ -86,7 +86,7 @@ Builder-и, factory-је и конструктори који валидирај
 
 - `SigningService::sign(...)` → `SigningResult` са `SigningResult::Status`.
 - `CardPlugin::verifyPIN(...)`, `changePIN(...)`, `unblockPIN(...)` → `PINResult` (plugin ABI).
-- `CardPluginRegistry` (ктор) — хвата dlopen неуспехе, throw-ове из фабрике, и ABI mismatches интерно; сваки скенирани фајл производи `LoadOutcome` унос у `loadReport()`-у уместо пропагирања изузетка.
+- `CardPluginService` (ктор) — хвата dlopen неуспехе, throw-ове из фабрике, и ABI mismatches интерно; сваки скенирани фајл производи `LoadOutcome` унос у `loadReport()`-у уместо пропагирања изузетка.
 
 Engine-интерне грешке које заиста не могу да се класификују као нека од `Status` вредности пријављују се преко `SigningResult::Status::SigningEngineError` + `diagnosticDetail` стринга за логове. Позиваоци никада не примају бачене изузетке од `sign()`.
 

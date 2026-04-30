@@ -27,8 +27,8 @@ Everything consumers are expected to use lives under one of five namespaces.
 | Namespace | Purpose |
 |---|---|
 | `LibreSCRS::Auth` | Credential-collection vocabulary — `AuthRequirement` with `forPreRead` / `forSigning` / `forChangePin` / `forUnblockPin` factories, `FieldDescriptor`, `CredentialProvider` callback alias, `CredentialResult`, `LocalizedText` i18n bundle |
-| `LibreSCRS::SmartCard` | PC/SC reader access — `Monitor` (multi-subscriber reader/card-event fan-out), `CardSession` (pimpl session handle opened via the noexcept `open()` factory returning `OpenSessionResult`) |
-| `LibreSCRS::Plugin` | Plugin framework — `CardPlugin` abstract base, `CardPluginRegistry`, `CardData` / `CardFieldGroup` / `CardField`, `ReadResult`, `PinStatusEntry`, `SecurityCheck` / `SecurityStatus`, `AutoReader` |
+| `LibreSCRS::SmartCard` | PC/SC reader access — `MonitorService` (multi-subscriber reader/card-event fan-out), `CardSession` (pimpl session handle opened via the noexcept `open()` factory returning `OpenSessionResult`) |
+| `LibreSCRS::Plugin` | Plugin framework — `CardPlugin` abstract base, `CardPluginService`, `CardData` / `CardFieldGroup` / `CardField`, `ReadResult`, `PinStatusEntry`, `SecurityCheck` / `SecurityStatus`, `AutoReaderService` |
 | `LibreSCRS::Signing` | PAdES / XAdES / JAdES / CAdES / ASiC-E signing — `SigningService` (pure-DI, move-only), `SigningRequest::Builder`, `VisualSignatureParams::Builder`, `TsaProvider` runtime-secret callback, `TrustConfig`, `SigningResult` |
 | `LibreSCRS::Secure` | Cleansing types for short-lived secret material — `Secure::String` (PIN/token text; zeroed on destruction and move-from), `Secure::Buffer` (binary keys / APDU bytes) |
 
@@ -46,7 +46,7 @@ The system has two independent plugin layers: **middleware plugins** handle card
 │                                                           │
 │  ┌──────────────────────────┐ ┌───────────────────────┐   │
 │  │ QSmartCardMonitor        │ │ CardWidgetPluginReg.  │   │
-│  │ (Qt adapter for Monitor) │ │ (QPluginLoader)       │   │
+│  │ (Qt adapter for MonitorService) │ │ (QPluginLoader)       │   │
 │  └──────────────────────────┘ └──────────┬────────────┘   │
 │           ▲                              │ loads           │
 │           │ wraps                 ┌──────▼──────────────┐  │
@@ -59,7 +59,7 @@ The system has two independent plugin layers: **middleware plugins** handle card
 │           │                              │                 │
 │  ┌────────┴────────────┐  ┌──────────────┴───────────┐     │
 │  │ LibreSCRS::SmartCard│  │ LibreSCRS::Plugin::       │     │
-│  │          ::Monitor  │  │   CardPluginRegistry     │     │
+│  │          ::MonitorService  │  │   CardPluginService     │     │
 │  │ (PC/SC event poll)  │  │ (dlopen + ABI v6 static  │     │
 │  └─────────────────────┘  │  assert + ATR/AID probe) │     │
 │                           └──────────┬───────────────┘     │
@@ -83,7 +83,7 @@ The system has two independent plugin layers: **middleware plugins** handle card
 
 ### Middleware plugins — `LibreSCRS::Plugin::CardPlugin`
 
-A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPluginRegistry` via `dlopen` at runtime. Each plugin is a subclass of `CardPlugin` that calls `setIdentity(id, displayName, probePriority)` in its constructor and overrides the virtual methods relevant to the card family it supports. Declarative surface:
+A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPluginService` via `dlopen` at runtime. Each plugin is a subclass of `CardPlugin` that calls `setIdentity(id, displayName, probePriority)` in its constructor and overrides the virtual methods relevant to the card family it supports. Declarative surface:
 
 - **`CardCapabilities capabilities() const`** — bitfield advertising which categories the plugin implements: `None`, `PKI`, `IdentityData`, `EmrtdCrypto`, `PinManagement`. The host reads this at load time; methods outside the advertised set return `NotImplemented` by default.
 - **`bool canHandle(const std::vector<uint8_t>& atr) const`** — fast ATR-only test. No card I/O.
@@ -93,7 +93,7 @@ A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPlugin
 
 The plugin ABI is independently versioned as an integer constant `LibreSCRS::Plugin::kCardPluginAbiVersion` (current: **v6**). The one-line `LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 6)` macro emits the three C-linkage factory symbols (`create_card_plugin`, `destroy_card_plugin`, `card_plugin_abi_version`) and pins the version with a compile-time `static_assert`. Exceptions MUST NOT cross the plugin ABI boundary — the macro wraps `new MyPlugin()` in a `noexcept` try/catch; failures surface as `LoadOutcome::Status::FactoryThrew`.
 
-**Two-phase probe.** `CardPluginRegistry::findAllCandidates(atr, session)` first calls `canHandle(atr)` on every loaded plugin. Plugins that return `true` enter the candidate list immediately, ordered by `probePriority` (lower number wins). Plugins that returned `false` get a second chance via `canHandleConnection(atr, session)` — letting generic drivers (OpenSC, PKCS#15) claim the card by live AID probe.
+**Two-phase probe.** `CardPluginService::findAllCandidates(atr, session)` first calls `canHandle(atr)` on every loaded plugin. Plugins that return `true` enter the candidate list immediately, ordered by `probePriority` (lower number wins). Plugins that returned `false` get a second chance via `canHandleConnection(atr, session)` — letting generic drivers (OpenSC, PKCS#15) claim the card by live AID probe.
 
 **Fallback chain.** If the top-ranked candidate's `readCard` fails, the next is tried automatically. Data plugins (eID, vehicle, health) read demographic data; PKI plugins (CardEdge, PKCS#15, OpenSC) are triggered separately for signing and certificate operations. Decoupling means a data plugin never needs to know about PKI and vice versa.
 
@@ -110,10 +110,10 @@ The Export.h top-of-tree doc states the project-wide convention explicitly: **ev
 Concrete consequences:
 
 - `LibreSCRS::Signing::SigningService::sign(request, credProvider, plugin, session)` — `plugin` and `session` are `shared_ptr`; internal workers promote from `weak_ptr` at use.
-- `LibreSCRS::Plugin::AutoReader` ctor — `monitor` and `registry` are `shared_ptr`.
-- `LibreSCRS::Plugin::CardPluginRegistry::plugins()` — returns `vector<shared_ptr<CardPlugin>>`; the custom deleter runs the plugin's destructor and then calls `dlclose`, so the underlying `.so` stays mapped until the last external reference drops.
+- `LibreSCRS::Plugin::AutoReaderService` ctor — `monitor` and `registry` are `shared_ptr`.
+- `LibreSCRS::Plugin::CardPluginService::plugins()` — returns `vector<shared_ptr<CardPlugin>>`; the custom deleter runs the plugin's destructor and then calls `dlclose`, so the underlying `.so` stays mapped until the last external reference drops.
 
-**Move-only** where duplication would be wrong: `SigningRequest` (two concurrent sign operations against the same I/O files is a footgun), `Secure::Buffer` (no accidental secret duplication), `CardSession` (hardware handle), `SigningService` (the object *is* the configured pipeline), `Monitor` (owns a live poll thread and subscription table keyed by stable tokens).
+**Move-only** where duplication would be wrong: `SigningRequest` (two concurrent sign operations against the same I/O files is a footgun), `Secure::Buffer` (no accidental secret duplication), `CardSession` (hardware handle), `SigningService` (the object *is* the configured pipeline), `MonitorService` (owns a live poll thread and subscription table keyed by stable tokens).
 
 **Copyable** where value semantics are the natural fit: `AuthRequirement` (plain-data plus `std::vector<FieldDescriptor>`), `VisualSignatureParams` (pimpl deep-copies small-data), `CredentialResult` and `SigningResult` (each copy carries its own cleansed `Secure::String` storage), `LocalizedText`.
 
@@ -125,7 +125,7 @@ API-POLICY §5 splits errors into three shapes, applied uniformly across the pub
 
 1. **Construction / validation errors — throw.** Builders, factories, and constructors that validate caller-supplied inputs throw `std::invalid_argument` identifying the bad field. Examples: `VisualSignatureParams::Builder::rect(r)` with non-positive dimensions, `SigningRequest::Builder::build()` with missing required fields, `AuthRequirement::forSigning(label, retries)` with an empty label. Callers scope exception handling around the construction phase.
 
-2. **Runtime / environmental errors — structured status.** Methods that can fail for environmental reasons (card absent, network, user cancellation, protocol mismatch) return a result type carrying a `Status` enum + optional payload + optional translator-friendly message. These methods **do not throw** across the 4.0 public boundary. Examples: `SigningService::sign` → `SigningResult`, `CardPlugin::readCard` → `ReadResult`, `CardSession::open` → `OpenSessionResult {optional<CardSession>, optional<OpenError>}`, `Monitor::listReaders` → `optional<vector<string>>`.
+2. **Runtime / environmental errors — structured status.** Methods that can fail for environmental reasons (card absent, network, user cancellation, protocol mismatch) return a result type carrying a `Status` enum + optional payload + optional translator-friendly message. These methods **do not throw** across the 4.0 public boundary. Examples: `SigningService::sign` → `SigningResult`, `CardPlugin::readCard` → `ReadResult`, `CardSession::open` → `OpenSessionResult (std::variant<CardSession, OpenError>)`, `MonitorService::listReaders` → `optional<vector<string>>`.
 
 3. **Pure accessors — `noexcept`.** Getters return by `const&` or by value without throwing. Accessors on a moved-from pimpl object are undefined behaviour; `explicit operator bool()` on every pimpl-backed type lets callers defensively check without triggering UB.
 
@@ -140,7 +140,7 @@ The complete path from card insertion to display:
 ```
 1. Card inserted into reader
 
-2. LibreSCRS::SmartCard::Monitor (LibreMiddleware, PC/SC poll thread)
+2. LibreSCRS::SmartCard::MonitorService (LibreMiddleware, PC/SC poll thread)
    └─ detects card presence via SCardGetStatusChange
    └─ creates MonitorEvent { CardInserted, readerName, atr }
    └─ fans out to every subscriber callback (thread-safe subscription table)
@@ -152,7 +152,7 @@ The complete path from card insertion to display:
 
 4. Main window starts two-phase plugin discovery:
    Phase 1 — ATR filter (no card I/O):
-   └─ CardPluginRegistry::findAllCandidates(atr, session)
+   └─ CardPluginService::findAllCandidates(atr, session)
       ├─ cardedge-plugin::canHandle(atr)  → true
       ├─ emrtd-plugin::canHandle(atr)     → false
       └─ pkcs15-plugin::canHandle(atr)    → false

@@ -25,7 +25,7 @@ Serbian eID cards have no public protocol documentation. The approach was straig
 
 As the codebase grew, it became clear that the card communication logic needed to stand on its own. LibreMiddleware was extracted as a pure C++20 library — no Qt, no GUI dependencies — just smart card protocols, TLV parsing, and a clean API. This made it possible to build a PKCS#11 module that lets any application (Firefox, Chrome, OpenSSL CLI) use Serbian smart cards for authentication and digital signatures without the GUI.
 
-The next step was a plugin architecture. Instead of hardcoding support for specific cards, both the middleware and the GUI became extensible. CardPluginRegistry discovers card handlers at runtime via dlopen; CardWidgetPluginRegistry loads GUI plugins via QPluginLoader. Adding a new card type means dropping in a shared library — no recompilation needed.
+The next step was a plugin architecture. Instead of hardcoding support for specific cards, both the middleware and the GUI became extensible. CardPluginService discovers card handlers at runtime via dlopen; CardWidgetPluginRegistry loads GUI plugins via QPluginLoader. Adding a new card type means dropping in a shared library — no recompilation needed.
 
 Most recently, support was added for eMRTD e-passports and PKCS#15 generic cards. eMRTD required implementing BAC and PACE key agreement from the ICAO 9303 specification — Diffie-Hellman over elliptic curves, key derivation functions, and Secure Messaging with session keys. PKCS#15 adds the ability to discover and use certificates and keys on any compliant card.
 

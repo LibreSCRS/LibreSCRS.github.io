@@ -51,7 +51,7 @@ LibreMiddleware is a set of C++20 static libraries with no Qt dependency. Use th
 
 - Plugin API for adding new card types
 - Streaming card read API
-- SmartCard Monitor for event-driven card detection
+- SmartCard `MonitorService` for event-driven card detection
 - Secure Messaging, PACE, BAC implementations
 
 See the [Developer Guide](/developer-guide/) for architecture details and build instructions.

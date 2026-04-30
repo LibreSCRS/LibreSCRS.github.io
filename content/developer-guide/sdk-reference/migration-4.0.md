@@ -247,6 +247,92 @@ If your plugin's source ever forward-declared `smartcard::PCSCConnection` itself
 
 ---
 
+## Service-suffix consistency rename (Tier 4 Phase F)
+
+**Audit refs:** CC6
+
+The three service-flavoured types in `LibreSCRS::Plugin` and `LibreSCRS::SmartCard` adopt the `*Service` suffix that `Signing::SigningService` and `Trust::TrustStoreService` already established. Pure data / event / outcome types (e.g. `MonitorEvent`, `AutoReaderError`, `LoadOutcome`) keep their current names.
+
+| 3.x preview / pre-rename | 4.0 |
+| --- | --- |
+| `LibreSCRS::Plugin::AutoReader`            | `LibreSCRS::Plugin::AutoReaderService`            |
+| `LibreSCRS::Plugin::CardPluginRegistry`    | `LibreSCRS::Plugin::CardPluginService`            |
+| `LibreSCRS::SmartCard::Monitor`            | `LibreSCRS::SmartCard::MonitorService`            |
+| `<LibreSCRS/Plugin/AutoReader.h>`          | `<LibreSCRS/Plugin/AutoReaderService.h>`          |
+| `<LibreSCRS/Plugin/CardPluginRegistry.h>`  | `<LibreSCRS/Plugin/CardPluginService.h>`          |
+| `<LibreSCRS/SmartCard/Monitor.h>`          | `<LibreSCRS/SmartCard/MonitorService.h>`          |
+
+Mechanical migration (covered by `tools/migrate-3x-to-4.0.sh`):
+
+```sh
+sed -i \
+    -e 's|LibreSCRS/Plugin/AutoReader\.h|LibreSCRS/Plugin/AutoReaderService.h|g' \
+    -e 's|LibreSCRS/Plugin/CardPluginRegistry\.h|LibreSCRS/Plugin/CardPluginService.h|g' \
+    -e 's|LibreSCRS/SmartCard/Monitor\.h|LibreSCRS/SmartCard/MonitorService.h|g' \
+    -e 's|\bAutoReader\b|AutoReaderService|g' \
+    -e 's|\bCardPluginRegistry\b|CardPluginService|g' \
+    -e 's|LibreSCRS::SmartCard::Monitor\b|LibreSCRS::SmartCard::MonitorService|g' \
+    *.cpp *.h
+```
+
+Take care not to globally rename the unrelated 3.x internal `smartcard::Monitor` symbol if your code happens to reference it through a `using namespace smartcard;` (no public 4.0 surface uses that name).
+
+---
+
+## `CardSession::open` returns `std::variant` (Tier 4 Phase G)
+
+**Audit refs:** CC7
+
+`OpenSessionResult` migrates from a struct of two `std::optional` slots to a `std::variant<CardSession, OpenError>` — exactly one alternative is held, eliminating the "both empty / both populated" invariant the previous shape silently allowed.
+
+Before:
+
+```cpp
+struct OpenSessionResult {
+    std::optional<CardSession> session;
+    std::optional<OpenError>   error;
+};
+```
+
+After:
+
+```cpp
+struct OpenSessionResult : std::variant<CardSession, OpenError>
+{
+    using std::variant<CardSession, OpenError>::variant;
+};
+```
+
+Consumer pattern-matching idiom:
+
+```cpp
+auto result = SmartCard::CardSession::open(reader);
+if (auto* session = std::get_if<SmartCard::CardSession>(&result)) {
+    // *session is the live handle
+    plugin->readCard(*session, ...);
+} else {
+    const auto& err = std::get<SmartCard::OpenError>(result);
+    qCWarning(category) << "open failed:" << static_cast<int>(err.kind);
+}
+```
+
+Equivalent `std::visit`:
+
+```cpp
+std::visit([&](auto&& alt) {
+    using T = std::decay_t<decltype(alt)>;
+    if constexpr (std::is_same_v<T, SmartCard::CardSession>) {
+        plugin->readCard(alt, ...);
+    } else {
+        // OpenError branch
+    }
+}, result);
+```
+
+This change is mechanical for the common `if (sessionResult.session) {...} else {...}` consumer pattern but cannot be auto-rewritten — `migrate-3x-to-4.0.sh` flags `OpenSessionResult` consumer sites for manual review.
+
+---
+
 ## Reference
 
 - [API Policy]({{< ref "developer-guide/sdk-reference/api-policy" >}}) — versioning, deprecation, validation-vs-runtime rules.

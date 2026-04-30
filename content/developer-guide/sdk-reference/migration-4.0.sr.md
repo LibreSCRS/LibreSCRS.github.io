@@ -247,6 +247,92 @@ if (stored.equalConstantTime(candidate)) {
 
 ---
 
+## Доследност `*Service` суфикса (Tier 4 Phase F)
+
+**Аудит ознаке:** CC6
+
+Три service-flavoured типа у `LibreSCRS::Plugin` и `LibreSCRS::SmartCard` усвајају `*Service` суфикс који су `Signing::SigningService` и `Trust::TrustStoreService` већ устоличили. Чисти data / event / outcome типови (нпр. `MonitorEvent`, `AutoReaderError`, `LoadOutcome`) задржавају своја тренутна имена.
+
+| 3.x preview / пре-rename | 4.0 |
+| --- | --- |
+| `LibreSCRS::Plugin::AutoReader`            | `LibreSCRS::Plugin::AutoReaderService`            |
+| `LibreSCRS::Plugin::CardPluginRegistry`    | `LibreSCRS::Plugin::CardPluginService`            |
+| `LibreSCRS::SmartCard::Monitor`            | `LibreSCRS::SmartCard::MonitorService`            |
+| `<LibreSCRS/Plugin/AutoReader.h>`          | `<LibreSCRS/Plugin/AutoReaderService.h>`          |
+| `<LibreSCRS/Plugin/CardPluginRegistry.h>`  | `<LibreSCRS/Plugin/CardPluginService.h>`          |
+| `<LibreSCRS/SmartCard/Monitor.h>`          | `<LibreSCRS/SmartCard/MonitorService.h>`          |
+
+Механичка миграција (покривена `tools/migrate-3x-to-4.0.sh`):
+
+```sh
+sed -i \
+    -e 's|LibreSCRS/Plugin/AutoReader\.h|LibreSCRS/Plugin/AutoReaderService.h|g' \
+    -e 's|LibreSCRS/Plugin/CardPluginRegistry\.h|LibreSCRS/Plugin/CardPluginService.h|g' \
+    -e 's|LibreSCRS/SmartCard/Monitor\.h|LibreSCRS/SmartCard/MonitorService.h|g' \
+    -e 's|\bAutoReader\b|AutoReaderService|g' \
+    -e 's|\bCardPluginRegistry\b|CardPluginService|g' \
+    -e 's|LibreSCRS::SmartCard::Monitor\b|LibreSCRS::SmartCard::MonitorService|g' \
+    *.cpp *.h
+```
+
+Опрез: не преименујте глобално неповезан 3.x интерни `smartcard::Monitor` симбол ако се ваш код позива на њега кроз `using namespace smartcard;` (никаква 4.0 јавна површина не користи то име).
+
+---
+
+## `CardSession::open` враћа `std::variant` (Tier 4 Phase G)
+
+**Аудит ознаке:** CC7
+
+`OpenSessionResult` мигрира са структуре две `std::optional` слотова на `std::variant<CardSession, OpenError>` — тачно једна алтернатива се чува, елиминишући „оба празна / оба попуњена" инваријанту коју је претходни облик тихо дозвољавао.
+
+Пре:
+
+```cpp
+struct OpenSessionResult {
+    std::optional<CardSession> session;
+    std::optional<OpenError>   error;
+};
+```
+
+После:
+
+```cpp
+struct OpenSessionResult : std::variant<CardSession, OpenError>
+{
+    using std::variant<CardSession, OpenError>::variant;
+};
+```
+
+Идиом провере код потрошача:
+
+```cpp
+auto result = SmartCard::CardSession::open(reader);
+if (auto* session = std::get_if<SmartCard::CardSession>(&result)) {
+    // *session је живи handle
+    plugin->readCard(*session, ...);
+} else {
+    const auto& err = std::get<SmartCard::OpenError>(result);
+    qCWarning(category) << "open неуспех:" << static_cast<int>(err.kind);
+}
+```
+
+Еквивалентан `std::visit`:
+
+```cpp
+std::visit([&](auto&& alt) {
+    using T = std::decay_t<decltype(alt)>;
+    if constexpr (std::is_same_v<T, SmartCard::CardSession>) {
+        plugin->readCard(alt, ...);
+    } else {
+        // OpenError грана
+    }
+}, result);
+```
+
+Промена је механичка за уобичајени `if (sessionResult.session) {...} else {...}` шаблон, али се не може ауто-преписати — `migrate-3x-to-4.0.sh` означава консумере `OpenSessionResult`-а за ручни преглед.
+
+---
+
 ## Референце
 
 - [API политика]({{< ref "developer-guide/sdk-reference/api-policy" >}}) — верзионисање, застаревање, правила валидације-наспрам-извршавања.

@@ -27,7 +27,7 @@ Everything consumers are expected to use lives under one of five namespaces.
 | Namespace | Purpose |
 |---|---|
 | `LibreSCRS::Auth` | Credential-collection vocabulary — `AuthRequirement` with `forPreRead` / `forSigning` / `forChangePin` / `forUnblockPin` factories, `FieldDescriptor`, `CredentialProvider` callback alias, `CredentialResult`, `LocalizedText` i18n bundle |
-| `LibreSCRS::SmartCard` | PC/SC reader access — `MonitorService` (multi-subscriber reader/card-event fan-out), `CardSession` (pimpl session handle opened via the noexcept `open()` factory returning `OpenSessionResult`) |
+| `LibreSCRS::SmartCard` | PC/SC reader access — `MonitorService` (multi-subscriber reader/card-event fan-out), `CardSession` (pimpl session handle opened via the noexcept `open()` factory returning `std::expected<CardSession, OpenError>`) |
 | `LibreSCRS::Plugin` | Plugin framework — `CardPlugin` abstract base, `CardPluginService`, `CardData` / `CardFieldGroup` / `CardField`, `ReadResult`, `PinStatusEntry`, `SecurityCheck` / `SecurityStatus`, `AutoReaderService` |
 | `LibreSCRS::Signing` | PAdES / XAdES / JAdES / CAdES / ASiC-E signing — `SigningService` (pure-DI, move-only), `SigningRequest::Builder`, `VisualSignatureParams::Builder`, `TsaProvider` runtime-secret callback, `TrustConfig`, `SigningResult` |
 | `LibreSCRS::Secure` | Cleansing types for short-lived secret material — `Secure::String` (PIN/token text; zeroed on destruction and move-from), `Secure::Buffer` (binary keys / APDU bytes) |
@@ -125,7 +125,7 @@ API-POLICY §5 splits errors into three shapes, applied uniformly across the pub
 
 1. **Construction / validation errors — throw.** Builders, factories, and constructors that validate caller-supplied inputs throw `std::invalid_argument` identifying the bad field. Examples: `VisualSignatureParams::Builder::rect(r)` with non-positive dimensions, `SigningRequest::Builder::build()` with missing required fields, `AuthRequirement::forSigning(label, retries)` with an empty label. Callers scope exception handling around the construction phase.
 
-2. **Runtime / environmental errors — structured status.** Methods that can fail for environmental reasons (card absent, network, user cancellation, protocol mismatch) return a result type carrying a `Status` enum + optional payload + optional translator-friendly message. These methods **do not throw** across the 4.0 public boundary. Examples: `SigningService::sign` → `SigningResult`, `CardPlugin::readCard` → `ReadResult`, `CardSession::open` → `OpenSessionResult (std::variant<CardSession, OpenError>)`, `MonitorService::listReaders` → `optional<vector<string>>`.
+2. **Runtime / environmental errors — structured status.** Methods that can fail for environmental reasons (card absent, network, user cancellation, protocol mismatch) return a result type carrying a `Status` enum + optional payload + optional translator-friendly message. These methods **do not throw** across the 4.0 public boundary. Examples: `SigningService::sign` → `SigningResult`, `CardPlugin::readCard` → `ReadResult`, `CardSession::open` → `std::expected<CardSession, OpenError>`, `MonitorService::listReaders` → `optional<vector<string>>`.
 
 3. **Pure accessors — `noexcept`.** Getters return by `const&` or by value without throwing. Accessors on a moved-from pimpl object are undefined behaviour; `explicit operator bool()` on every pimpl-backed type lets callers defensively check without triggering UB.
 

@@ -3,7 +3,7 @@ title: "API политика"
 description: "LibreSCRS правила за верзионисање, застаревање и стабилност јавног API-ја"
 weight: 20
 aliases:
-  - /dev/api-policy/
+  - /sr/dev/api-policy/
 ---
 
 # LibreSCRS API политика
@@ -19,11 +19,13 @@ aliases:
 ## 2. Јавна површина
 
 ```
-Public API = све под LibreSCRS::{Auth,SmartCard,Secure,Plugin,Signing}::*,
-             доступно преко јавних CMake target-а LibreSCRS::{Auth,SmartCard,
-             Plugin,Signing,All}. Све остало — smartcard::, libresign::,
-             internal header-и, сви не-LibreSCRS namespace-и — је имплементациони
-             детаљ и може се мењати у било ком релизу без semver последица.
+Public API = све под LibreSCRS::{Auth,SmartCard,Secure,Plugin,Signing,Trust,
+             Certificate}::*, плус umbrella типови LibreSCRS::LocalizedText и
+             LibreSCRS::SyncProvider, доступно преко јавних CMake target-а
+             LibreSCRS::{Auth,SmartCard,Plugin,Signing,Trust,Certificate,All}.
+             Све остало — smartcard::, libresign::, internal header-и, сви
+             не-LibreSCRS namespace-и — је имплементациони детаљ и може се
+             мењати у било ком релизу без semver последица.
 ```
 
 ## 3. Правила застаревања (примењују се од 4.0 надаље)
@@ -90,11 +92,21 @@ Builder-и, factory-је и конструктори који валидирај
 
 Engine-интерне грешке које заиста не могу да се класификују као нека од `Status` вредности пријављују се преко `SigningResult::Status::SigningEngineError` + `diagnosticDetail` стринга за логове. Позиваоци никада не примају бачене изузетке од `sign()`.
 
-### 5.3 Чисти accessor-и — noexcept где је могуће
+### 5.3 Фабрике које могу да откажу — `std::expected<T, E>`
+
+Јавне фабрике које могу да откажу у runtime-у — за разлику од §5.1 валидационих неуспеха, који бацају — враћају `std::expected<T, ErrorType>`, где је `ErrorType` доменски-специфичан угнеждени стракт. Ово важи за:
+
+- `ParsedCertificate::fromDer(...)` → `std::expected<ParsedCertificate, ParsedCertificate::ParseError>`
+- `CardSession::open(...)` → `std::expected<CardSession, OpenError>`
+- `TrustStoreService::create(...)` → `std::expected<std::shared_ptr<TrustStoreService>, TrustStoreService::CreateError>`
+
+Сваки тип грешке носи исти облик: грубу `enum class Kind` (адитивно растућу), обавезан `LocalizedText userMessage`, и опциони `std::optional<std::string> diagnosticDetail` који је документован као никад не носилац тајног материјала. Идиоме коришћења видети у [Руковању expected резултатима](../sdk-reference/expected-result-handling/).
+
+### 5.4 Чисти accessor-и — noexcept где је могуће
 
 Getter-и (нпр. `SigningRequest::inputFile()`, `TrustConfig::trustedListFile`, pimpl-backed `operator==`) су `noexcept` и враћају по const референци или вредности, како је одговарајуће. Време живота враћених референци документовано је на сваком accessor-у.
 
-### 5.4 Образложење
+### 5.5 Образложење
 
 Бацање при конструкцији чини валидацију управљивом — позивалац може да ограничи руковање изузецима на фазу конструкције, а затим да третира конструисани објекат као валидан током целог његовог живота. Мешање throw + status-code унутар једне методе је анти-образац који LibreSCRS избегава.
 

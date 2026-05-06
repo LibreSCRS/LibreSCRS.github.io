@@ -19,7 +19,7 @@ Describes **what the middleware needs from the user** (PIN, PUK, MRZ, CAN) and h
 - `AuthRequirement` — the request. Built via closed-set factories:
   - `forPreRead(PreReadAuthMethod::BacMrz | PaceCan | None)` — travel-document unlock material.
   - `forSigning(pinLabel, retriesLeft)` — single PIN for signing.
-  - `forSigning(LocalizedText pinLabel, retriesLeft)` — translatable variant (4.0); preserves `i18nKey` end-to-end.
+  - `forSigning(LocalizedText pinLabel, retriesLeft)` — translatable variant (4.0); preserves `key` end-to-end.
   - `forChangePin(pinLabel, retriesLeft)` — current + new + confirm triple.
   - `forChangePin(LocalizedText pinLabel, retriesLeft)` — translatable variant (4.0); same bundle on all three fields, role distinguished via field id.
   - `forUnblockPin(pinLabel)` — PUK + new + confirm triple.
@@ -27,7 +27,7 @@ Describes **what the middleware needs from the user** (PIN, PUK, MRZ, CAN) and h
 - `FieldDescriptor` — each input the provider must collect (one `std::vector` of these per requirement).
 - `CredentialProvider` — `std::function<CredentialResult(const AuthRequirement&)>` the host implements.
 - `CredentialResult` — returned bundle; values keyed by `FieldDescriptor::id`, each stored as a cleansing `Secure::String`.
-- `LocalizedText` — `{i18nKey, englishFallback, placeholders}` triple used for every user-visible message produced by the middleware.
+- `LocalizedText` — `{key, defaultText, placeholders}` triple used for every user-visible message produced by the middleware.
 
 ```cpp
 using namespace LibreSCRS;
@@ -35,7 +35,7 @@ using namespace LibreSCRS;
 auto req = Auth::AuthRequirement::forSigning("PIN", /*retriesLeft=*/3);
 std::vector<Auth::CredentialResult::Entry> values;
 for (const auto& field : req.fields()) {
-    Secure::String pin = askUser(field.label.englishFallback);
+    Secure::String pin = askUser(field.label.defaultText);
     values.emplace_back(field.id, std::move(pin));
 }
 auto answer = Auth::CredentialResult::ok(std::move(values));
@@ -52,7 +52,7 @@ Factories are preferred here (closed-shape requirement) over a Builder; see [`Au
 Two services on top of PC/SC, both pimpl-backed.
 
 - `MonitorService` — reader + card event source. Non-copyable, non-movable (lifetime coupling with its subscription table). Multi-subscriber fan-out: the polling thread auto-starts on first `subscribe` and auto-stops on last `unsubscribe`.
-- `CardSession` — opaque session handle. Construct via the noexcept `open(readerName)` factory returning `OpenSessionResult (std::variant<CardSession, OpenError>)`. Move-only.
+- `CardSession` — opaque session handle. Construct via the noexcept `open(readerName)` factory returning `std::expected<CardSession, OpenError>`. Move-only.
 
 ```cpp
 auto mon = std::make_shared<SmartCard::MonitorService>();
@@ -62,8 +62,8 @@ if (!readers) return;                            // PC/SC subsystem unavailable
 auto token = mon->subscribe([](const SmartCard::MonitorEvent& e) {
     if (e.kind == SmartCard::MonitorEvent::Kind::CardInserted) {
         auto sessionResult = SmartCard::CardSession::open(e.readerName);
-        if (auto* session = std::get_if<SmartCard::CardSession>(&sessionResult)) {
-            handleCard(std::move(*session));
+        if (sessionResult) {
+            handleCard(std::move(*sessionResult));
         }
     }
 });
@@ -113,7 +113,7 @@ public:
     }
 };
 
-LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 6)  // ABI version pinned at compile time
+LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 7)  // ABI version pinned at compile time
 ```
 
 Build as a `.so`, install to the directory passed to `CardPluginService`. The registry's ABI `static_assert` will fire at compile time if you target the wrong version. Exceptions MUST NOT cross the plugin boundary — the factory macro wraps `new MyPlugin()` in a noexcept try/catch; throws surface as `LoadOutcome::Status::FactoryThrew`.
@@ -307,7 +307,7 @@ The 4.0 umbrella refactor removed every non-`LibreSCRS::*` public namespace. If 
 | `PINResult.success` / `SignResult.success` bool | `bool ok() const noexcept` derived from `.outcome` |
 | `extraHeaders` was `std::map` | `std::vector<std::pair>` — preserves insertion order, allows duplicates |
 | `SigningResult::invalidRequest(std::string)` | `SigningResult::invalidRequestDiagnosticOnly(std::string)` — the name advertises the "no user-visible LocalizedText" trade-off |
-| `PCSCConnection::Pcsc(reader)` (throws on failure) | `CardSession::open(reader)` returns `OpenSessionResult (std::variant<CardSession, OpenError>)` (`noexcept`) |
+| `PCSCConnection::Pcsc(reader)` (throws on failure) | `CardSession::open(reader)` returns `std::expected<CardSession, OpenError>` (`noexcept`) |
 | `CredentialResult::errorMessage` | `CredentialResult::userMessage` (renamed for consistency across result types) |
 | `OpenError::message` | `OpenError::userMessage` (renamed for consistency across result types) |
 | `MonitorEvent::errorDetail` | `MonitorEvent::diagnosticDetail` (renamed for consistency across result types) |

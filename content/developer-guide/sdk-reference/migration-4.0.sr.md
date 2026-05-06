@@ -3,7 +3,7 @@ title: "4.0 SDK Migration Guide"
 description: "Промене на нивоу изворног кода између 3.x прегледа и LibreSCRS 4.0 јавног API-ја"
 weight: 25
 aliases:
-  - /dev/migration-4.0/
+  - /sr/dev/migration-4.0/
 ---
 
 # 4.0 SDK миграциони водич
@@ -253,11 +253,15 @@ sed -i \
 
 ---
 
-## `CardSession::open` враћа `std::variant`
+## `CardSession::open` враћа `std::expected<CardSession, OpenError>`
 
-`OpenSessionResult` мигрира са структуре две `std::optional` слотова на `std::variant<CardSession, OpenError>` — тачно једна алтернатива се чува, елиминишући „оба празна / оба попуњена" инваријанту коју је претходни облик тихо дозвољавао.
+4.0 је миграцију `CardSession::open`-а спровео у два корака. Потрошачи који портују директно са 3.x слећу одмах на коначни `std::expected` облик; рани усвајачи који су пратили развојну грану 4.0 усред циклуса видели су variant-међуоблик и треба им само корак 2.
 
-Пре:
+### Корак 1 — 3.x → 4.0-пре-`std::expected`
+
+3.x је излагао `OpenSessionResult` као структуру са две `std::optional` слотове; variant-међуоблик је подигао то у `std::variant<CardSession, OpenError>`, елиминишући „оба празна / оба попуњена" инваријанту коју је претходни облик тихо дозвољавао.
+
+3.x:
 
 ```cpp
 struct OpenSessionResult {
@@ -266,7 +270,7 @@ struct OpenSessionResult {
 };
 ```
 
-После:
+4.0-пре-`std::expected` (variant међуоблик):
 
 ```cpp
 struct OpenSessionResult : std::variant<CardSession, OpenError>
@@ -275,33 +279,31 @@ struct OpenSessionResult : std::variant<CardSession, OpenError>
 };
 ```
 
-Идиом провере код потрошача:
+### Корак 2 — 4.0-пре-`std::expected` → 4.0 финално (`std::expected`)
+
+Commit `4954fd8` је variant сабио у `std::expected<CardSession, OpenError>` — јединствени fallible-factory облик који остатак 4.0 површине усваја (`ParsedCertificate::parse`, `TrustStoreService::create`, …). `OpenSessionResult` је уклоњен; `CardSession::open` директно враћа `std::expected`.
+
+4.0 финално:
+
+```cpp
+[[nodiscard]] static std::expected<CardSession, OpenError>
+open(std::string_view readerName) noexcept;
+```
+
+Канонични идиом потрошача — short-circuit на грешци:
 
 ```cpp
 auto result = SmartCard::CardSession::open(reader);
-if (auto* session = std::get_if<SmartCard::CardSession>(&result)) {
-    // *session је живи handle
-    plugin->readCard(*session, ...);
-} else {
-    const auto& err = std::get<SmartCard::OpenError>(result);
-    qCWarning(category) << "open неуспех:" << static_cast<int>(err.kind);
+if (!result) {
+    qCWarning(category) << "open неуспех:" << static_cast<int>(result.error().kind);
+    return;
 }
+plugin->readCard(*result, ...);
 ```
 
-Еквивалентан `std::visit`:
+За монадични ланац (`and_then` / `transform`) и kind-dispatch идиоме, видети [Руковање `std::expected` резултатима]({{< ref "developer-guide/sdk-reference/expected-result-handling" >}}).
 
-```cpp
-std::visit([&](auto&& alt) {
-    using T = std::decay_t<decltype(alt)>;
-    if constexpr (std::is_same_v<T, SmartCard::CardSession>) {
-        plugin->readCard(alt, ...);
-    } else {
-        // OpenError грана
-    }
-}, result);
-```
-
-Промена је механичка за уобичајени `if (sessionResult.session) {...} else {...}` шаблон, али се не може ауто-преписати — `migrate-3x-to-4.0.sh` означава консумере `OpenSessionResult`-а за ручни преглед.
+Промена је механичка за уобичајени 3.x шаблон `if (sessionResult.session) {...} else {...}`, али се не може ауто-преписати — `migrate-3x-to-4.0.sh` означава потрошаче `OpenSessionResult`-а плус `std::optional<ParsedCertificate>` плус `std::shared_ptr<TrustStoreService>` (nullptr-на-грешци) за ручни преглед према јединственом `std::expected<T, E>` облику.
 
 ---
 

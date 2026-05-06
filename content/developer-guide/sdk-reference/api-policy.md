@@ -19,11 +19,13 @@ aliases:
 ## 2. Public Surface
 
 ```
-Public API = everything under LibreSCRS::{Auth,SmartCard,Secure,Plugin,Signing}::*,
-             reachable via the public CMake targets LibreSCRS::{Auth,SmartCard,
-             Plugin,Signing,All}. Everything else — smartcard::, libresign::,
-             internal headers, all non-LibreSCRS namespaces — is implementation
-             detail and may change in any release without semver impact.
+Public API = everything under LibreSCRS::{Auth,SmartCard,Secure,Plugin,Signing,
+             Trust,Certificate}::*, plus the umbrella types LibreSCRS::LocalizedText
+             and LibreSCRS::SyncProvider, reachable via the public CMake targets
+             LibreSCRS::{Auth,SmartCard,Plugin,Signing,Trust,Certificate,All}.
+             Everything else — smartcard::, libresign::, internal headers, all
+             non-LibreSCRS namespaces — is implementation detail and may change
+             in any release without semver impact.
 ```
 
 ## 3. Deprecation Rules (apply from 4.0 onward)
@@ -90,11 +92,21 @@ Methods that can fail for environmental reasons (card absent, file I/O, network,
 
 Engine-internal errors that truly cannot be classified as one of the `Status` values are reported via `SigningResult::Status::SigningEngineError` + a `diagnosticDetail` string for logs. Callers never receive thrown exceptions from `sign()`.
 
-### 5.3 Pure accessors — noexcept where possible
+### 5.3 Fallible factories — `std::expected<T, E>`
+
+Public factories that may fail at runtime — distinct from §5.1 validation failures, which throw — return `std::expected<T, ErrorType>` where `ErrorType` is a domain-specific nested struct. This applies to:
+
+- `ParsedCertificate::fromDer(...)` → `std::expected<ParsedCertificate, ParsedCertificate::ParseError>`
+- `CardSession::open(...)` → `std::expected<CardSession, OpenError>`
+- `TrustStoreService::create(...)` → `std::expected<std::shared_ptr<TrustStoreService>, TrustStoreService::CreateError>`
+
+Every error type carries the same shape: a coarse `enum class Kind` (append-only), a mandatory `LocalizedText userMessage`, and an optional `std::optional<std::string> diagnosticDetail` documented as never carrying secret material. See [Expected result handling](../sdk-reference/expected-result-handling/) for usage idioms.
+
+### 5.4 Pure accessors — noexcept where possible
 
 Getters (e.g. `SigningRequest::inputFile()`, `TrustConfig::trustedListFile`, pimpl-backed `operator==`) are `noexcept` and return by const reference or value as appropriate. Lifetime of returned references is documented on each accessor.
 
-### 5.4 Rationale
+### 5.5 Rationale
 
 Throwing at construction makes validation tractable — the caller can scope exception handling around the construction phase, then treat the constructed object as valid throughout its lifetime. Mixing throw + status-code within a single method is the anti-pattern LibreSCRS avoids.
 

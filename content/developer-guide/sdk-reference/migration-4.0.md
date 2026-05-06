@@ -253,11 +253,15 @@ Take care not to globally rename the unrelated 3.x internal `smartcard::Monitor`
 
 ---
 
-## `CardSession::open` returns `std::variant`
+## `CardSession::open` returns `std::expected<CardSession, OpenError>`
 
-`OpenSessionResult` migrates from a struct of two `std::optional` slots to a `std::variant<CardSession, OpenError>` — exactly one alternative is held, eliminating the "both empty / both populated" invariant the previous shape silently allowed.
+The 4.0 release migrated `CardSession::open` in two steps. Consumers porting straight from 3.x land directly on the final `std::expected` shape; early adopters who tracked the 4.0 development branch mid-cycle saw the variant intermediary and need only step 2.
 
-Before:
+### Step 1 — 3.x → 4.0-pre-`std::expected`
+
+3.x exposed `OpenSessionResult` as a struct of two `std::optional` slots; the variant intermediary hoisted that into a `std::variant<CardSession, OpenError>`, eliminating the "both empty / both populated" invariant the previous shape silently allowed.
+
+3.x:
 
 ```cpp
 struct OpenSessionResult {
@@ -266,7 +270,7 @@ struct OpenSessionResult {
 };
 ```
 
-After:
+4.0-pre-`std::expected` (variant intermediary):
 
 ```cpp
 struct OpenSessionResult : std::variant<CardSession, OpenError>
@@ -275,33 +279,31 @@ struct OpenSessionResult : std::variant<CardSession, OpenError>
 };
 ```
 
-Consumer pattern-matching idiom:
+### Step 2 — 4.0-pre-`std::expected` → 4.0 final (`std::expected`)
+
+Commit `4954fd8` collapsed the variant into `std::expected<CardSession, OpenError>` — the unified fallible-factory shape the rest of the 4.0 surface adopts (`ParsedCertificate::parse`, `TrustStoreService::create`, …). `OpenSessionResult` is removed; `CardSession::open` directly returns the `std::expected`.
+
+4.0 final:
+
+```cpp
+[[nodiscard]] static std::expected<CardSession, OpenError>
+open(std::string_view readerName) noexcept;
+```
+
+Canonical consumer idiom — short-circuit on error:
 
 ```cpp
 auto result = SmartCard::CardSession::open(reader);
-if (auto* session = std::get_if<SmartCard::CardSession>(&result)) {
-    // *session is the live handle
-    plugin->readCard(*session, ...);
-} else {
-    const auto& err = std::get<SmartCard::OpenError>(result);
-    qCWarning(category) << "open failed:" << static_cast<int>(err.kind);
+if (!result) {
+    qCWarning(category) << "open failed:" << static_cast<int>(result.error().kind);
+    return;
 }
+plugin->readCard(*result, ...);
 ```
 
-Equivalent `std::visit`:
+For the monadic-chain (`and_then` / `transform`) and kind-dispatch idioms, see [Handling `std::expected` results]({{< ref "developer-guide/sdk-reference/expected-result-handling" >}}).
 
-```cpp
-std::visit([&](auto&& alt) {
-    using T = std::decay_t<decltype(alt)>;
-    if constexpr (std::is_same_v<T, SmartCard::CardSession>) {
-        plugin->readCard(alt, ...);
-    } else {
-        // OpenError branch
-    }
-}, result);
-```
-
-This change is mechanical for the common `if (sessionResult.session) {...} else {...}` consumer pattern but cannot be auto-rewritten — `migrate-3x-to-4.0.sh` flags `OpenSessionResult` consumer sites for manual review.
+This change is mechanical for the common `if (sessionResult.session) {...} else {...}` 3.x consumer pattern but cannot be auto-rewritten — `migrate-3x-to-4.0.sh` flags `OpenSessionResult` plus `std::optional<ParsedCertificate>` plus `std::shared_ptr<TrustStoreService>` (nullptr-on-fail) consumer sites for manual review against the unified `std::expected<T, E>` shape.
 
 ---
 

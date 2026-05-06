@@ -173,7 +173,7 @@ LibreCelik (GUI) i LibreMiddleware (engine) su odvojeni projekti sa čistom gran
 
 **Ključne projektne odluke:**
 
-- **Bez Qt zavisnosti** — celokupan engine za potpisivanje je čist C++20 bez Qt tipova. LibreCelik konvertuje između Qt tipova (`QString`, `QByteArray`) i standardnih tipova (`std::string`, `std::vector<uint8_t>`) na granici.
+- **Bez Qt zavisnosti** — celokupan engine za potpisivanje je čist C++23 bez Qt tipova. LibreCelik konvertuje između Qt tipova (`QString`, `QByteArray`) i standardnih tipova (`std::string`, `std::vector<uint8_t>`) na granici.
 - **Bez poznavanja protokola kartice** — engine za potpisivanje ne šalje APDU komande i ne zna za tipove kartica. Sav pristup kartici ide kroz PKCS#11, koji je standardni interfejs koji svaki kompatibilan token može zadovoljiti.
 - **PIN se nikada ne čuva** — PIN putuje kao `span<const uint8_t>` koji ne poseduje memoriju, od `SecureBuffer`-a GUI-ja kroz `C_Login` poziv PKCS#11. Nijedna međukopija ne opstaje nakon povratka iz poziva.
 - **Format moduli su bez stanja** — svaki `sign()` poziv je samosadržan. Nema stanja sesije između poziva, što engine čini bezbednim za konkurentno korišćenje iz više niti.

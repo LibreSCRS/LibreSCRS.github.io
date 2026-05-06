@@ -9,7 +9,7 @@ description: "Prerequisites, build instructions, and running tests"
 | Dependency | Version | Notes |
 |---|---|---|
 | CMake | 3.24+ | Build system |
-| C++ compiler | GCC 12+ or Clang 15+ | C++20 support required |
+| C++ compiler | GCC 13+, Clang 16+, or AppleClang 16+ | C++23 support required (AppleClang adds `-fexperimental-library`) |
 | Qt 6.6+ | Widgets, PrintSupport, LinguistTools | LibreCelik only |
 | PC/SC | `libpcsclite-dev` (Linux) | Built-in on macOS |
 | OpenSSL 3 | — | Bundled in LibreMiddleware `thirdparty/` |
@@ -19,7 +19,7 @@ description: "Prerequisites, build instructions, and running tests"
 
 ## Building LibreMiddleware
 
-LibreMiddleware is a standalone C++20 library with no Qt dependency.
+LibreMiddleware is a standalone C++23 library with no Qt dependency.
 
 ```bash
 git clone https://github.com/LibreSCRS/LibreMiddleware.git

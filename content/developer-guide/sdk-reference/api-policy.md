@@ -59,7 +59,7 @@ If the `[[deprecated]]` lands and disappears entirely on a feature branch before
 
 ## 4. Plugin ABI
 
-`CardPlugin` interface ABI is independently versioned (current: **v6**, introduced by the 4.0 major release). The ABI version increases when the virtual table layout changes (new non-default methods, removed methods, reordered methods, or a plugin-facing aggregate struct's layout changes). Non-ABI plugin-interface changes (adding a virtual method with a safe default, adding an enumerator at the end of a closed-at-default-arm enum) do NOT bump ABI.
+`CardPlugin` interface ABI is independently versioned (current: **v7**, introduced by the 4.0 major release). The ABI version increases when the virtual table layout changes (new non-default methods, removed methods, reordered methods, or a plugin-facing aggregate struct's layout changes). Non-ABI plugin-interface changes (adding a virtual method with a safe default, adding an enumerator at the end of a closed-at-default-arm enum) do NOT bump ABI.
 
 Third-party plugin authors target a specific ABI version. `LibreSCRS::Plugin::kCardPluginAbiVersion` exposes the current ABI integer, and the `LIBRESCRS_DECLARE_CARD_PLUGIN(PluginType, AbiVersion)` macro `static_assert`s compile-time equality between the plugin's declared version and the current header's constant — so an ABI drift surfaces as a plugin build failure rather than a runtime mismatch. The registry additionally re-checks the version at load time via the `card_plugin_abi_version()` extern "C" symbol and rejects mismatches as `LoadOutcome::Status::AbiMismatch`.
 

@@ -4,7 +4,7 @@ description: "Technical documentation for developers extending LibreSCRS"
 layout: "simple"
 ---
 
-This guide is for developers who want to understand the LibreSCRS internals, build from source, extend the system with new card plugins, or consume the C++20 SDK from another application.
+This guide is for developers who want to understand the LibreSCRS internals, build from source, extend the system with new card plugins, or consume the C++23 SDK from another application.
 
 ## Topics
 

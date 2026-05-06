@@ -173,7 +173,7 @@ LibreCelik (the GUI) and LibreMiddleware (the engine) are separate projects with
 
 **Key design decisions:**
 
-- **No Qt dependency** — the entire signing engine is pure C++20 with no Qt types. LibreCelik converts between Qt types (`QString`, `QByteArray`) and standard types (`std::string`, `std::vector<uint8_t>`) at the boundary.
+- **No Qt dependency** — the entire signing engine is pure C++23 with no Qt types. LibreCelik converts between Qt types (`QString`, `QByteArray`) and standard types (`std::string`, `std::vector<uint8_t>`) at the boundary.
 - **No card protocol knowledge** — the signing engine does not send APDU commands or know about card types. All card access goes through PKCS#11, which is a standard interface that any compliant token can satisfy.
 - **PIN is never stored** — the PIN travels as a non-owning `span<const uint8_t>` from the GUI's `SecureBuffer` through to the PKCS#11 `C_Login` call. No intermediate copy persists after the call returns.
 - **Format modules are stateless** — each `sign()` call is self-contained. There is no session state between calls, making the engine safe for concurrent use from multiple threads.

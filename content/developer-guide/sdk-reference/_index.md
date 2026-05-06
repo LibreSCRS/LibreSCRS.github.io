@@ -4,7 +4,7 @@ description: "Per-namespace developer reference for the LibreSCRS 4.0 public API
 weight: 30
 ---
 
-LibreMiddleware ships a C++20 SDK under the `LibreSCRS::*` umbrella. The surface is intentionally narrow — six namespaces, ~28 public headers — and is stable across the 4.x line per the [API Policy]({{< ref "developer-guide/sdk-reference/api-policy" >}}).
+LibreMiddleware ships a C++23 SDK under the `LibreSCRS::*` umbrella. The surface is intentionally narrow — six namespaces, ~28 public headers — and is stable across the 4.x line per the [API Policy]({{< ref "developer-guide/sdk-reference/api-policy" >}}).
 
 This page is the **narrative reference**: what each namespace is for, when you reach for it, and one idiomatic snippet per component. For the full auto-generated entity list (every class, every member, every parameter) consult the Doxygen output on the project's GitHub Pages.
 
@@ -101,8 +101,9 @@ public:
     LibreSCRS::Plugin::CardCapabilities capabilities() const override {
         return LibreSCRS::Plugin::CardCapabilities::IdentityData;
     }
-    bool canHandle(const std::vector<uint8_t>& atr) const override {
-        return atr == std::vector<uint8_t>{0x3B, 0x80, /* ... */};
+    bool canHandle(std::span<const std::uint8_t> atr) const noexcept override {
+        static constexpr std::uint8_t kExpected[] = {0x3B, 0x80, /* ... */};
+        return std::ranges::equal(atr, kExpected);
     }
     LibreSCRS::Plugin::ReadResult readCard(
         LibreSCRS::SmartCard::CardSession& session,
@@ -145,7 +146,7 @@ Lifecycle owner of the unified trust store: bundled CA anchors, optional OS root
 
 - `TrustStore` — the read-only composed anchor set. Grows monotonically as eager and lazy TL fetches complete; safe for concurrent reads.
 - `TrustConfig` — declarative inputs: TL sources, cache directory, system-trust toggle, optional local TL file.
-- `TrustStoreService` — the lifecycle owner. **Asynchronous, non-throwing factory.** `create(TrustConfig)` returns a usable service immediately with bundled + system anchors; eager TL fetches run on internal worker threads and merge into the public store as they complete. Consumers observe completion via `status()`, `addObserver(...)`, or the opt-in `waitForEagerFetches(deadline, stop_token)`.
+- `TrustStoreService` — the lifecycle owner. **Asynchronous, non-throwing factory.** `create(TrustConfig)` returns `std::expected<TrustStoreService, CreateError>` and on success yields a service immediately backed by bundled + system anchors; eager TL fetches run on internal worker threads and merge into the public store as they complete. Consumers observe completion via `status()`, `addObserver(...)`, or the opt-in `waitForEagerFetches(deadline, CancelToken token = {})`.
 
 ```cpp
 namespace Trust = LibreSCRS::Trust;
@@ -312,7 +313,7 @@ The 4.0 umbrella refactor removed every non-`LibreSCRS::*` public namespace. If 
 | `OpenError::message` | `OpenError::userMessage` (renamed for consistency across result types) |
 | `MonitorEvent::errorDetail` | `MonitorEvent::diagnosticDetail` (renamed for consistency across result types) |
 
-**Plugin ABI:** v5 (3.x) → **v6** (4.0). Third-party plugins MUST be rebuilt against 4.0 headers. The `LIBRESCRS_DECLARE_CARD_PLUGIN(T, 6)` macro's `static_assert` catches version mismatch at compile time.
+**Plugin ABI:** v5 (3.x) → **v7** (4.0). In-tree plugins MUST be rebuilt against 4.0 headers. The `LIBRESCRS_DECLARE_CARD_PLUGIN(T, 7)` macro's `static_assert` catches version mismatch at compile time.
 
 **Dynamic-library distribution:** LibreMiddleware's public static-link contract is unchanged — static archives, consistent-toolchain consumer, no ABI stability promised across `libstdc++` versions. The only shipped shared library is `librescrs-pkcs11.so` which carries its own C ABI boundary for PKCS#11 consumers.
 

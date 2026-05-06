@@ -9,7 +9,7 @@ description: "Предуслови, упутства за изградњу и п
 | Зависност | Верзија | Напомена |
 |---|---|---|
 | CMake | 3.24+ | Систем за изградњу |
-| C++ компајлер | GCC 12+ или Clang 15+ | Потребна подршка за C++20 |
+| C++ компајлер | GCC 13+, Clang 16+ или AppleClang 16+ | Потребна подршка за C++23 (AppleClang додаје `-fexperimental-library`) |
 | Qt 6.6+ | Widgets, PrintSupport, LinguistTools | Само за LibreCelik |
 | PC/SC | `libpcsclite-dev` (Linux) | Уграђено на macOS-у |
 | OpenSSL 3 | — | Укључено у LibreMiddleware `thirdparty/` |
@@ -19,7 +19,7 @@ description: "Предуслови, упутства за изградњу и п
 
 ## Изградња LibreMiddleware-а
 
-LibreMiddleware је самостална C++20 библиотека без зависности од Qt-а.
+LibreMiddleware је самостална C++23 библиотека без зависности од Qt-а.
 
 ```bash
 git clone https://github.com/LibreSCRS/LibreMiddleware.git

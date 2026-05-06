@@ -59,7 +59,7 @@ Public API = све под LibreSCRS::{Auth,SmartCard,Secure,Plugin,Signing,Trus
 
 ## 4. Plugin ABI
 
-ABI `CardPlugin` интерфејса је независно верзионисан (тренутно: **v6**, уведен 4.0 главним издањем). ABI верзија расте када се мења virtual table layout (нове non-default методе, уклоњене методе, реорганизоване методе, или се мења layout plugin-facing aggregate структуре). Non-ABI промене plugin-интерфејса (додавање virtual методе са безбедним default-ом, додавање вредности на крај enum-а затвореног default-arm-ом) НЕ bump-уjу ABI.
+ABI `CardPlugin` интерфејса је независно верзионисан (тренутно: **v7**, уведен 4.0 главним издањем). ABI верзија расте када се мења virtual table layout (нове non-default методе, уклоњене методе, реорганизоване методе, или се мења layout plugin-facing aggregate структуре). Non-ABI промене plugin-интерфејса (додавање virtual методе са безбедним default-ом, додавање вредности на крај enum-а затвореног default-arm-ом) НЕ bump-уjу ABI.
 
 Аутори third-party plugin-а циљају специфичну ABI верзију. `LibreSCRS::Plugin::kCardPluginAbiVersion` излаже тренутни ABI integer, а `LIBRESCRS_DECLARE_CARD_PLUGIN(PluginType, AbiVersion)` макро `static_assert`-ује compile-time једнакост између plugin-ове декларисане верзије и тренутне хедерске константе — тако да се ABI drift појављује као plugin build failure, а не као runtime mismatch. Регистар додатно проверава верзију при load-у преко `card_plugin_abi_version()` extern "C" симбола и одбија mismatches као `LoadOutcome::Status::AbiMismatch`.
 

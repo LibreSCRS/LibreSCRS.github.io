@@ -4,13 +4,13 @@ title: "Architecture Overview"
 description: "System components, public API surface, plugin model, and data flow"
 ---
 
-LibreSCRS is two cooperating projects that together read, process, and display Serbian government smart-card data. The public 4.0 API surface is stable C++20 + LGPL in LibreMiddleware; the Qt desktop GUI sits on top under GPL-3.0.
+LibreSCRS is two cooperating projects that together read, process, and display Serbian government smart-card data. The public 4.0 API surface is stable C++23 + LGPL in LibreMiddleware; the Qt desktop GUI sits on top under GPL-3.0.
 
 ## Projects
 
 ### LibreMiddleware (LGPL-2.1)
 
-A Qt-free C++20 static-library collection. All PC/SC and card-protocol code lives here. Consumers link against the public targets and reach everything through the `LibreSCRS::*` namespaces.
+A Qt-free C++23 static-library collection. All PC/SC and card-protocol code lives here. Consumers link against the public targets and reach everything through the `LibreSCRS::*` namespaces.
 
 ### LibreCelik (GPL-3.0)
 
@@ -60,7 +60,7 @@ The system has two independent plugin layers: **middleware plugins** handle card
 │  ┌────────┴────────────┐  ┌──────────────┴───────────┐     │
 │  │ LibreSCRS::SmartCard│  │ LibreSCRS::Plugin::       │     │
 │  │          ::MonitorService  │  │   CardPluginService     │     │
-│  │ (PC/SC event poll)  │  │ (dlopen + ABI v6 static  │     │
+│  │ (PC/SC event poll)  │  │ (dlopen + ABI v7 static  │     │
 │  └─────────────────────┘  │  assert + ATR/AID probe) │     │
 │                           └──────────┬───────────────┘     │
 │                                      │ loads                │
@@ -86,12 +86,12 @@ The system has two independent plugin layers: **middleware plugins** handle card
 A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPluginService` via `dlopen` at runtime. Each plugin is a subclass of `CardPlugin` that calls `setIdentity(id, displayName, probePriority)` in its constructor and overrides the virtual methods relevant to the card family it supports. Declarative surface:
 
 - **`CardCapabilities capabilities() const`** — bitfield advertising which categories the plugin implements: `None`, `PKI`, `IdentityData`, `EmrtdCrypto`, `PinManagement`. The host reads this at load time; methods outside the advertised set return `NotImplemented` by default.
-- **`bool canHandle(const std::vector<uint8_t>& atr) const`** — fast ATR-only test. No card I/O.
-- **`bool canHandleConnection(const std::vector<uint8_t>& atr, CardSession& session) const`** — connection probe for plugins that didn't match on ATR alone. The session's ATR is pre-passed so plugins don't re-read it.
+- **`bool canHandle(std::span<const std::uint8_t> atr) const noexcept`** — fast ATR-only test. No card I/O.
+- **`bool canHandleConnection(std::span<const std::uint8_t> atr, CardSession& session) const`** — connection probe for plugins that didn't match on ATR alone. The session's ATR is pre-passed so plugins don't re-read it.
 - **`ReadResult readCard(CardSession& session, GroupCallback onGroup = {}) const`** — extract card data. Returns a status-coded `ReadResult`; the optional callback receives each `CardFieldGroup` as it becomes available so hosts can render progressively (replaces the older separate `readCardStreaming` method).
 - **Signing methods** (when `CardCapabilities::PKI` is advertised) — `discoverKeyReferences`, `sign`, `getPINList`, `verifyPIN`, `changePIN`, `unblockPIN`. Return structured `SignResult` / `PINResult` with `bool ok()` predicate.
 
-The plugin ABI is independently versioned as an integer constant `LibreSCRS::Plugin::kCardPluginAbiVersion` (current: **v6**). The one-line `LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 6)` macro emits the three C-linkage factory symbols (`create_card_plugin`, `destroy_card_plugin`, `card_plugin_abi_version`) and pins the version with a compile-time `static_assert`. Exceptions MUST NOT cross the plugin ABI boundary — the macro wraps `new MyPlugin()` in a `noexcept` try/catch; failures surface as `LoadOutcome::Status::FactoryThrew`.
+The plugin ABI is independently versioned as an integer constant `LibreSCRS::Plugin::kCardPluginAbiVersion` (current: **v7**). The one-line `LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 7)` macro emits the three C-linkage factory symbols (`create_card_plugin`, `destroy_card_plugin`, `card_plugin_abi_version`) and pins the version with a compile-time `static_assert`. Exceptions MUST NOT cross the plugin ABI boundary — the macro wraps `new MyPlugin()` in a `noexcept` try/catch; failures surface as `LoadOutcome::Status::FactoryThrew`.
 
 **Two-phase probe.** `CardPluginService::findAllCandidates(atr, session)` first calls `canHandle(atr)` on every loaded plugin. Plugins that return `true` enter the candidate list immediately, ordered by `probePriority` (lower number wins). Plugins that returned `false` get a second chance via `canHandleConnection(atr, session)` — letting generic drivers (OpenSC, PKCS#15) claim the card by live AID probe.
 
@@ -226,13 +226,13 @@ The closed-enum design makes step 4 catchable — any switch over `SignatureForm
 
 ### Adding a new card type (Plugin)
 
-The plugin ABI is `kCardPluginAbiVersion = 6` (see `include/LibreSCRS/Plugin/PluginTypes.h`). New card types ship as separate shared libraries under `LIBRESCRS_PLUGIN_PATH`. Plugin authors:
+The plugin ABI is `kCardPluginAbiVersion = 7` (see `include/LibreSCRS/Plugin/PluginTypes.h`). New card types ship as separate shared libraries under `LIBRESCRS_PLUGIN_PATH`. Plugin authors:
 
 1. Subclass `LibreSCRS::Plugin::CardPlugin`.
 2. In the constructor call `setIdentity(id, displayName, probePriority)`.
 3. Override `capabilities()` to advertise the bitfield of supported features (`PKI`, `IdentityData`, `EmrtdCrypto`, etc.).
 4. Override the relevant virtual methods per advertised capability.
-5. Export the entry points via `LIBRESCRS_DECLARE_CARD_PLUGIN(MyType, 6)`.
+5. Export the entry points via `LIBRESCRS_DECLARE_CARD_PLUGIN(MyType, 7)`.
 
 The `LIBRESCRS_DECLARE_CARD_PLUGIN` macro `static_assert`s at compile time that the plugin matches the current ABI version.
 

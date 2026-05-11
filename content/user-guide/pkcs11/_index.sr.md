@@ -25,22 +25,12 @@ sudo cp lib/librescrs-pkcs11.so* /usr/local/lib/
 sudo ldconfig
 ```
 
-#### p11-kit регистрација (опционо)
-
-Региструјте модул на нивоу система тако да све p11-kit апликације (Chromium, GnuTLS итд.) могу аутоматски да га користе:
-
-```bash
-sudo cp p11-kit/librescrs.module /usr/share/p11-kit/modules/
-```
-
-Или за тренутног корисника:
-
-```bash
-mkdir -p ~/.config/pkcs11/modules
-cp p11-kit/librescrs.module ~/.config/pkcs11/modules/
-```
-
-Проверите са: `p11-kit list-modules | grep -A5 librescrs`
+> **Напомена:** Аутоматско откривање p11-kit модула на нивоу система
+> (тако да апликације попут Kleopatra, GnuPG-gpgsm, Firefox, Chromium,
+> Thunderbird и Evolution препознају LibreSCRS картице без подешавања
+> по апликацији) долази у **следећем издању** LibreMiddleware-а. У 4.0.0
+> и даље је потребно ручно усмерити сваку апликацију на
+> `librescrs-pkcs11.so` као што је приказано испод.
 
 ### macOS
 

@@ -4,7 +4,44 @@ description: "Sign documents and files using your smart card"
 layout: "simple"
 ---
 
-Smart cards with private keys can be used for digital signatures. This page covers how to sign files from the command line and mentions other applications that support PKCS#11 signing. The examples below use Serbian eID and PKS cards, but the same workflow applies to any card supported by OpenSC or the LibreSCRS PKCS#11 module.
+Smart cards with private keys can be used for digital signatures. The fastest way to sign a document is the **built-in signing wizard in LibreCelik**. This page also covers command-line signing and third-party PKCS#11 clients. The examples below use Serbian eID and PKS cards, but the same workflow applies to any card supported by LibreCelik, OpenSC, or the LibreSCRS PKCS#11 module.
+
+## Signing in LibreCelik (recommended)
+
+LibreCelik 4.0 ships a native signing wizard that produces EU eIDAS / ETSI
+baseline signatures directly from your smart card — no external signing
+service, no PDF tooling, no manual hash-and-sign dance. The wizard handles
+PAdES (PDF), CAdES (`.p7s`), XAdES (`.xml`), JAdES (`.json`), and ASiC-E
+(`.asice`) containers at the four conformance levels (B-B, B-T, B-LT,
+B-LTA).
+
+To sign a document:
+
+1. Insert your signing card and open LibreCelik. Wait until the card appears
+   in the main window.
+2. Open **File → Sign document…** (or the "Sign" action on the card view).
+3. **Pick the document.** Drag a file into the drop zone, or click *Browse*.
+4. **Choose the signature format** (PAdES for PDFs, ASiC-E for any other
+   file type, CAdES / XAdES / JAdES if you have a specific requirement) and
+   the **conformance level** (B-B for offline signing, B-T for a trusted
+   timestamp, B-LT / B-LTA for long-term archive signatures — these
+   additionally require an internet connection to fetch revocation data
+   from CRL / OCSP).
+5. *(PAdES only)* **Place the visual signature.** Pick a page, drag the
+   placement rectangle, and the wizard auto-fits the text. The preview
+   is pixel-exact against the final embedded PDF.
+6. **Select the signing certificate** — the wizard lists all signing
+   certificates discovered on the card. PIN status (good / blocked /
+   retries-left) is shown next to each.
+7. **Enter your PIN** when prompted, then choose the output path.
+8. The wizard produces the signed file and shows the verification
+   summary (signer, chain, timestamps).
+
+The wizard uses the LibreSCRS PKCS#11 module under the hood, so the same
+trust anchors and revocation behaviour apply whether you sign through the
+GUI or one of the command-line workflows below.
+
+---
 
 ## Prerequisites
 
@@ -65,14 +102,17 @@ When you visit a site that requires client certificate authentication, Firefox w
 
 ---
 
-## PDF signing
+## PDF signing in third-party readers
 
-PDF readers that support PKCS#11 security devices should be able to use your smart card for signing. This includes:
+If you prefer a different PDF reader, most PKCS#11-aware readers can use
+your smart card via the LibreSCRS PKCS#11 module. Examples:
 
 - **Okular** (KDE) — supports PKCS#11 via NSS
 - **Adobe Reader** (if available on your platform)
 
-This functionality has not been extensively tested. If you have experience with PDF signing using smart cards, please [report your findings](https://github.com/LibreSCRS/LibreMiddleware/issues).
+These paths are useful when you need a viewer-integrated signing flow that
+isn't covered by LibreCelik's wizard. If you test one of them with a
+specific card and have feedback, please [share your findings](https://github.com/LibreSCRS/LibreMiddleware/issues).
 
 ---
 

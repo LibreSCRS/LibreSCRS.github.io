@@ -19,7 +19,7 @@ GUI smart card reader with plugin support. Passports, e-passports, eID, vehicle 
 
 ### Extend With Plugins
 
-Build middleware and GUI plugins for new card types. Standards-based C++20 architecture.
+Build middleware and GUI plugins for new card types. Standards-based modern C++ architecture (C++23 middleware, C++20 GUI).
 
 ---
 

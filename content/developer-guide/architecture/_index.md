@@ -10,7 +10,26 @@ LibreSCRS consists of two main projects that work together to read, process, and
 
 ### LibreMiddleware (LGPL-2.1)
 
-A Qt-free C++20 static library collection for smart card communication. It handles everything from low-level APDU command/response exchanges to high-level card data extraction. **All PC/SC communication lives exclusively in LibreMiddleware** — LibreCelik has no direct dependency on PC/SC.
+A Qt-free C++23 static library collection for smart card communication. It handles everything from low-level APDU command/response exchanges to high-level card data extraction. **All PC/SC communication lives exclusively in LibreMiddleware** — LibreCelik has no direct dependency on PC/SC.
+
+#### Public CMake targets
+
+Downstream consumers link against the `LibreSCRS::*` alias surface — a stable
+public API that hides internal libraries behind PascalCase namespaces:
+
+| Target | Namespace | Purpose |
+|---|---|---|
+| `LibreSCRS::SmartCard` | `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` — PC/SC + monitor |
+| `LibreSCRS::Plugin` | `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `ReadResult` |
+| `LibreSCRS::Auth` | `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult` |
+| `LibreSCRS::Certificate` | `LibreSCRS::Certificate` | X.509 certificate parsing and metadata |
+| `LibreSCRS::Trust` | `LibreSCRS::Trust` | `TrustStoreService`, `TrustStore`, `TrustConfig` |
+| `LibreSCRS::Signing` | `LibreSCRS::Signing` | `SigningService`, `SigningRequest`, `SigningResult`, `VisualSignatureLayout` |
+| `LibreSCRS::Secure` | `LibreSCRS::Secure` | `Secure::Buffer`, `Secure::String` (zero-on-destruct) |
+
+The table below lists the internal bucket-B libraries that implement these
+public targets. The internal libraries are subject to change between releases
+and should not be linked directly by downstream code.
 
 | Library | Purpose |
 |---|---|
@@ -104,7 +123,7 @@ The entire system is built around plugins. There are two independent plugin laye
 
 ### Card Detection: smartcard::Monitor
 
-Card detection lives in LibreMiddleware as `smartcard::Monitor` — a pure C++20 class with no Qt dependency. It polls PC/SC for card insert/remove events on a background thread and notifies subscribers via callbacks:
+Card detection lives in LibreMiddleware as `smartcard::Monitor` — a pure C++23 class with no Qt dependency. It polls PC/SC for card insert/remove events on a background thread and notifies subscribers via callbacks:
 
 - **`subscribe(MonitorCallback)`** — register for `MonitorEvent` notifications (card inserted/removed, reader name, ATR)
 - **`unsubscribe(id)`** — stop receiving events
@@ -179,20 +198,20 @@ The complete flow when a smart card is inserted:
 4. Main window receives signal, starts two-phase plugin discovery:
    Phase 1 — ATR filtering (no card communication):
    └─ CardPluginRegistry::findAllCandidates(atr, connection)
-      ├─ eidcard-plugin::canHandle(atr)     → true  (recognized Serbian eID ATR)
-      ├─ vehicle-plugin::canHandle(atr)     → false
+      ├─ rs-eid-plugin::canHandle(atr)      → true  (recognized Serbian eID ATR)
+      ├─ eu-vrc-plugin::canHandle(atr)      → false
       ├─ emrtd-plugin::canHandle(atr)       → false
       └─ opensc-plugin::canHandle(atr)      → false
-      Candidates so far: [eidcard-plugin (priority 100)]
+      Candidates so far: [rs-eid-plugin (priority 100)]
    Phase 2 — connection probe (only on plugins that returned false):
-      ├─ vehicle-plugin::canHandleConnection(conn)  → false
+      ├─ eu-vrc-plugin::canHandleConnection(conn)   → false
       ├─ emrtd-plugin::canHandleConnection(conn)    → false
       └─ opensc-plugin::canHandleConnection(conn)   → true (found PKCS#15)
-      Final candidates: [eidcard-plugin (100), opensc-plugin (50)]
+      Final candidates: [rs-eid-plugin (100), opensc-plugin (50)]
 
 5. AsyncCardReader::requestData(topCandidate)
    └─ std::async → background thread
-   └─ eidcard-plugin::readCard(connection)
+   └─ rs-eid-plugin::readCard(connection)
       ├─ SELECT AID, READ BINARY personal data
       ├─ parse BER-TLV response
       └─ return CardData { type: "rs.eid", fields: {...} }
@@ -232,19 +251,42 @@ The complete flow when a smart card is inserted:
 
 ## Namespaces
 
+### Public API (`LibreSCRS::*`)
+
+The 4.0 public consumer surface lives under the `LibreSCRS::` root in
+PascalCase namespaces. Every header under `include/LibreSCRS/` belongs to
+this surface; all other namespaces are internal.
+
 | Namespace | Scope |
 |---|---|
-| `smartcard::` | SmartCard library — APDU, TLV, BER, PCSCConnection, Monitor |
-| `plugin::` | Plugin system types — CardData, CardPlugin, CertificateData, CardPluginRegistry |
-| `eidcard::` | Serbian eID library types and API |
-| `euvrc::` | EU Vehicle Registration Certificate types and API |
-| `healthcard::` | Serbian health insurance card types |
-| `cardedge::` | CardEdge PKI applet — certificates, PIN, signing |
-| `emrtd::` | eMRTD data structures and MRZ parsing |
+| `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` — PC/SC + card-event monitor |
+| `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `ReadResult`, `AutoReaderService` |
+| `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult`, `FieldDescriptor` |
+| `LibreSCRS::Certificate` | X.509 certificate parsing and metadata |
+| `LibreSCRS::Trust` | `TrustStoreService`, `TrustStore`, `TrustConfig` |
+| `LibreSCRS::Signing` | `SigningService`, `SigningRequest`, `SigningResult`, `VisualSignatureLayout` |
+| `LibreSCRS::Secure` | `Secure::Buffer`, `Secure::String` (zero-on-destruct) |
+| `LibreSCRS` (root) | `CancelToken`, `LocalizedText`, `SyncProvider` |
+
+### Internal namespaces (subject to change)
+
+The lowercase namespaces below live under `lib/<library>/` and back the
+public API. They are **not** part of the supported consumer surface — names
+and signatures may change between releases.
+
+| Namespace | Scope |
+|---|---|
+| `smartcard::` | Internal APDU / TLV / BER-TLV / PCSCConnection helpers |
+| `plugin::` | Internal plugin loading + registry helpers |
+| `eidcard::` | Serbian eID internal types |
+| `euvrc::` | EU Vehicle Registration internal types |
+| `healthcard::` | Serbian health insurance internal types |
+| `cardedge::` | CardEdge PKI applet internal types |
+| `emrtd::` | eMRTD internal data structures and MRZ parsing |
 | `emrtd::crypto` | eMRTD cryptography — BAC, PACE, Secure Messaging |
-| `piv::` | PIV card types and API |
-| `pkcs15::` | PKCS#15 parser types |
-| `LibreSCRS::` | GUI application types |
+| `piv::` | PIV internal types |
+| `pkcs15::` | PKCS#15 internal parser types |
+| `libresign::` | Signing engine internals (PAdES / XAdES / JAdES / CAdES / ASiC-E) |
 
 ---
 

@@ -47,7 +47,7 @@ Generic PKI standard for certificate discovery, PIN management, and digital sign
 
 ## For Developers
 
-LibreMiddleware is a set of C++20 static libraries with no Qt dependency. Use them to build your own smart card application.
+LibreMiddleware is a set of C++23 static libraries with no Qt dependency. Use them to build your own smart card application.
 
 - Plugin API for adding new card types
 - Streaming card read API

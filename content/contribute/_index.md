@@ -18,7 +18,7 @@ The project is open source. Here's how to contribute.
 
 ## Development Setup
 
-Both projects build with CMake 3.24+ and a C++20 compiler.
+Both projects build with CMake 3.24+. LibreMiddleware requires a C++23 compiler (GCC 13+ / Clang 17+); LibreCelik still targets C++20 (bump to C++23 is on the 4.x roadmap).
 
 ```bash
 # Clone both repositories
@@ -43,7 +43,7 @@ For details, see [Building From Source](/developer-guide/building-from-source/).
 
 ## Coding Standards
 
-- C++20. Use `std::span`, `std::format`, smart pointers.
+- LibreMiddleware: C++23. Use `std::span`, `std::format`, `std::expected`, smart pointers. LibreCelik: C++20.
 - Compiler warnings: `-Wall -Wextra -Wpedantic`
 - Naming: `camelCase` for variables, `PascalCase` for types. No trailing underscores on member variables.
 - SPDX license headers on all source files.

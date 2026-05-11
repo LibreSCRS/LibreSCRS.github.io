@@ -10,7 +10,26 @@ LibreSCRS се састоји од два главна пројекта који
 
 ### LibreMiddleware (LGPL-2.1)
 
-Колекција статичких C++20 библиотека за комуникацију са смарт картицама, без зависности од Qt-а. Обрађује све од APDU команди ниског нивоа до екстракције података са картице. **Сва PC/SC комуникација живи искључиво у LibreMiddleware-у** — LibreCelik нема директну зависност од PC/SC-а.
+Колекција статичких C++23 библиотека за комуникацију са смарт картицама, без зависности од Qt-а. Обрађује све од APDU команди ниског нивоа до екстракције података са картице. **Сва PC/SC комуникација живи искључиво у LibreMiddleware-у** — LibreCelik нема директну зависност од PC/SC-а.
+
+#### Јавни CMake циљеви
+
+Спољни корисници линкују против `LibreSCRS::*` алијас површине — стабилног
+јавног API-ја који скрива интерне библиотеке иза PascalCase именских простора:
+
+| Циљ | Именски простор | Намена |
+|---|---|---|
+| `LibreSCRS::SmartCard` | `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` — PC/SC + монитор |
+| `LibreSCRS::Plugin` | `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `ReadResult` |
+| `LibreSCRS::Auth` | `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult` |
+| `LibreSCRS::Certificate` | `LibreSCRS::Certificate` | Парсирање и метаподаци X.509 сертификата |
+| `LibreSCRS::Trust` | `LibreSCRS::Trust` | `TrustStoreService`, `TrustStore`, `TrustConfig` |
+| `LibreSCRS::Signing` | `LibreSCRS::Signing` | `SigningService`, `SigningRequest`, `SigningResult`, `VisualSignatureLayout` |
+| `LibreSCRS::Secure` | `LibreSCRS::Secure` | `Secure::Buffer`, `Secure::String` (нулирање при уништавању) |
+
+Табела испод приказује интерне bucket-B библиотеке које имплементирају ове
+јавне циљеве. Интерне библиотеке могу да се мењају између издања и спољни
+код не треба директно да линкује против њих.
 
 | Библиотека | Намена |
 |---|---|
@@ -104,7 +123,7 @@ LibreCelik преузима LibreMiddleware преко CMake `FetchContent`. З�
 
 ### Детекција картице: smartcard::Monitor
 
-Детекција картице живи у LibreMiddleware-у као `smartcard::Monitor` — чиста C++20 класа без зависности од Qt-а. На позадинској нити прозива PC/SC за догађаје убацивања/вађења картице и обавештава претплатнике кроз повратне позиве:
+Детекција картице живи у LibreMiddleware-у као `smartcard::Monitor` — чиста C++23 класа без зависности од Qt-а. На позадинској нити прозива PC/SC за догађаје убацивања/вађења картице и обавештава претплатнике кроз повратне позиве:
 
 - **`subscribe(MonitorCallback)`** — регистрација за `MonitorEvent` обавештења (картица убачена/извађена, име читача, ATR)
 - **`unsubscribe(id)`** — престанак примања догађаја
@@ -179,20 +198,20 @@ eMRTD додатак демонстрира најсложенију комун�
 4. Главни прозор прима сигнал, покреће двофазно откривање додатака:
    Фаза 1 — ATR филтрирање (без комуникације са картицом):
    └─ CardPluginRegistry::findAllCandidates(atr, connection)
-      ├─ eidcard-plugin::canHandle(atr)     → true  (препознат ATR српске еИД)
-      ├─ vehicle-plugin::canHandle(atr)     → false
+      ├─ rs-eid-plugin::canHandle(atr)      → true  (препознат ATR српске еИД)
+      ├─ eu-vrc-plugin::canHandle(atr)      → false
       ├─ emrtd-plugin::canHandle(atr)       → false
       └─ opensc-plugin::canHandle(atr)      → false
-      Кандидати до сад: [eidcard-plugin (приоритет 100)]
+      Кандидати до сад: [rs-eid-plugin (приоритет 100)]
    Фаза 2 — провера на конекцији (само додаци који су вратили false):
-      ├─ vehicle-plugin::canHandleConnection(conn)  → false
+      ├─ eu-vrc-plugin::canHandleConnection(conn)   → false
       ├─ emrtd-plugin::canHandleConnection(conn)    → false
       └─ opensc-plugin::canHandleConnection(conn)   → true (нађен PKCS#15)
-      Коначни кандидати: [eidcard-plugin (100), opensc-plugin (50)]
+      Коначни кандидати: [rs-eid-plugin (100), opensc-plugin (50)]
 
 5. AsyncCardReader::requestData(topCandidate)
    └─ std::async → позадинска нит
-   └─ eidcard-plugin::readCard(connection)
+   └─ rs-eid-plugin::readCard(connection)
       ├─ SELECT AID, READ BINARY лични подаци
       ├─ парсирање BER-TLV одговора
       └─ враћа CardData { type: "rs.eid", fields: {...} }
@@ -232,19 +251,42 @@ eMRTD додатак демонстрира најсложенију комун�
 
 ## Простори имена
 
+### Јавни API (`LibreSCRS::*`)
+
+Јавна корисничка површина 4.0 живи испод `LibreSCRS::` корена у
+PascalCase именским просторима. Свако заглавље испод `include/LibreSCRS/`
+припада овој површини; сви други простори су интерни.
+
 | Простор имена | Опсег |
 |---|---|
-| `smartcard::` | Библиотека SmartCard — APDU, TLV, BER, PCSCConnection, Monitor |
-| `plugin::` | Типови система додатака — CardData, CardPlugin, CertificateData, CardPluginRegistry |
-| `eidcard::` | Типови и API библиотеке за српску eID картицу |
-| `euvrc::` | Типови и API за ЕУ саобраћајну дозволу |
-| `healthcard::` | Типови за картицу здравственог осигурања |
-| `cardedge::` | CardEdge PKI аплет — сертификати, PIN, потписивање |
-| `emrtd::` | eMRTD структуре података и парсирање MRZ-а |
+| `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` — PC/SC + монитор догађаја картице |
+| `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `ReadResult`, `AutoReaderService` |
+| `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult`, `FieldDescriptor` |
+| `LibreSCRS::Certificate` | Парсирање и метаподаци X.509 сертификата |
+| `LibreSCRS::Trust` | `TrustStoreService`, `TrustStore`, `TrustConfig` |
+| `LibreSCRS::Signing` | `SigningService`, `SigningRequest`, `SigningResult`, `VisualSignatureLayout` |
+| `LibreSCRS::Secure` | `Secure::Buffer`, `Secure::String` (нулирање при уништавању) |
+| `LibreSCRS` (корен) | `CancelToken`, `LocalizedText`, `SyncProvider` |
+
+### Интерни простори имена (подложни промени)
+
+Простори имена малим словима испод живе у `lib/<библиотека>/` и подржавају
+јавни API. **Нису** део подржане корисничке површине — имена и потписи могу
+да се мењају између издања.
+
+| Простор имена | Опсег |
+|---|---|
+| `smartcard::` | Интерни APDU / TLV / BER-TLV / PCSCConnection помоћници |
+| `plugin::` | Интерни помоћници за учитавање додатака и регистар |
+| `eidcard::` | Интерни типови за српску еИД картицу |
+| `euvrc::` | Интерни типови за ЕУ саобраћајну дозволу |
+| `healthcard::` | Интерни типови за здравствену картицу |
+| `cardedge::` | Интерни типови CardEdge PKI аплета |
+| `emrtd::` | eMRTD интерне структуре података и парсирање MRZ-а |
 | `emrtd::crypto` | eMRTD криптографија — BAC, PACE, Secure Messaging |
-| `piv::` | PIV типови и API за картицу |
-| `pkcs15::` | PKCS#15 типови парсера |
-| `LibreSCRS::` | Типови GUI апликације |
+| `piv::` | PIV интерни типови |
+| `pkcs15::` | PKCS#15 интерни типови парсера |
+| `libresign::` | Унутрашњи engine за потписивање (PAdES / XAdES / JAdES / CAdES / ASiC-E) |
 
 ---
 

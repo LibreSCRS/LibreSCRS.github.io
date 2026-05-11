@@ -10,10 +10,11 @@ LibreSCRS started as a reverse-engineering effort to liberate Serbian government
 ## Timeline
 
 1. **Mid 2025** — Project begins: LibreCelik, GUI reader for Serbian eID and vehicle cards
-2. **Early 2026** — LibreMiddleware extracted as standalone C++20 library (no Qt dependency)
+2. **Early 2026** — LibreMiddleware extracted as standalone Qt-free library (no Qt dependency)
 3. **Early 2026** — PKCS#11 module ships; OpenSC Serbian eID driver contributed upstream (PR #3595, merged)
 4. **Early 2026** — Plugin architecture: both middleware and GUI become card-agnostic
 5. **2026** — eMRTD, PKCS#15, and PIV support: e-passports, any PKCS#15-based PKI card, PIV smart cards. PKCS#11 module generalized to support all card types. Universal toolkit.
+6. **May 2026** — **4.0.0 release**: C++23 core, native PAdES / XAdES / JAdES / CAdES / ASiC-E signing, RFC 5280 trust chain validation, eIDAS qcStatements conformance, auto-fit visual signature layout.
 
 ---
 
@@ -23,7 +24,7 @@ There was no native Linux application that could read all types of Serbian gover
 
 Serbian eID cards have no public protocol documentation. The approach was straightforward: trace what the proprietary Windows software does over PC/SC, capture the APDU sequences, and work out the protocol from there. Vehicle registration cards follow the EU Directive 2003/127/EC standard, so their structure was well-defined from the start. Health insurance cards have their own layout. PKS qualified signature cards from the Chamber of Commerce use CardEdge for cryptographic operations but carry no demographic data at all. Each card type meant testing against real hardware until the protocol was understood.
 
-As the codebase grew, it became clear that the card communication logic needed to stand on its own. LibreMiddleware was extracted as a pure C++20 library — no Qt, no GUI dependencies — just smart card protocols, TLV parsing, and a clean API. This made it possible to build a PKCS#11 module that lets any application (Firefox, Chrome, OpenSSL CLI) use Serbian smart cards for authentication and digital signatures without the GUI.
+As the codebase grew, it became clear that the card communication logic needed to stand on its own. LibreMiddleware was extracted as a pure modern C++ library — no Qt, no GUI dependencies — just smart card protocols, TLV parsing, and a clean API. This made it possible to build a PKCS#11 module that lets any application (Firefox, Chrome, OpenSSL CLI) use any LM-supported smart card (Serbian eID, PKS, PIV, generic PKCS#15) for authentication and digital signatures without the GUI.
 
 The next step was a plugin architecture. Instead of hardcoding support for specific cards, both the middleware and the GUI became extensible. CardPluginRegistry discovers card handlers at runtime via dlopen; CardWidgetPluginRegistry loads GUI plugins via QPluginLoader. Adding a new card type means dropping in a shared library — no recompilation needed.
 
@@ -42,7 +43,7 @@ This project was built with AI as a development partner — from analyzing hex d
 | Project | Description | License |
 |---|---|---|
 | LibreCelik | Qt6 desktop GUI smart card reader | GPL-3.0 |
-| LibreMiddleware | C++20 smart card middleware libraries | LGPL-2.1 |
+| LibreMiddleware | C++23 smart card middleware libraries | LGPL-2.1 |
 
 ---
 

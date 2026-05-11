@@ -21,7 +21,7 @@ Download DMG (macOS)
 
 Browser authentication and digital signing for smart cards with CardEdge PKI applet — Serbian eID, health insurance, and PKS (Chamber of Commerce) cards. Works with Firefox, Chrome, Thunderbird, and SSH.
 
-*Maintained until Serbian eID support ships in OpenSC upstream ([PR #3595](https://github.com/OpenSC/OpenSC/pull/3595), approved, pending release).*
+*Merged into OpenSC mainline ([PR #3595](https://github.com/OpenSC/OpenSC/pull/3595)); not yet in a numbered OpenSC release. This module remains the recommended option until the next OpenSC release that includes the built-in driver.*
 
 {{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
 Download Linux (tar.gz)
@@ -37,7 +37,7 @@ Download macOS (zip)
 
 Serbian eID, health insurance, and PKS card driver for OpenSC. Enables PKCS#11 access through OpenSC's infrastructure.
 
-*Temporary — will be replaced by the built-in OpenSC driver once [PR #3595](https://github.com/OpenSC/OpenSC/pull/3595) is included in an OpenSC release.*
+*Temporary — covers OpenSC 0.26.x / 0.27.x users until the next OpenSC release that bundles the built-in driver from [PR #3595](https://github.com/OpenSC/OpenSC/pull/3595) (merged into mainline, not yet in a numbered release).*
 
 {{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
 Download Linux

@@ -5,8 +5,8 @@ summary: "LibreMiddleware 4.0.0 + LibreCelik 4.0.0 released. C++23 core, ABI v6,
 draft: false
 ---
 
-LibreSCRS 4.0.0 lands today. After two release candidates and two months
-of community testing across Linux, macOS, and Windows, both
+LibreSCRS 4.0.0 lands today. After two release candidates and extensive
+community testing across Linux, macOS, and Windows, both
 **LibreMiddleware 4.0.0** and **LibreCelik 4.0.0** carry GPG-signed git
 tags and cosign-signed release artifacts.
 

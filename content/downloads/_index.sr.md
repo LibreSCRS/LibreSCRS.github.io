@@ -21,7 +21,7 @@ layout: "simple"
 
 Аутентификација у прегледачу и дигитално потписивање за смарт картице са CardEdge PKI аплетом — српске личне карте, здравствене картице и ПКС картице (Привредна комора). Ради са Firefox-ом, Chrome-ом, Thunderbird-ом и SSH-ом.
 
-*Одржава се док подршка за српске личне карте не буде укључена у OpenSC ([PR #3595](https://github.com/OpenSC/OpenSC/pull/3595), одобрен, чека издање).*
+*Интегрисан у главну грану OpenSC-а ([PR #3595](https://github.com/OpenSC/OpenSC/pull/3595)); још увек није у нумерисаном издању OpenSC-а. Овај модул остаје препоручена опција док следеће OpenSC издање не укључи уграђени драјвер.*
 
 {{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
 Преузми за Linux (tar.gz)
@@ -37,7 +37,7 @@ layout: "simple"
 
 Драјвер за српске личне карте, здравствене картице и ПКС картице за OpenSC. Омогућава PKCS#11 приступ кроз OpenSC инфраструктуру.
 
-*Привремено — биће замењен уграђеним OpenSC драјвером када [PR #3595](https://github.com/OpenSC/OpenSC/pull/3595) буде укључен у издање OpenSC-а.*
+*Привремено — покрива OpenSC 0.26.x / 0.27.x кориснике до следећег OpenSC издања које укључује уграђени драјвер из [PR #3595](https://github.com/OpenSC/OpenSC/pull/3595) (интегрисан у главну грану, још увек није у нумерисаном издању).*
 
 {{< button href="https://github.com/LibreSCRS/LibreMiddleware/releases" target="_blank" >}}
 Преузми за Linux

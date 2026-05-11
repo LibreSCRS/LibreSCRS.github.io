@@ -5,8 +5,8 @@ summary: "LibreMiddleware 4.0.0 + LibreCelik 4.0.0 објављени. C++23 ј�
 draft: false
 ---
 
-LibreSCRS 4.0.0 је данас објављен. Након два кандидата за издање и два
-месеца тестирања у заједници на Linux, macOS и Windows платформама, и
+LibreSCRS 4.0.0 је данас објављен. Након два кандидата за издање и
+опсежног тестирања у заједници на Linux, macOS и Windows платформама, и
 **LibreMiddleware 4.0.0** и **LibreCelik 4.0.0** носе GPG-потписане git
 тагове и cosign-потписане артефакте издања.
 

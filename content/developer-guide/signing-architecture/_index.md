@@ -7,6 +7,58 @@ weight: 40
 
 This page describes the internal architecture of the LibreMiddleware signing engine for contributors who want to understand how the system works, add new signature formats, or debug signing issues.
 
+> Looking to **consume** the signing engine from your own application?
+> The public seam is `LibreSCRS::Signing::SigningService` —
+> see [Signing Integration Guide]({{< ref "developer-guide/signing-integration" >}}).
+> The rest of this page covers what lives behind that seam.
+
+## Public seam: `LibreSCRS::Signing`
+
+Downstream consumers never touch `libresign::*`. They link against
+`LibreSCRS::Signing` and call:
+
+```cpp
+SigningService(std::shared_ptr<Trust::TrustStoreService>, TsaProvider);
+
+SigningResult sign(const SigningRequest&,
+                   Auth::CredentialProvider,
+                   std::shared_ptr<Plugin::CardPlugin>,
+                   std::shared_ptr<SmartCard::CardSession>);
+```
+
+`LibreSCRS::Signing::SigningService` is a thin pimpl-backed facade that
+performs request validation, resolves the trust snapshot from the injected
+`TrustStoreService`, drives the credential provider, and forwards to the
+internal `libresign::SigningService`. The libresign types described below
+are reachable **only** through this facade.
+
+## Trust lifecycle (4.0): `LibreSCRS::Trust::TrustStoreService`
+
+The trust subsystem has its own lifecycle owner separate from signing.
+`TrustStoreService::create(TrustConfig)` is `[[nodiscard]] noexcept` and
+returns `std::expected<std::shared_ptr<TrustStoreService>, CreateError>`.
+The factory builds the local anchor set synchronously (bundled
+`thirdparty/certs/` + optional OS root store) and kicks off all configured
+Trusted-List fetches on internal worker threads. The signing service holds
+a `shared_ptr<TrustStoreService>` for its full lifetime, so eager TL fetches
+populate the same `TrustStore` that `sign()` observes; lazy fetches that
+happen during a `sign()` call merge into the same store, ensuring the
+certificate viewer, plugin registry, and signing service all share one
+trust universe.
+
+Consumers observe fetch progress via three orthogonal mechanisms:
+
+- `status()` returns an `AggregateStatus` snapshot (`Loading` / `Ready` /
+  `Degraded`).
+- `addObserver(cb)` registers a callback for state transitions — the
+  GUI-friendly path.
+- `waitForEagerFetches(deadline, token)` blocks until every eager source
+  settles; intended for tests, CLI tooling, and headless consumers.
+
+The service is move-disabled and reference-shared, so the same trust universe
+is naturally consumed by multiple signing services or non-signing tools
+(certificate viewer, plugin registry) running in the same process.
+
 ## End-to-End Signing Flow
 
 The complete flow from user action to signed document:
@@ -173,7 +225,7 @@ LibreCelik (the GUI) and LibreMiddleware (the engine) are separate projects with
 
 **Key design decisions:**
 
-- **No Qt dependency** — the entire signing engine is pure C++20 with no Qt types. LibreCelik converts between Qt types (`QString`, `QByteArray`) and standard types (`std::string`, `std::vector<uint8_t>`) at the boundary.
+- **No Qt dependency** — the entire signing engine is pure C++23 with no Qt types. LibreCelik converts between Qt types (`QString`, `QByteArray`) and standard types (`std::string`, `std::vector<uint8_t>`) at the boundary.
 - **No card protocol knowledge** — the signing engine does not send APDU commands or know about card types. All card access goes through PKCS#11, which is a standard interface that any compliant token can satisfy.
 - **PIN is never stored** — the PIN travels as a non-owning `span<const uint8_t>` from the GUI's `SecureBuffer` through to the PKCS#11 `C_Login` call. No intermediate copy persists after the call returns.
 - **Format modules are stateless** — each `sign()` call is self-contained. There is no session state between calls, making the engine safe for concurrent use from multiple threads.

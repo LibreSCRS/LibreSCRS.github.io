@@ -1,141 +1,231 @@
 ---
 layout: "simple"
-title: "Arhitektura potpisivanja"
-description: "Interna arhitektura LibreMiddleware engine-a za digitalno potpisivanje"
+title: "Архитектура потписивања"
+description: "Интерна архитектура LibreMiddleware engine-а за дигитално потписивање"
 weight: 40
 ---
 
-Ova stranica opisuje internu arhitekturu LibreMiddleware engine-a za potpisivanje za kontributore koji žele da razumeju kako sistem funkcioniše, dodaju nove formate potpisa ili debaguju probleme sa potpisivanjem.
+Ова страница описује интерну архитектуру LibreMiddleware engine-а за
+потписивање за контрибуторе који желе да разумеју како систем функционише,
+додају нове формате потписа или дебагују проблеме са потписивањем.
 
-## Tok potpisivanja od početka do kraja
+> Желите да **користите** engine за потписивање из сопствене апликације?
+> Јавни спој је `LibreSCRS::Signing::SigningService` —
+> погледајте [Водич за интеграцију потписивања]({{< ref "developer-guide/signing-integration" >}}).
+> Остатак ове странице покрива оно што живи иза тог споја.
 
-Kompletan tok od korisničke akcije do potpisanog dokumenta:
+## Јавни спој: `LibreSCRS::Signing`
+
+Спољни корисници никада не дотичу `libresign::*`. Линкују против
+`LibreSCRS::Signing` и позивају:
+
+```cpp
+SigningService(std::shared_ptr<Trust::TrustStoreService>, TsaProvider);
+
+SigningResult sign(const SigningRequest&,
+                   Auth::CredentialProvider,
+                   std::shared_ptr<Plugin::CardPlugin>,
+                   std::shared_ptr<SmartCard::CardSession>);
+```
+
+`LibreSCRS::Signing::SigningService` је танка pimpl-подржана фасада која
+извршава валидацију захтева, резолвује снимак поверења из ињектованог
+`TrustStoreService`-а, покреће провајдер креденцијала и прослеђује интерном
+`libresign::SigningService`-у. `libresign` типови описани испод доступни су
+**само** кроз ову фасаду.
+
+## Животни циклус поверења (4.0): `LibreSCRS::Trust::TrustStoreService`
+
+Подсистем поверења има сопственог власника животног циклуса, одвојеног од
+потписивања. `TrustStoreService::create(TrustConfig)` је `[[nodiscard]]
+noexcept` и враћа
+`std::expected<std::shared_ptr<TrustStoreService>, CreateError>`. Фабрика
+синхроно гради локални скуп анкора (пакетски `thirdparty/certs/` + опционо
+системски root store) и покреће сва конфигурисана Trusted-List преузимања
+на интерним радним нитима. Сервис за потписивање држи
+`shared_ptr<TrustStoreService>` за цео свој животни циклус, тако да eager
+TL преузимања попуњавају исти `TrustStore` који `sign()` посматра; лења
+преузимања током `sign()` позива се спајају у исти store, обезбеђујући да
+прегледач сертификата, регистар додатака и сервис за потписивање сви деле
+исти универзум поверења.
+
+Корисници посматрају напредак преузимања кроз три ортогонална механизма:
+
+- `status()` враћа снимак `AggregateStatus` (`Loading` / `Ready` /
+  `Degraded`).
+- `addObserver(cb)` региструје callback за прелазе стања — пут пријатељски
+  за GUI.
+- `waitForEagerFetches(deadline, token)` блокира док се сваки eager извор
+  не реши; намењено тестовима, CLI алатима и хеадлес корисницима.
+
+Сервис је move-онемогућен и дели се преко референце, тако да исти универзум
+поверења природно конзумира више сервиса за потписивање или нон-сигнинг
+алата (прегледач сертификата, регистар додатака) у истом процесу.
+
+## Ток потписивања од почетка до краја
+
+Комплетан ток од корисничке акције до потписаног документа:
 
 ```
-1. Korisnik klikne "Potpiši" u LibreCelik-u
-   └─ SignPage čarobnjak prikuplja: dokument, format, nivo, TSA, vizuelne parametre
+1. Корисник кликне „Потпиши" у LibreCelik-у
+   └─ SignPage чаробњак прикупља: документ, формат, ниво, TSA, визуелне параметре
 
-2. LibreCelik kreira SigningRequest i poziva SigningService::sign()
-   └─ PIN prosleđen kao span<const uint8_t> iz SecureBuffer-a
+2. LibreCelik гради SigningRequest и позива SigningService::sign()
+   └─ PIN прослеђен као span<const uint8_t> из SecureBuffer-а
 
 3. NativeSigningService::sign()
-   ├─ Otvara Pkcs11Token (učitava PKCS#11 modul, prijavljuje se PIN-om)
-   ├─ Čita sertifikat za potpisivanje + lanac sa tokena
-   └─ Prosleđuje format modulu na osnovu request.format
+   ├─ Отвара Pkcs11Token (учитава PKCS#11 модул, пријављује се PIN-ом)
+   ├─ Чита сертификат за потписивање + ланац са токена
+   └─ Прослеђује format модулу на основу request.format
 
-4. Format modul (npr. PAdESModule::sign())
-   ├─ Priprema kontejner potpisa (PDF inkrementalno čuvanje, CMS, XML, JSON ili ZIP)
-   ├─ Računa digest dokumenta (SHA-256)
-   ├─ Poziva Pkcs11Token::sign(hash) → sirovi bajtovi potpisa sa kartice
-   ├─ Ugrađuje potpis + lanac sertifikata u kontejner
-   └─ Ako je nivo >= B-T: poziva TSAClient::timestamp(hash)
-      └─ Šalje RFC 3161 zahtev TSA serveru
-      └─ Ugrađuje TimeStampToken u potpis
+4. Format модул (нпр. PAdESModule::sign())
+   ├─ Припрема контејнер потписа (PDF инкрементално чување, CMS, XML, JSON или ZIP)
+   ├─ Рачуна digest документа (SHA-256)
+   ├─ Позива Pkcs11Token::sign(hash) → сирови бајтови потписа са картице
+   ├─ Уграђује потпис + ланац сертификата у контејнер
+   └─ Ако је ниво >= B-T: позива TSAClient::timestamp(hash)
+      └─ Шаље RFC 3161 захтев TSA серверу
+      └─ Уграђује TimeStampToken у потпис
 
-5. Ako je nivo >= B-LT:
-   ├─ RevocationClient preuzima CRL + OCSP odgovore za lanac sertifikata
-   └─ Format modul ugrađuje podatke o opozivu u potpis
+5. Ако је ниво >= B-LT:
+   ├─ RevocationClient преузима CRL + OCSP одговоре за ланац сертификата
+   └─ Format модул уграђује податке о опозиву у потпис
 
-6. Ako je nivo == B-LTA:
-   └─ Arhivski vremenski pečat dodat preko celokupnog potpisa + podataka o opozivu
+6. Ако је ниво == B-LTA:
+   └─ Архивски временски печат додат преко целокупног потписа + података о опозиву
 
-7. NativeSigningService vraća SigningResult { success, signedDocument }
+7. NativeSigningService враћа SigningResult { success, signedDocument }
 
-8. LibreCelik čuva potpisani dokument na disk
+8. LibreCelik чува потписан документ на диск
 ```
 
 ---
 
-## Struktura modula
+## Структура модула
 
-Engine za potpisivanje se nalazi u `lib/libresign/` unutar LibreMiddleware-a. Organizovan je u tri sloja:
+Engine за потписивање налази се у `lib/libresign/` унутар LibreMiddleware-а.
+Организован је у три слоја.
 
-Javna zaglavlja se nalaze u `include/libresign/` (tipovi najvišeg nivoa) i `include/libresign/native/` (klase native backend-a). Implementacije i interni helperi backend-a žive u `src/`.
+Јавна заглавља живе под `include/libresign/` (типови највишег нивоа) и
+`include/libresign/native/` (класе native backend-а). Имплементације и
+интерни помоћници backend-а живе под `src/`.
 
-### Sloj osnovnog servisa
+### Слој основног сервиса
 
-| Fajl | Namena |
+| Фајл | Намена |
 |---|---|
-| `include/libresign/signing_service.h` | `SigningService` apstraktni interfejs — `configure()`, `sign()`, `isAvailable()` |
-| `include/libresign/signing_service_factory.h` | Fabrička funkcija `createSigningService(Backend)` |
-| `include/libresign/types.h` | Tipovi podataka: `SigningRequest`, `SigningResult`, `TrustConfig`, `TSAConfig`, enumeracije |
-| `include/libresign/trust_store_manager.h` | `TrustStoreManager` — agregira sistemske, ugrađene i TL-izvedene sertifikate za različite potrošače, i one koji potpisuju i one koji ne |
+| `include/libresign/signing_service.h` | `SigningService` апстрактни интерфејс — `configure()`, `sign()`, `isAvailable()` |
+| `include/libresign/signing_service_factory.h` | Фабричка функција `createSigningService(Backend)` |
+| `include/libresign/types.h` | Типови података: `SigningRequest`, `SigningResult`, `TrustConfig`, `TSAConfig`, енумерације |
+| `include/libresign/trust_store_manager.h` | `TrustStoreManager` — агрегира системске, пакетске и TL-изведене сертификате за различите потрошаче |
 
-### Format moduli
+### Format модули
 
-Svaki format potpisa je implementiran kao nezavisan modul. Svi moduli prate isti obrazac: primaju dokument + sertifikat + callback za potpisivanje, proizvode potpisane izlazne bajtove.
+Сваки формат потписа имплементиран је као независан модул. Сви модули
+прате исти образац: примају документ + сертификат + callback за
+потписивање, производе потписане излазне бајтове.
 
-| Modul | Fajl | Standard |
+| Модул | Фајл | Стандард |
 |---|---|---|
-| PAdES | `src/native/pades_module.cpp` | PDF inkrementalno čuvanje sa CMS potpisom |
-| CAdES | `src/native/cades_module.cpp` | Detached CMS/PKCS#7 potpis |
-| XAdES | `src/native/xades_module.cpp` | XML Digital Signature sa XAdES svojstvima |
-| JAdES | `src/native/jades_module.cpp` | JSON Web Signature sa JAdES zaglavljem |
-| ASiC-E | `src/native/asic_module.cpp` | ZIP kontejner sa XAdES potpisom (koristi miniz) |
+| PAdES | `src/native/pades_module.cpp` | PDF инкрементално чување са CMS потписом |
+| CAdES | `src/native/cades_module.cpp` | Detached CMS/PKCS#7 потпис |
+| XAdES | `src/native/xades_module.cpp` | XML Digital Signature са XAdES својствима |
+| JAdES | `src/native/jades_module.cpp` | JSON Web Signature са JAdES заглављем |
+| ASiC-E | `src/native/asic_module.cpp` | ZIP контејнер са XAdES потписом (користи miniz) |
 
-Format moduli primaju `Pkcs11Token&` referencu za operacije potpisivanja. Token interno upravlja PKCS#11 sesijom, pretragom ključeva i sirovim potpisivanjem.
+Format модули примају `Pkcs11Token&` референцу за операције потписивања.
+Token интерно управља PKCS#11 сесијом, претрагом кључева и сировим
+потписивањем.
 
-### Infrastruktura
+### Инфраструктура
 
-| Komponenta | Fajlovi | Namena |
+| Компонента | Фајлови | Намена |
 |---|---|---|
-| `Pkcs11Token` | `include/libresign/native/pkcs11_token.h` + `src/native/pkcs11_token.cpp` | Upravljanje PKCS#11 sesijom — učitavanje modula, prijava, pretraga ključeva, sirovo potpisivanje, ekstrakcija sertifikata |
-| `TSAClient` | `include/libresign/native/tsa_client.h` + `src/native/tsa_client.cpp` | RFC 3161 zahtevi za vremenske pečate putem HTTP-a (libcurl) |
-| `RevocationClient` | `include/libresign/native/revocation_client.h` + `src/native/revocation_client.cpp` | Preuzimanje CRL-ova i OCSP-a za B-LT/B-LTA nivoe |
-| `SigningProvider` | `include/libresign/native/signing_provider.h` + `src/native/signing_provider.cpp` | Apstrakcija nad Pkcs11Token za spoljne korisnike |
-| `TrustedListParser` | `include/libresign/native/trusted_list_parser.h` + `src/native/trusted_list_parser.cpp` | XML parser za EU Trusted Lists (LOTL i TL) |
-| `TlCache` | (interni) `src/native/tl_cache.h/.cpp` | Keš na disku za preuzete Trusted List XML fajlove |
-| `TlSignatureVerifier` | (interni) `src/native/tl_signature_verifier.h/.cpp` | XML-DSIG verifikacija potpisa Trusted List-a |
-| `PinnedTlCerts` | (interni) `src/native/pinned_tl_certs.h/.cpp` | Kompajlirani LOTL sertifikati za potpis koji služe kao koren poverenja |
-| PDF parser | (interni) `src/native/pdf_parser.h/.cpp` | Minimalan PDF parser za PAdES inkrementalno čuvanje — pronalazi xref, dodaje rečnik potpisa |
-| OpenSSL RAII | (interni) `src/native/openssl_raii.h` | RAII omotači za OpenSSL tipove (`BIO`, `X509`, `EVP_PKEY`, itd.) |
+| `Pkcs11Token` | `include/libresign/native/pkcs11_token.h` + `src/native/pkcs11_token.cpp` | Управљање PKCS#11 сесијом — учитавање модула, пријава, претрага кључева, сирово потписивање, екстракција сертификата |
+| `TSAClient` | `include/libresign/native/tsa_client.h` + `src/native/tsa_client.cpp` | RFC 3161 захтеви за временске печате преко HTTP-а (libcurl) |
+| `RevocationClient` | `include/libresign/native/revocation_client.h` + `src/native/revocation_client.cpp` | Преузимање CRL-ова и OCSP-а за B-LT/B-LTA нивое |
+| `SigningProvider` | `include/libresign/native/signing_provider.h` + `src/native/signing_provider.cpp` | Апстракција над Pkcs11Token за спољне кориснике |
+| `TrustedListParser` | `include/libresign/native/trusted_list_parser.h` + `src/native/trusted_list_parser.cpp` | XML парсер за EU Trusted Lists (LOTL и TL) |
+| `TlCache` | (интерни) `src/native/tl_cache.h/.cpp` | Кеш на диску за преузете Trusted List XML фајлове |
+| `TlSignatureVerifier` | (интерни) `src/native/tl_signature_verifier.h/.cpp` | XML-DSIG верификација потписа Trusted List-а |
+| `PinnedTlCerts` | (интерни) `src/native/pinned_tl_certs.h/.cpp` | Компајлирани LOTL сертификати за потпис који служе као корен поверења |
+| PDF parser | (интерни) `src/native/pdf_parser.h/.cpp` | Минималан PDF парсер за PAdES инкрементално чување — проналази xref, додаје речник потписа |
+| OpenSSL RAII | (интерни) `src/native/openssl_raii.h` | RAII омотачи за OpenSSL типове (`BIO`, `X509`, `EVP_PKEY`, итд.) |
 
 ---
 
-## Model poverenja
+## Модел поверења
 
-Engine za potpisivanje koristi model poverenja sa tri nivoa za validaciju sertifikata:
+Engine за потписивање користи модел поверења са три нивоа за валидацију
+сертификата:
 
-### Nivo 1: Sistemski sertifikati
+### Ниво 1: Системски сертификати
 
-Podrazumevano skladište sertifikata operativnog sistema. Koristi se kao koren poverenja za TLS konekcije (TSA, CRL/OCSP krajnje tačke) i kao rezervna opcija za izgradnju lanca sertifikata.
+Подразумевано складиште сертификата оперативног система. Користи се као
+корен поверења за TLS конекције (TSA, CRL/OCSP крајње тачке) и као
+резервна опција за изградњу ланца сертификата.
 
-### Nivo 2: Ugrađeni sertifikati
+### Ниво 2: Пакетски сертификати
 
-Sertifikati isporučeni sa LibreMiddleware-om u `thirdparty/certs/`. Uključuju korenaste CA sertifikate za srpsku državnu PKI infrastrukturu koji možda nisu u sistemskim skladištima. Koriste se za verifikaciju lanca sertifikata sa kartice.
+Сертификати испоручени са LibreMiddleware-ом у `thirdparty/certs/`.
+Укључују корене CA сертификате за српску државну PKI инфраструктуру који
+можда нису у системским складиштима. Користе се за верификацију ланца
+сертификата са картице.
 
-### Nivo 3: Sertifikati izvedeni iz lista poverenja
+### Ниво 3: Сертификати изведени из листа поверења
 
-Sertifikati ekstraktovani iz EU Trusted Lists (TL/LOTL). Engine preuzima i parsira EU List of Trusted Lists, prati linkove ka nacionalnim listama poverenja i ekstraktuje CA sertifikate za potpisivanje. Koriste se za B-LT i B-LTA validaciju — obezbeđuju sidra poverenja koja povezuju sertifikat potpisnika sa EU-priznatim pružaocem usluga poverenja.
+Сертификати екстрактовани из EU Trusted Lists (TL/LOTL). Engine преузима
+и парсира EU List of Trusted Lists, прати линкове ка националним листама
+поверења и екстрактује CA сертификате за потписивање. Користе се за B-LT
+и B-LTA валидацију — обезбеђују сидра поверења која повезују сертификат
+потписника са EU-признатим пружаоцем услуга поверења.
 
-**Lanac autentifikacije:** Sam LOTL je potpisan. Engine verifikuje potpis LOTL-a koristeći prikvačene sertifikate (`pinned_tl_certs.cpp`) koji su kompajlirani u biblioteku. Nacionalni TL-ovi se verifikuju koristeći sertifikate pronađene u LOTL-u. Ovo stvara lanac: prikvačeni sertifikat verifikuje potpis LOTL-a, LOTL obezbeđuje sertifikate koji verifikuju potpise nacionalnih TL-ova, nacionalni TL-ovi obezbeđuju sertifikate pružalaca usluga poverenja.
+**Ланац аутентификације:** Сам LOTL је потписан. Engine верификује потпис
+LOTL-а користећи приквачене сертификате (`pinned_tl_certs.cpp`) који су
+компајлирани у библиотеку. Национални TL-ови се верификују користећи
+сертификате пронађене у LOTL-у. Ово ствара ланац: приквачени сертификат
+верификује потпис LOTL-а, LOTL обезбеђује сертификате који верификују
+потписе националних TL-ова, национални TL-ови обезбеђују сертификате
+пружалаца услуга поверења.
 
 ```
-Prikvačeni LOTL sertifikati za potpisivanje (kompajlirani)
-  └─ verifikuju → potpis EU LOTL XML-a
-       └─ sadrži → sertifikate za potpisivanje nacionalnih TL-ova
-             └─ verifikuju → potpise nacionalnih TL XML-ova
-                   └─ sadrže → sertifikate pružalaca usluga poverenja
-                         └─ validiraju → lanac sertifikata potpisnika
+Приквачени LOTL сертификати за потписивање (компајлирани)
+  └─ верификују → потпис EU LOTL XML-а
+       └─ садржи → сертификате за потписивање националних TL-ова
+             └─ верификују → потписе националних TL XML-ова
+                   └─ садрже → сертификате пружалаца услуга поверења
+                         └─ валидирају → ланац сертификата потписника
 ```
 
 ---
 
-## DSS oracle za validaciju
+## DSS oracle за валидацију
 
-Projekat uključuje DSS (Digital Signature Services) backend koji se može koristiti kao **oracle za validaciju** u testovima. DSS je EU referentna implementacija za kreiranje i validaciju potpisa, koju održava Evropska komisija.
+Пројекат укључује DSS (Digital Signature Services) backend који се може
+користити као **oracle за валидацију** у тестовима. DSS је EU референтна
+имплементација за креирање и валидацију потписа, коју одржава Европска
+комисија.
 
-**Šta radi:** DSS backend delegira potpisivanje pokrenutom DSS serveru putem REST API-ja. Ovo je korisno za unakrsnu validaciju da su potpisi proizvedeni nativnim engine-om prihvaćeni od strane EU referentne implementacije.
+**Шта ради:** DSS backend делегира потписивање покренутом DSS серверу
+преко REST API-ја. Ово је корисно за унакрсну валидацију да су потписи
+произведени нативним engine-ом прихваћени од стране EU референтне
+имплементације.
 
-**Korišćenje u testovima:** Kada je postavljeno `SIGNING_BACKEND=both`, testovi mogu kreirati potpis nativnim backend-om i validirati ga DSS-om, ili obrnuto. Ovo otkriva suptilne probleme usklađenosti formata koje sami unit testovi ne bi uhvatili.
+**Коришћење у тестовима:** Када је постављено `SIGNING_BACKEND=both`,
+тестови могу креирати потпис нативним backend-ом и валидирати га DSS-ом
+или обрнуто. Ово открива суптилне проблеме усклађености формата које сами
+unit тестови не би ухватили.
 
-**Napomena:** DSS backend je zastareo za produkcionu upotrebu. Postoji isključivo kao test oracle. Nativni backend je produkcioni engine za potpisivanje.
+**Напомена:** DSS backend је застарео за продукциону употребу. Постоји
+искључиво као тест oracle. Native backend је продукциони engine за
+потписивање.
 
 ---
 
-## Tok podataka: LibreCelik ka LibreMiddleware
+## Ток података: LibreCelik ка LibreMiddleware
 
-LibreCelik (GUI) i LibreMiddleware (engine) su odvojeni projekti sa čistom granicom. Evo kako podaci za potpisivanje prelaze tu granicu:
+LibreCelik (GUI) и LibreMiddleware (engine) су одвојени пројекти са
+чистом границом. Ево како подаци за потписивање прелазе ту границу:
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -143,12 +233,12 @@ LibreCelik (GUI) i LibreMiddleware (engine) su odvojeni projekti sa čistom gran
 │                                                  │
 │  ┌────────────┐    ┌──────────────────────────┐ │
 │  │  SignPage   │───▶│ SigningRequest            │ │
-│  │  (čarobnjak)│    │ ┌─ bajtovi dokumenta     │ │
-│  │             │    │ ├─ format (PAdES/CAdES/..)│ │
-│  │ Prikuplja:  │    │ ├─ nivo (B-B/B-T/..)     │ │
-│  │ - putanja   │    │ ├─ TSA URL               │ │
-│  │ - format    │    │ ├─ parametri viz. potpisa │ │
-│  │ - nivo      │    │ └─ PIN (SecureBuffer)     │ │
+│  │  (чаробњак) │    │ ┌─ бајтови документа     │ │
+│  │             │    │ ├─ формат (PAdES/CAdES/..)│ │
+│  │ Прикупља:   │    │ ├─ ниво (B-B/B-T/..)     │ │
+│  │ - путања    │    │ ├─ TSA URL               │ │
+│  │ - формат    │    │ ├─ параметри виз. потписа │ │
+│  │ - ниво      │    │ └─ PIN (SecureBuffer)     │ │
 │  │ - PIN       │    └──────────┬───────────────┘ │
 │  └────────────┘               │                  │
 │                               ▼                  │
@@ -159,10 +249,10 @@ LibreCelik (GUI) i LibreMiddleware (engine) su odvojeni projekti sa čistom gran
 │  │         NativeSigningService               │  │
 │  │                                            │  │
 │  │  ┌──────────────┐  ┌───────────────────┐   │  │
-│  │  │ Pkcs11Token  │  │  Format modul     │   │  │
-│  │  │ (I/O kartice)│  │  (PAdES/CAdES/..) │   │  │
+│  │  │ Pkcs11Token  │  │  Format модул     │   │  │
+│  │  │ (I/O картице)│  │  (PAdES/CAdES/..) │   │  │
 │  │  └──────┬───────┘  └────────┬──────────┘   │  │
-│  │         │ sirov potpis      │ potpisan dok. │  │
+│  │         │ сирови потпис     │ потписан док. │  │
 │  │         ▼                   ▼               │  │
 │  │  ┌──────────────────────────────────────┐   │  │
 │  │  │ SigningResult { success, bytes, err } │   │  │
@@ -171,22 +261,36 @@ LibreCelik (GUI) i LibreMiddleware (engine) su odvojeni projekti sa čistom gran
 └──────────────────────────────────────────────────┘
 ```
 
-**Ključne projektne odluke:**
+**Кључне пројектне одлуке:**
 
-- **Bez Qt zavisnosti** — celokupan engine za potpisivanje je čist C++20 bez Qt tipova. LibreCelik konvertuje između Qt tipova (`QString`, `QByteArray`) i standardnih tipova (`std::string`, `std::vector<uint8_t>`) na granici.
-- **Bez poznavanja protokola kartice** — engine za potpisivanje ne šalje APDU komande i ne zna za tipove kartica. Sav pristup kartici ide kroz PKCS#11, koji je standardni interfejs koji svaki kompatibilan token može zadovoljiti.
-- **PIN se nikada ne čuva** — PIN putuje kao `span<const uint8_t>` koji ne poseduje memoriju, od `SecureBuffer`-a GUI-ja kroz `C_Login` poziv PKCS#11. Nijedna međukopija ne opstaje nakon povratka iz poziva.
-- **Format moduli su bez stanja** — svaki `sign()` poziv je samosadržan. Nema stanja sesije između poziva, što engine čini bezbednim za konkurentno korišćenje iz više niti.
+- **Без Qt зависности** — целокупан engine за потписивање је чист C++23
+  без Qt типова. LibreCelik конвертује између Qt типова (`QString`,
+  `QByteArray`) и стандардних типова (`std::string`,
+  `std::vector<uint8_t>`) на граници.
+- **Без познавања протокола картице** — engine за потписивање не шаље
+  APDU команде и не зна за типове картица. Сав приступ картици иде кроз
+  PKCS#11, који је стандардни интерфејс који сваки компатибилан токен
+  може да задовољи.
+- **PIN се никада не чува** — PIN путује као `span<const uint8_t>` који
+  не поседује меморију, од `SecureBuffer`-а GUI-ја кроз `C_Login` позив
+  PKCS#11. Ниједна међукопија не опстаје након повратка из позива.
+- **Format модули су без стања** — сваки `sign()` позив је самосадржан.
+  Нема стања сесије између позива, што engine чини безбедним за
+  конкурентно коришћење из више нити.
 
 ---
 
-## Dodavanje novog formata potpisa
+## Додавање новог формата потписа
 
-Za dodavanje novog format modula:
+За додавање новог format модула:
 
-1. Kreirajte `include/libresign/native/newformat_module.h` i `src/native/newformat_module.cpp`
-2. Implementirajte `sign()` funkciju koja prima dokument, `Pkcs11Token&` i parametre specifične za format
-3. Registrujte format u `NativeSigningService::sign()` dodavanjem slučaja za novu `SignatureFormat` enum vrednost
-4. Dodajte novu enum vrednost u `SignatureFormat` u `types.h`
-5. Dodajte izvorne fajlove u `lib/libresign/CMakeLists.txt`
-6. Napišite testove — koristite DSS oracle (`SIGNING_BACKEND=both`) za validaciju usklađenosti formata
+1. Креирајте `include/libresign/native/newformat_module.h` и
+   `src/native/newformat_module.cpp`
+2. Имплементирајте `sign()` функцију која прима документ, `Pkcs11Token&`
+   и параметре специфичне за формат
+3. Региструјте формат у `NativeSigningService::sign()` додавањем случаја
+   за нову `SignatureFormat` enum вредност
+4. Додајте нову enum вредност у `SignatureFormat` у `types.h`
+5. Додајте изворне фајлове у `lib/libresign/CMakeLists.txt`
+6. Напишите тестове — користите DSS oracle (`SIGNING_BACKEND=both`) за
+   валидацију усклађености формата

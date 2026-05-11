@@ -91,17 +91,17 @@ include is from `<LibreSCRS/…>`.
 ```cpp
 #include <LibreSCRS/Auth/CredentialProvider.h>
 #include <LibreSCRS/Plugin/CardPluginService.h>
+#include <LibreSCRS/Secure/String.h>
 #include <LibreSCRS/Signing/SigningRequest.h>
 #include <LibreSCRS/Signing/SigningResult.h>
 #include <LibreSCRS/Signing/SigningService.h>
+#include <LibreSCRS/Signing/TsaProvider.h>
 #include <LibreSCRS/SmartCard/CardSession.h>
 #include <LibreSCRS/SmartCard/MonitorService.h>
 #include <LibreSCRS/Trust/TrustConfig.h>
 #include <LibreSCRS/Trust/TrustStoreService.h>
 
-#include <fstream>
 #include <iostream>
-#include <vector>
 
 namespace lsc = LibreSCRS;
 
@@ -123,64 +123,70 @@ int main()
     }
     std::shared_ptr<lsc::Trust::TrustStoreService> trust = *trustResult;
 
-    // 2. Construct the SigningService. TsaProvider{} = empty std::function;
-    //    B-B signing still works, B-T / B-LT / B-LTA need a callback that
-    //    returns a TSA URL for a given level.
-    lsc::Signing::TsaProvider tsa = [](lsc::Signing::SignatureLevel) {
-        return std::string{"http://timestamp.digicert.com"};
-    };
+    // 2. Construct the SigningService. The TsaProvider is invoked at
+    //    sign time for B-T / B-LT / B-LTA levels; staticTsa() is a
+    //    convenience factory that always returns the same URL with no
+    //    authentication. Pass a default-constructed TsaProvider{} to
+    //    disable TSA — B-B signing still works, higher levels then fail
+    //    with Status::TsaUnreachable.
+    auto tsa = lsc::Signing::staticTsa("http://timestamp.digicert.com");
     auto signingService = std::make_shared<lsc::Signing::SigningService>(trust, std::move(tsa));
 
     // 3. Discover a card plugin + open a session. CardPluginService scans
     //    the configured plugin directory; MonitorService observes PC/SC
-    //    events. Real apps subscribe to MonitorService; the snippet below
-    //    just opens the first card visible to the registry.
+    //    events. Real apps subscribe to MonitorService and look up a
+    //    plugin via findPluginForCard(atr) once a card has arrived; the
+    //    helpers below collapse that flow into a single app-specific
+    //    bootstrap step.
     lsc::Plugin::CardPluginService plugins{"/usr/local/lib/librescrs/plugins"};
     lsc::SmartCard::MonitorService monitor;
-    auto session = openFirstSession(monitor, plugins);  // app-specific helper
+    auto session = openFirstSession(monitor, plugins);   // app-specific helper
     if (!session) {
         std::cerr << "No card available\n";
         return 1;
     }
-    auto cardPlugin = plugins.pluginFor(*session);
+    auto atr = session->atr();                            // std::span<const std::uint8_t>
+    auto cardPlugin = plugins.findPluginForCard(atr);
+    if (!cardPlugin) {
+        std::cerr << "No plugin matches this card's ATR\n";
+        return 1;
+    }
 
-    // 4. Read the document.
-    std::ifstream file("document.pdf", std::ios::binary);
-    std::vector<std::uint8_t> content(
-        std::istreambuf_iterator<char>(file), {});
-
-    // 5. Build the signing request.
+    // 4. Build the signing request. The engine reads from inputFile and
+    //    writes the signed payload to outputFile — there is no
+    //    byte-buffer ingestion seam on the public API.
     auto request = lsc::Signing::SigningRequest::Builder{}
-                       .document(std::move(content), "document.pdf")
-                       .format(lsc::Signing::SignatureFormat::PAdES)
+                       .inputFile("document.pdf")
+                       .outputFile("document-signed.pdf")
+                       .format(lsc::Signing::SignatureFormat::Pades)
                        .level(lsc::Signing::SignatureLevel::B_T)
                        .build();
 
-    // 6. PIN provider — invoked by the service when the card requires it.
+    // 5. PIN provider — invoked by the service when the card requires it.
     //    The provider receives an AuthRequirement describing what to
     //    collect and returns a CredentialResult. In a GUI host this
-    //    typically pops a PIN dialog; in batch tools it reads from an
-    //    env var / secure prompt.
+    //    typically pops a PIN dialog; in batch tools it reads from a
+    //    secure prompt or an env var.
     lsc::Auth::CredentialProvider pinProvider =
         [](const lsc::Auth::AuthRequirement&) {
-            return lsc::Auth::CredentialResult::withPin(/* secure pin bytes */);
+            lsc::Secure::String pin{"1234"};  // host-collected, cleansed on dtor
+            return lsc::Auth::CredentialResult::ok({{"pin", std::move(pin)}});
         };
 
-    // 7. Sign. The call blocks for the duration of the operation (PIN
+    // 6. Sign. The call blocks for the duration of the operation (PIN
     //    verify + card APDU sign + optional TSA round-trip). GUI hosts
     //    run this on a worker thread.
     auto result = signingService->sign(request, std::move(pinProvider), cardPlugin, session);
 
-    if (result.status != lsc::Signing::SigningResult::Status::Success) {
+    if (result.status != lsc::Signing::SigningResult::Status::Ok) {
         std::cerr << "Signing failed: "
-                  << result.errorMessage.defaultText << '\n';
+                  << result.userMessage.defaultText << '\n';
         return 1;
     }
 
-    // 8. Write the signed document.
-    std::ofstream out("document-signed.pdf", std::ios::binary);
-    out.write(reinterpret_cast<const char*>(result.signedDocument.data()),
-              static_cast<std::streamsize>(result.signedDocument.size()));
+    // 7. Success — the signed document is on disk at the path the engine
+    //    wrote to (i.e. the outputFile() the request was built with).
+    std::cout << "Signed: " << result.outputPath->string() << '\n';
     return 0;
 }
 ```
@@ -228,25 +234,39 @@ completion via `status()`, `addObserver()`, or the blocking
 
 ### `LibreSCRS::Signing::SigningRequest`
 
-Immutable signing parameters built through the inner `Builder`. Key fields:
+Immutable signing parameters built through the inner `Builder`. The engine
+is file-path based — pass `inputFile()` and `outputFile()`; there is no
+byte-buffer overload on the public API. Key builder methods:
 
 | Builder method | Description |
 |---|---|
-| `document(bytes, fileName)` | Raw document bytes and original filename |
-| `format(SignatureFormat)` | PAdES / CAdES / XAdES / JAdES / ASiC-E |
-| `level(SignatureLevel)` | B-B / B-T / B-LT / B-LTA |
-| `visualSignature(VisualSignatureParams)` | PAdES visual signature overlay |
-| `tsaOverride(std::string url)` | Per-request TSA override |
-| `allowExpiredCertificate(bool)` | Testing escape hatch — keep `false` in production |
+| `inputFile(std::filesystem::path)` | Source document on disk |
+| `outputFile(std::filesystem::path)` | Destination path the engine writes to |
+| `format(SignatureFormat)` | `Pades` / `Cades` / `Xades` / `Jades` / `AsicE` |
+| `level(SignatureLevel)` | `B_B` / `B_T` / `B_LT` / `B_LTA` |
+| `packaging(PackagingMode)` | `Enveloped` or `Detached` |
+| `reason` / `location` / `contactInfo` | PDF signature dictionary fields (ISO 32000-1 §12.8.1) |
+| `certificateLabel(std::string)` | PKCS#11 key alias when the card carries more than one |
+| `visualParams(VisualSignatureParams&&)` | PAdES visual signature overlay |
+| `tsaOverride(TsaProvider)` | Per-request TSA override; pair with `staticTsa(url)` for a fixed URL |
+
+`Builder::build()` is rvalue-qualified; finalise with
+`std::move(builder).build()` and wrap the call in a `try/catch` for
+`std::invalid_argument` if you set fields conditionally.
 
 ### `LibreSCRS::Signing::SigningResult`
 
 | Field | Type | Description |
 |---|---|---|
-| `status` | `Status` enum | Always set; check before reading payload |
-| `signedDocument` | `std::vector<std::uint8_t>` | Signed output bytes on success |
-| `errorMessage` | `LocalizedText` | Localised failure description |
-| `signerCertificate` | optional certificate | Echo of the certificate that signed |
+| `status` | `Status` enum | Always set; check before reading other fields |
+| `outputPath` | `std::optional<std::filesystem::path>` | Path the signed document was written to on success |
+| `userMessage` | `LocalizedText` | Translator-friendly user-facing message; mandatory in 4.0 |
+| `diagnosticDetail` | `std::optional<std::string>` | Developer-facing diagnostic for logs |
+
+`Status` values: `Ok`, `InvalidRequest`, `TrustStoreUnavailable`,
+`UserCancelled`, `PinVerificationFailed`, `CardBlocked`, `TsaUnreachable`,
+`SigningEngineError`. The enum is append-only; consumer `switch` statements
+must include a `default` branch.
 
 ### `LibreSCRS::Auth::CredentialProvider`
 
@@ -309,23 +329,26 @@ ingestion.
 ## Error Handling
 
 `SigningService::sign()` returns a `SigningResult` rather than throwing.
-Inspect `result.status` and `result.errorMessage` on failure:
+Inspect `result.status` and `result.userMessage` on failure:
 
 ```cpp
 auto result = signingService->sign(request, pinProvider, cardPlugin, session);
-if (result.status != LibreSCRS::Signing::SigningResult::Status::Success) {
+if (result.status != LibreSCRS::Signing::SigningResult::Status::Ok) {
     using S = LibreSCRS::Signing::SigningResult::Status;
     switch (result.status) {
-        case S::TrustStoreUnavailable:  /* TL fetch / config rejected */ break;
-        case S::InvalidRequest:         /* null plugin/session, empty PIN cb */ break;
-        case S::UserCancelled:          /* CredentialProvider returned cancel */ break;
-        case S::PinVerificationFailed:  /* wrong PIN */ break;
-        case S::CardCommunicationError: /* APDU / PC/SC layer */ break;
-        case S::TsaUnavailable:         /* B-T or higher requested, TSA failed */ break;
-        case S::CertificateExpired:     /* signer cert expired */ break;
-        default: break;
+        case S::TrustStoreUnavailable:  /* TL fetch / config rejected     */ break;
+        case S::InvalidRequest:         /* null plugin/session, empty cb  */ break;
+        case S::UserCancelled:          /* provider returned cancel       */ break;
+        case S::PinVerificationFailed:  /* wrong PIN                      */ break;
+        case S::CardBlocked:            /* signing PIN blocked by card    */ break;
+        case S::TsaUnreachable:         /* B-T+ requested, TSA failed     */ break;
+        case S::SigningEngineError:     /* libresign / APDU pipeline      */ break;
+        default: break;                 // append-only enum; keep default
     }
-    log(result.errorMessage.defaultText);
+    log(result.userMessage.defaultText);
+    if (result.diagnosticDetail) {
+        log(*result.diagnosticDetail);
+    }
 }
 ```
 

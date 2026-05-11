@@ -90,17 +90,17 @@ cmake -B build -DFETCHCONTENT_SOURCE_DIR_LIBREMIDDLEWARE=/path/to/LibreMiddlewar
 ```cpp
 #include <LibreSCRS/Auth/CredentialProvider.h>
 #include <LibreSCRS/Plugin/CardPluginService.h>
+#include <LibreSCRS/Secure/String.h>
 #include <LibreSCRS/Signing/SigningRequest.h>
 #include <LibreSCRS/Signing/SigningResult.h>
 #include <LibreSCRS/Signing/SigningService.h>
+#include <LibreSCRS/Signing/TsaProvider.h>
 #include <LibreSCRS/SmartCard/CardSession.h>
 #include <LibreSCRS/SmartCard/MonitorService.h>
 #include <LibreSCRS/Trust/TrustConfig.h>
 #include <LibreSCRS/Trust/TrustStoreService.h>
 
-#include <fstream>
 #include <iostream>
-#include <vector>
 
 namespace lsc = LibreSCRS;
 
@@ -122,64 +122,69 @@ int main()
     }
     std::shared_ptr<lsc::Trust::TrustStoreService> trust = *trustResult;
 
-    // 2. Конструишите SigningService. TsaProvider{} = празан std::function;
-    //    B-B потписивање и даље ради, B-T / B-LT / B-LTA захтевају
-    //    callback који враћа TSA URL за дати ниво.
-    lsc::Signing::TsaProvider tsa = [](lsc::Signing::SignatureLevel) {
-        return std::string{"http://timestamp.digicert.com"};
-    };
+    // 2. Конструишите SigningService. TsaProvider се позива у време
+    //    потписивања за нивое B-T / B-LT / B-LTA; staticTsa() је
+    //    помоћна фабрика која увек враћа исти URL без аутентификације.
+    //    Прослеђивањем подразумевано конструисаног TsaProvider{} се
+    //    искључује TSA — B-B потписивање и даље ради, а виши нивои тада
+    //    падају са Status::TsaUnreachable.
+    auto tsa = lsc::Signing::staticTsa("http://timestamp.digicert.com");
     auto signingService = std::make_shared<lsc::Signing::SigningService>(trust, std::move(tsa));
 
     // 3. Откријте card plugin + отворите сесију. CardPluginService скенира
     //    конфигурисани директоријум додатака; MonitorService прати PC/SC
-    //    догађаје. Праве апликације се претплаћују на MonitorService;
-    //    исечак испод само отвара прву картицу видљиву регистру.
+    //    догађаје. Праве апликације се претплаћују на MonitorService и
+    //    позивају findPluginForCard(atr) када картица стигне; помоћник
+    //    испод сажима тај след у један app-specific корак.
     lsc::Plugin::CardPluginService plugins{"/usr/local/lib/librescrs/plugins"};
     lsc::SmartCard::MonitorService monitor;
-    auto session = openFirstSession(monitor, plugins);  // помоћник специфичан за апликацију
+    auto session = openFirstSession(monitor, plugins);   // помоћник специфичан за апликацију
     if (!session) {
         std::cerr << "No card available\n";
         return 1;
     }
-    auto cardPlugin = plugins.pluginFor(*session);
+    auto atr = session->atr();                            // std::span<const std::uint8_t>
+    auto cardPlugin = plugins.findPluginForCard(atr);
+    if (!cardPlugin) {
+        std::cerr << "Ниједан додатак не одговара ATR-у ове картице\n";
+        return 1;
+    }
 
-    // 4. Прочитајте документ.
-    std::ifstream file("document.pdf", std::ios::binary);
-    std::vector<std::uint8_t> content(
-        std::istreambuf_iterator<char>(file), {});
-
-    // 5. Изградите захтев за потписивање.
+    // 4. Изградите захтев за потписивање. Engine чита из inputFile и
+    //    пише потписан излаз у outputFile — не постоји улаз преко
+    //    бафера бајтова на јавном API-ју.
     auto request = lsc::Signing::SigningRequest::Builder{}
-                       .document(std::move(content), "document.pdf")
-                       .format(lsc::Signing::SignatureFormat::PAdES)
+                       .inputFile("document.pdf")
+                       .outputFile("document-signed.pdf")
+                       .format(lsc::Signing::SignatureFormat::Pades)
                        .level(lsc::Signing::SignatureLevel::B_T)
                        .build();
 
-    // 6. PIN провајдер — позива га сервис када картица захтева PIN.
+    // 5. PIN провајдер — позива га сервис када картица захтева PIN.
     //    Провајдер прима AuthRequirement који описује шта да прикупи и
     //    враћа CredentialResult. У GUI хосту ово обично отвара PIN
-    //    дијалог; у batch алатима чита из env променљиве / сигурног
-    //    upita.
+    //    дијалог; у batch алатима чита из сигурног упита или env
+    //    променљиве.
     lsc::Auth::CredentialProvider pinProvider =
         [](const lsc::Auth::AuthRequirement&) {
-            return lsc::Auth::CredentialResult::withPin(/* безбедни бајтови PIN-а */);
+            lsc::Secure::String pin{"1234"};  // хост прикупља, нулира се при уништавању
+            return lsc::Auth::CredentialResult::ok({{"pin", std::move(pin)}});
         };
 
-    // 7. Потпишите. Позив блокира за време трајања операције (PIN
+    // 6. Потпишите. Позив блокира за време трајања операције (PIN
     //    верификација + APDU потпис на картици + опционо TSA повратно
     //    путовање). GUI хостови ово покрећу на радној нити.
     auto result = signingService->sign(request, std::move(pinProvider), cardPlugin, session);
 
-    if (result.status != lsc::Signing::SigningResult::Status::Success) {
+    if (result.status != lsc::Signing::SigningResult::Status::Ok) {
         std::cerr << "Signing failed: "
-                  << result.errorMessage.defaultText << '\n';
+                  << result.userMessage.defaultText << '\n';
         return 1;
     }
 
-    // 8. Запишите потписан документ.
-    std::ofstream out("document-signed.pdf", std::ios::binary);
-    out.write(reinterpret_cast<const char*>(result.signedDocument.data()),
-              static_cast<std::streamsize>(result.signedDocument.size()));
+    // 7. Успех — потписан документ је на диску на путањи на коју је
+    //    engine писао (тј. outputFile() са којим је захтев изграђен).
+    std::cout << "Signed: " << result.outputPath->string() << '\n';
     return 0;
 }
 ```
@@ -228,25 +233,39 @@ Trusted-List преузимања раде на интерним радним н
 ### `LibreSCRS::Signing::SigningRequest`
 
 Непроменљиви параметри потписивања, граде се преко угнежденог `Builder`-а.
-Кључна поља:
+Engine је заснован на путањама фајлова — проследите `inputFile()` и
+`outputFile()`; не постоји overload са бафером бајтова на јавном API-ју.
+Кључне методе builder-а:
 
 | Метода builder-а | Опис |
 |---|---|
-| `document(bytes, fileName)` | Сирови бајтови документа и оригинално име фајла |
-| `format(SignatureFormat)` | PAdES / CAdES / XAdES / JAdES / ASiC-E |
-| `level(SignatureLevel)` | B-B / B-T / B-LT / B-LTA |
-| `visualSignature(VisualSignatureParams)` | PAdES визуелни потпис |
-| `tsaOverride(std::string url)` | TSA override по захтеву |
-| `allowExpiredCertificate(bool)` | Тест exception — задржите `false` у продукцији |
+| `inputFile(std::filesystem::path)` | Изворни документ на диску |
+| `outputFile(std::filesystem::path)` | Одредишна путања на коју engine пише |
+| `format(SignatureFormat)` | `Pades` / `Cades` / `Xades` / `Jades` / `AsicE` |
+| `level(SignatureLevel)` | `B_B` / `B_T` / `B_LT` / `B_LTA` |
+| `packaging(PackagingMode)` | `Enveloped` или `Detached` |
+| `reason` / `location` / `contactInfo` | Поља PDF речника потписа (ISO 32000-1 §12.8.1) |
+| `certificateLabel(std::string)` | PKCS#11 алијас кључа када картица носи више од једног |
+| `visualParams(VisualSignatureParams&&)` | PAdES визуелни потпис |
+| `tsaOverride(TsaProvider)` | TSA override по захтеву; упарите са `staticTsa(url)` за фиксни URL |
+
+`Builder::build()` је rvalue-квалификован; финализујте са
+`std::move(builder).build()` и обмотајте позив у `try/catch` за
+`std::invalid_argument` ако поља постављате условно.
 
 ### `LibreSCRS::Signing::SigningResult`
 
 | Поље | Тип | Опис |
 |---|---|---|
-| `status` | `Status` enum | Увек постављен; проверите пре читања payload-а |
-| `signedDocument` | `std::vector<std::uint8_t>` | Бајтови потписаног излаза при успеху |
-| `errorMessage` | `LocalizedText` | Локализован опис грешке |
-| `signerCertificate` | опциони сертификат | Сертификат који је потписао |
+| `status` | `Status` enum | Увек постављен; проверите пре читања осталих поља |
+| `outputPath` | `std::optional<std::filesystem::path>` | Путања на коју је потписан документ записан при успеху |
+| `userMessage` | `LocalizedText` | Translator-friendly порука за корисника; обавезна у 4.0 |
+| `diagnosticDetail` | `std::optional<std::string>` | Дијагностика за развојне логове |
+
+Вредности `Status`: `Ok`, `InvalidRequest`, `TrustStoreUnavailable`,
+`UserCancelled`, `PinVerificationFailed`, `CardBlocked`, `TsaUnreachable`,
+`SigningEngineError`. Енумерација је append-only; `switch` код потрошача
+мора да укључује `default` грану.
 
 ### `LibreSCRS::Auth::CredentialProvider`
 
@@ -308,23 +327,26 @@ pdfinfo:
 ## Руковање грешкама
 
 `SigningService::sign()` враћа `SigningResult` уместо да баца изузетке.
-Проверите `result.status` и `result.errorMessage` у случају неуспеха:
+Проверите `result.status` и `result.userMessage` у случају неуспеха:
 
 ```cpp
 auto result = signingService->sign(request, pinProvider, cardPlugin, session);
-if (result.status != LibreSCRS::Signing::SigningResult::Status::Success) {
+if (result.status != LibreSCRS::Signing::SigningResult::Status::Ok) {
     using S = LibreSCRS::Signing::SigningResult::Status;
     switch (result.status) {
-        case S::TrustStoreUnavailable:  /* TL преузимање / конфиг одбијен */ break;
-        case S::InvalidRequest:         /* null plugin/session, празан PIN cb */ break;
-        case S::UserCancelled:          /* CredentialProvider вратио cancel */ break;
-        case S::PinVerificationFailed:  /* погрешан PIN */ break;
-        case S::CardCommunicationError: /* APDU / PC/SC слој */ break;
-        case S::TsaUnavailable:         /* B-T или виши захтеван, TSA није успео */ break;
-        case S::CertificateExpired:     /* сертификат потписника истекао */ break;
-        default: break;
+        case S::TrustStoreUnavailable:  /* TL преузимање / конфиг одбијен  */ break;
+        case S::InvalidRequest:         /* null plugin/session, празан cb  */ break;
+        case S::UserCancelled:          /* провајдер је вратио cancel      */ break;
+        case S::PinVerificationFailed:  /* погрешан PIN                    */ break;
+        case S::CardBlocked:            /* PIN за потписивање је блокиран  */ break;
+        case S::TsaUnreachable:         /* B-T+ захтеван, TSA није успео   */ break;
+        case S::SigningEngineError:     /* libresign / APDU цевовод        */ break;
+        default: break;                 // append-only enum; задржите default
     }
-    log(result.errorMessage.defaultText);
+    log(result.userMessage.defaultText);
+    if (result.diagnosticDetail) {
+        log(*result.diagnosticDetail);
+    }
 }
 ```
 

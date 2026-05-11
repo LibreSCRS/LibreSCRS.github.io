@@ -5,11 +5,21 @@ description: "How to integrate LibreMiddleware's digital signing capabilities in
 weight: 30
 ---
 
-LibreMiddleware includes a native C++ digital signing engine that supports five signature formats, four conformance levels, and hardware-backed signing via PKCS#11. This guide explains how to integrate signing into your own application.
+LibreMiddleware ships a native C++ digital signing engine that supports five
+signature formats, four conformance levels, and hardware-backed signing via
+PKCS#11. This guide shows downstream consumers how to integrate it through
+the **public `LibreSCRS::Signing` API**.
+
+The signing engine itself lives in the internal `libresign` library under
+`lib/libresign/` — every header there is gated by `LIBRESCRS_INTERNAL_BUILD`
+and is **not part of the supported consumer surface**. Downstream code links
+against the `LibreSCRS::Signing` CMake alias and includes only
+`<LibreSCRS/Signing/…>` headers.
 
 ## Signature Formats and Levels
 
-The engine produces signatures conforming to the EU eIDAS/ETSI baseline profiles:
+The engine produces signatures conforming to the EU eIDAS / ETSI baseline
+profiles:
 
 | Format | Standard | Input | Output | Packaging |
 |---|---|---|---|---|
@@ -32,18 +42,26 @@ Each format supports four levels of increasing assurance:
 
 ## CMake Integration
 
-LibreMiddleware is designed to be consumed via CMake `FetchContent`. Signing support is enabled by default.
+LibreMiddleware is designed to be consumed via CMake `FetchContent`. Signing
+support is enabled by default. Tags use the bare `X.Y.Z` form (no `v`
+prefix):
 
 ```cmake
 include(FetchContent)
 FetchContent_Declare(
     LibreMiddleware
     GIT_REPOSITORY https://github.com/LibreSCRS/LibreMiddleware.git
-    GIT_TAG        v3.0.0
+    GIT_TAG        4.0.0
 )
 FetchContent_MakeAvailable(LibreMiddleware)
 
-target_link_libraries(MyApp PRIVATE LibreSign)
+target_link_libraries(MyApp PRIVATE
+    LibreSCRS::Signing
+    LibreSCRS::Trust
+    LibreSCRS::Plugin
+    LibreSCRS::SmartCard
+    LibreSCRS::Auth
+)
 ```
 
 For local development, point to a local checkout instead of fetching from Git:
@@ -56,73 +74,113 @@ cmake -B build -DFETCHCONTENT_SOURCE_DIR_LIBREMIDDLEWARE=/path/to/LibreMiddlewar
 
 | Option | Default | Description |
 |---|---|---|
-| `BUILD_SIGNING` | `ON` | Enable digital signing support (LibreSign library) |
-| `SIGNING_BACKEND` | `native` | Backend selection: `native`, `dss`, or `both`. The DSS backend is deprecated |
+| `BUILD_SIGNING` | `ON` | Enable digital signing support (`LibreSCRS::Signing`) |
+| `SIGNING_BACKEND` | `native` | Backend selection: `native`, `dss`, or `both`. The DSS backend is a test oracle and is deprecated for production use |
 
-The build exports `LIBREMIDDLEWARE_HAS_SIGNING` so downstream projects can conditionally compile signing features.
+The build exports `LIBREMIDDLEWARE_HAS_SIGNING` so downstream projects can
+conditionally compile signing features.
 
 ---
 
 ## Minimal Signing Example
 
+The example below performs a complete PAdES B-T sign against a card
+discovered by the plugin registry. It uses only the public API — every
+include is from `<LibreSCRS/…>`.
+
 ```cpp
-#include <libresign/signing_service_factory.h>
-#include <libresign/types.h>
+#include <LibreSCRS/Auth/CredentialProvider.h>
+#include <LibreSCRS/Plugin/CardPluginService.h>
+#include <LibreSCRS/Signing/SigningRequest.h>
+#include <LibreSCRS/Signing/SigningResult.h>
+#include <LibreSCRS/Signing/SigningService.h>
+#include <LibreSCRS/SmartCard/CardSession.h>
+#include <LibreSCRS/SmartCard/MonitorService.h>
+#include <LibreSCRS/Trust/TrustConfig.h>
+#include <LibreSCRS/Trust/TrustStoreService.h>
 
 #include <fstream>
+#include <iostream>
 #include <vector>
+
+namespace lsc = LibreSCRS;
 
 int main()
 {
-    // 1. Create the signing service (native backend)
-    auto service = libresign::createSigningService(libresign::Backend::Native);
-    if (!service || !service->isAvailable()) {
+    // 1. Build the trust store. The factory is noexcept and returns a
+    //    usable service even when the network is unreachable — bundled
+    //    and (optionally) system anchors are available immediately while
+    //    eager Trusted-List fetches run on internal worker threads.
+    lsc::Trust::TrustConfig trustConfig;
+    trustConfig.cacheDirectory = "/var/cache/myapp/tl-cache";
+    // trustConfig.sources.push_back({...});   // optional EU LOTL / national TLs
+
+    auto trustResult = lsc::Trust::TrustStoreService::create(std::move(trustConfig));
+    if (!trustResult) {
+        std::cerr << "Trust store init failed: "
+                  << trustResult.error().userMessage.defaultText << '\n';
         return 1;
     }
+    std::shared_ptr<lsc::Trust::TrustStoreService> trust = *trustResult;
 
-    // 2. Optionally configure trust (EU Trusted Lists for B-LT/B-LTA)
-    libresign::TrustConfig trust;
-    trust.cacheDirectory = "/tmp/tl-cache";
-    trust.trustedLists.push_back({
-        .url = "https://ec.europa.eu/tools/lotl/eu-lotl.xml",
-        .isLotl = true,
-        .eager = true
-    });
-    service->configure(trust);
+    // 2. Construct the SigningService. TsaProvider{} = empty std::function;
+    //    B-B signing still works, B-T / B-LT / B-LTA need a callback that
+    //    returns a TSA URL for a given level.
+    lsc::Signing::TsaProvider tsa = [](lsc::Signing::SignatureLevel) {
+        return std::string{"http://timestamp.digicert.com"};
+    };
+    auto signingService = std::make_shared<lsc::Signing::SigningService>(trust, std::move(tsa));
 
-    // 3. Load the document to sign
+    // 3. Discover a card plugin + open a session. CardPluginService scans
+    //    the configured plugin directory; MonitorService observes PC/SC
+    //    events. Real apps subscribe to MonitorService; the snippet below
+    //    just opens the first card visible to the registry.
+    lsc::Plugin::CardPluginService plugins{"/usr/local/lib/librescrs/plugins"};
+    lsc::SmartCard::MonitorService monitor;
+    auto session = openFirstSession(monitor, plugins);  // app-specific helper
+    if (!session) {
+        std::cerr << "No card available\n";
+        return 1;
+    }
+    auto cardPlugin = plugins.pluginFor(*session);
+
+    // 4. Read the document.
     std::ifstream file("document.pdf", std::ios::binary);
-    std::vector<uint8_t> content(
-        (std::istreambuf_iterator<char>(file)),
-        std::istreambuf_iterator<char>()
-    );
+    std::vector<std::uint8_t> content(
+        std::istreambuf_iterator<char>(file), {});
 
-    // 4. Build the signing request
-    libresign::SigningRequest request;
-    request.document = std::move(content);
-    request.fileName = "document.pdf";
-    request.format = libresign::SignatureFormat::PAdES;
-    request.level = libresign::SignatureLevel::B_T;
-    request.tsa.url = "http://timestamp.digicert.com";
+    // 5. Build the signing request.
+    auto request = lsc::Signing::SigningRequest::Builder{}
+                       .document(std::move(content), "document.pdf")
+                       .format(lsc::Signing::SignatureFormat::PAdES)
+                       .level(lsc::Signing::SignatureLevel::B_T)
+                       .build();
 
-    // 5. Sign via PKCS#11 token
-    std::string pin = "1234";  // in production, use SecureBuffer
-    auto result = service->sign(
-        request,
-        "/usr/local/lib/librescrs-pkcs11.so",  // PKCS#11 module path
-        libresign::as_pin(pin),          // PIN as byte span
-        "SIGN"                           // key alias on the card
-    );
+    // 6. PIN provider — invoked by the service when the card requires it.
+    //    The provider receives an AuthRequirement describing what to
+    //    collect and returns a CredentialResult. In a GUI host this
+    //    typically pops a PIN dialog; in batch tools it reads from an
+    //    env var / secure prompt.
+    lsc::Auth::CredentialProvider pinProvider =
+        [](const lsc::Auth::AuthRequirement&) {
+            return lsc::Auth::CredentialResult::withPin(/* secure pin bytes */);
+        };
 
-    if (!result.success) {
-        // result.errorMessage contains the failure reason
+    // 7. Sign. The call blocks for the duration of the operation (PIN
+    //    verify + card APDU sign + optional TSA round-trip). GUI hosts
+    //    run this on a worker thread.
+    auto result = signingService->sign(request, std::move(pinProvider), cardPlugin, session);
+
+    if (result.status != lsc::Signing::SigningResult::Status::Success) {
+        std::cerr << "Signing failed: "
+                  << result.errorMessage.defaultText << '\n';
         return 1;
     }
 
-    // 6. Write the signed document
+    // 8. Write the signed document.
     std::ofstream out("document-signed.pdf", std::ios::binary);
     out.write(reinterpret_cast<const char*>(result.signedDocument.data()),
-              result.signedDocument.size());
+              static_cast<std::streamsize>(result.signedDocument.size()));
     return 0;
 }
 ```
@@ -131,114 +189,147 @@ int main()
 
 ## API Reference
 
-All types live in the `libresign` namespace. Headers are in `libresign/`.
+All public types live under the `LibreSCRS::*` PascalCase namespaces. Every
+type referenced below has its full Doxygen contract in the corresponding
+header under `include/LibreSCRS/`.
 
-### SigningService
+### `LibreSCRS::Signing::SigningService`
 
-The abstract interface for all signing operations. Obtained via the factory function.
+Public entry point. Constructed once with the trust lifecycle owner and a
+TSA callback; reused for many `sign()` calls.
+
+**Construction:**
 
 ```cpp
-// Factory — creates a concrete service instance
-std::unique_ptr<SigningService> createSigningService(Backend backend);
-
-enum class Backend { Native, DSS };
+SigningService(std::shared_ptr<Trust::TrustStoreService> trustService,
+               TsaProvider tsa);
 ```
 
-**Methods:**
+**Signing call (4-arg, `[[nodiscard]]`):**
 
-| Method | Description |
+```cpp
+SigningResult sign(const SigningRequest& request,
+                   Auth::CredentialProvider credentialProvider,
+                   std::shared_ptr<Plugin::CardPlugin> cardPlugin,
+                   std::shared_ptr<SmartCard::CardSession> session);
+```
+
+The call is blocking and thread-safe across distinct `(cardPlugin, session)`
+pairs. A null plugin or session, or an empty `credentialProvider`, returns
+`SigningResult::Status::InvalidRequest` rather than throwing.
+
+### `LibreSCRS::Trust::TrustStoreService`
+
+Lifecycle owner of the trust store. Factory is `noexcept` and returns
+`std::expected<std::shared_ptr<TrustStoreService>, CreateError>`. Eager
+Trusted-List fetches run on internal worker threads; consumers observe
+completion via `status()`, `addObserver()`, or the blocking
+`waitForEagerFetches()`.
+
+### `LibreSCRS::Signing::SigningRequest`
+
+Immutable signing parameters built through the inner `Builder`. Key fields:
+
+| Builder method | Description |
 |---|---|
-| `configure(const TrustConfig&)` | Load trusted lists and configure revocation. Optional for B-B/B-T, required for B-LT/B-LTA |
-| `sign(request, pkcs11Path, pin, keyAlias, tokenLabel)` | Sign a document. Returns `SigningResult` |
-| `isAvailable()` | Check whether the backend is functional |
+| `document(bytes, fileName)` | Raw document bytes and original filename |
+| `format(SignatureFormat)` | PAdES / CAdES / XAdES / JAdES / ASiC-E |
+| `level(SignatureLevel)` | B-B / B-T / B-LT / B-LTA |
+| `visualSignature(VisualSignatureParams)` | PAdES visual signature overlay |
+| `tsaOverride(std::string url)` | Per-request TSA override |
+| `allowExpiredCertificate(bool)` | Testing escape hatch — keep `false` in production |
 
-### SigningRequest
-
-Describes what to sign and how.
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `document` | `vector<uint8_t>` | — | Raw document bytes |
-| `fileName` | `string` | — | Original filename (used for format detection in ASiC-E) |
-| `format` | `SignatureFormat` | `PAdES` | Target signature format |
-| `packaging` | `SignaturePackaging` | `ENVELOPED` | Enveloped or detached |
-| `level` | `SignatureLevel` | `B_T` | Conformance level |
-| `tsa` | `TSAConfig` | — | Timestamp authority configuration |
-| `visual` | `VisualSignatureParams` | disabled | Visual signature overlay (PAdES only) |
-| `allowExpiredCertificate` | `bool` | `false` | Allow signing with expired certificates (testing only) |
-
-### SigningResult
+### `LibreSCRS::Signing::SigningResult`
 
 | Field | Type | Description |
 |---|---|---|
-| `success` | `bool` | Whether signing succeeded |
-| `signedDocument` | `vector<uint8_t>` | The signed output bytes |
-| `errorMessage` | `string` | Human-readable error on failure |
+| `status` | `Status` enum | Always set; check before reading payload |
+| `signedDocument` | `std::vector<std::uint8_t>` | Signed output bytes on success |
+| `errorMessage` | `LocalizedText` | Localised failure description |
+| `signerCertificate` | optional certificate | Echo of the certificate that signed |
 
-### TrustConfig
+### `LibreSCRS::Auth::CredentialProvider`
 
-Configuration for EU Trusted Lists, used for B-LT and B-LTA levels.
+`SyncProvider<CredentialResult, AuthRequirement>` — a host-supplied callable
+that maps an `AuthRequirement` (what the card needs) to a `CredentialResult`
+(filled credentials, a user-cancel, or a provider error). The signing
+service invokes the provider at most once per card unlock.
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `trustedLists` | `vector<TrustedListEntry>` | — | Trusted List sources |
-| `cacheDirectory` | `string` | — | Disk cache for downloaded lists |
-| `crlEnabled` | `bool` | `true` | Fetch CRLs for revocation checking |
-| `ocspEnabled` | `bool` | `true` | Use OCSP for revocation checking |
+### `LibreSCRS::Plugin::CardPlugin` and `LibreSCRS::SmartCard::CardSession`
 
-### TSAConfig
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `url` | `string` | — | RFC 3161 timestamp server URL |
-| `timeoutSeconds` | `int` | `10` | HTTP timeout for TSA requests |
-| `crlEnabled` | `bool` | `true` | CRL checking for B-LT/B-LTA |
-| `ocspEnabled` | `bool` | `true` | OCSP checking for B-LT/B-LTA |
+The plugin drives card-specific operations (signing APDUs, key discovery)
+and is obtained from `CardPluginService`. The session encapsulates an open
+PC/SC channel and is obtained either through the monitor flow or directly
+via `CardSession::open(readerName, plugin)`. The signing service holds
+shared ownership of both for the duration of the call.
 
 ---
 
 ## PKCS#11 Token Support
 
-The signing engine accesses private keys through PKCS#11. It does not communicate with smart cards directly — all card I/O goes through the PKCS#11 module.
+The signing engine accesses private keys through the `CardPlugin` /
+`CardSession` abstraction. Under the hood the plugin layer talks to the
+card via the LibreSCRS PKCS#11 module (`librescrs-pkcs11.so`) plus
+appropriate card-specific drivers — CardEdge, PKCS#15, PIV, or OpenSC.
 
-LibreMiddleware ships its own PKCS#11 module (`librescrs-pkcs11.so`) that supports all card types recognized by the middleware plugin system: Serbian eID (CardEdge), PKCS#15-compliant cards, PIV, and OpenSC-backed cards.
+Downstream consumers that already drive a PKCS#11 module directly can do
+so independently of `LibreSCRS::Signing`; the 4.0 public signing API is
+intentionally PKCS#11-agnostic at the seam (plugin + session).
 
-You can also use any third-party PKCS#11 module (e.g., OpenSC's `opensc-pkcs11.so`).
-
-**Token selection:** Pass a `tokenLabel` string to `sign()` to select a specific PKCS#11 slot by label. If empty, the service auto-detects the first available token.
-
-**Key selection:** The `keyAlias` parameter matches the `CKA_LABEL` attribute on the private key object. For Serbian eID cards, the signing key label is typically `"SIGN"`.
-
-**PIN handling:** The `pin` parameter is a `std::span<const uint8_t>` — a non-owning view into caller-managed memory. In production code, store the PIN in a `smartcard::SecureBuffer` which automatically zeroes memory on destruction. The signing service does not retain the PIN past the `sign()` call.
+The PIN never persists across the `sign()` call — it is delivered to the
+card via `CredentialProvider` (which the host is expected to back with
+zero-on-destruct storage such as `LibreSCRS::Secure::Buffer` /
+`LibreSCRS::Secure::String`) and discarded immediately after `C_Login`.
 
 ---
 
 ## PDF Input Tolerance
 
-For PAdES signing, the engine follows Adobe Acrobat Implementation Notes §H.3 when ingesting PDF input, matching the behavior of Acrobat, Foxit, qpdf, and pdfinfo:
+For PAdES signing, the engine follows Adobe Acrobat Implementation Notes
+§H.3 when ingesting PDF input, matching the behaviour of Acrobat, Foxit,
+qpdf, and pdfinfo:
 
-- Up to **1024 bytes** of non-PDF prefix before the `%PDF-` header are tolerated and stripped (e.g. `multipart/form-data` wrappers from web-form uploads).
-- Trailing data after the last `%%EOF` is stripped (an optional single CR/LF is preserved).
-- When `startxref` points to an offset that does not contain the `xref` keyword (common after a prefix strip, or a generator bug), the engine falls back to scanning the last ~10 KB for a standalone `xref` keyword and retries.
+- Up to **1024 bytes** of non-PDF prefix before the `%PDF-` header are
+  tolerated and stripped (e.g. `multipart/form-data` wrappers from
+  web-form uploads).
+- Trailing data after the last `%%EOF` is stripped (an optional single
+  CR/LF is preserved).
+- When `startxref` points to an offset that does not contain the `xref`
+  keyword (common after a prefix strip, or a generator bug), the engine
+  falls back to scanning the last ~10 KB for a standalone `xref` keyword
+  and retries.
 
-If the first 1024 bytes contain no `%PDF-` header the input is still rejected with `Input is not a valid PDF (missing %PDF- header)`. No caller-side changes are needed — the tolerance is applied internally in `PAdESModule::sign`.
+If the first 1024 bytes contain no `%PDF-` header the input is still
+rejected with a structured `InvalidRequest` result. No caller-side
+changes are needed — the tolerance is applied internally during PAdES
+ingestion.
 
 ---
 
 ## Error Handling
 
-The `sign()` method returns a `SigningResult` rather than throwing exceptions. Check `result.success` and read `result.errorMessage` on failure:
+`SigningService::sign()` returns a `SigningResult` rather than throwing.
+Inspect `result.status` and `result.errorMessage` on failure:
 
 ```cpp
-auto result = service->sign(request, pkcs11Path, pin, keyAlias);
-if (!result.success) {
-    // Common errors:
-    // - "PKCS#11 module not found"
-    // - "PIN verification failed"
-    // - "TSA server unreachable"
-    // - "Certificate has expired"
-    log(result.errorMessage);
+auto result = signingService->sign(request, pinProvider, cardPlugin, session);
+if (result.status != LibreSCRS::Signing::SigningResult::Status::Success) {
+    using S = LibreSCRS::Signing::SigningResult::Status;
+    switch (result.status) {
+        case S::TrustStoreUnavailable:  /* TL fetch / config rejected */ break;
+        case S::InvalidRequest:         /* null plugin/session, empty PIN cb */ break;
+        case S::UserCancelled:          /* CredentialProvider returned cancel */ break;
+        case S::PinVerificationFailed:  /* wrong PIN */ break;
+        case S::CardCommunicationError: /* APDU / PC/SC layer */ break;
+        case S::TsaUnavailable:         /* B-T or higher requested, TSA failed */ break;
+        case S::CertificateExpired:     /* signer cert expired */ break;
+        default: break;
+    }
+    log(result.errorMessage.defaultText);
 }
 ```
 
-The `configure()` method returns `false` if trust list loading fails. This is non-fatal for B-B and B-T levels (which do not require trust lists) but will cause B-LT and B-LTA signing to fail later.
+`TrustStoreService::create()` is similarly `[[nodiscard]] noexcept` and
+returns `std::expected<…, CreateError>`. Checking the result up front
+keeps failure paths explicit; no exception ever propagates across the
+public API surface.

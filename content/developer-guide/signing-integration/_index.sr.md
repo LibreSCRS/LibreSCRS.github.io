@@ -1,244 +1,334 @@
 ---
 layout: "simple"
-title: "Vodič za integraciju potpisivanja"
-description: "Kako integrisati mogućnosti digitalnog potpisivanja LibreMiddleware-a u vašu aplikaciju"
+title: "Водич за интеграцију потписивања"
+description: "Како интегрисати могућности дигиталног потписивања LibreMiddleware-а у вашу апликацију"
 weight: 30
 ---
 
-LibreMiddleware uključuje nativni C++ engine za digitalno potpisivanje koji podržava pet formata potpisa, četiri nivoa usklađenosti i hardversko potpisivanje putem PKCS#11. Ovaj vodič objašnjava kako integrisati potpisivanje u vašu aplikaciju.
+LibreMiddleware испоручује нативни C++ engine за дигитално потписивање који
+подржава пет формата потписа, четири нивоа усклађености и хардверско
+потписивање преко PKCS#11. Овај водич показује спољним корисницима како
+да га интегришу кроз **јавни `LibreSCRS::Signing` API**.
 
-## Formati i nivoi potpisa
+Сам engine за потписивање живи у интерној `libresign` библиотеци испод
+`lib/libresign/` — свако заглавље тамо је закључано преко
+`LIBRESCRS_INTERNAL_BUILD` и **није део подржане корисничке површине**.
+Спољни код линкује против `LibreSCRS::Signing` CMake алијаса и укључује
+само заглавља испод `<LibreSCRS/Signing/…>`.
 
-Engine proizvodi potpise u skladu sa EU eIDAS/ETSI baseline profilima:
+## Формати и нивои потписа
 
-| Format | Standard | Ulaz | Izlaz | Pakovanje |
+Engine производи потписе у складу са EU eIDAS / ETSI baseline профилима:
+
+| Формат | Стандард | Улаз | Излаз | Паковање |
 |---|---|---|---|---|
-| PAdES | ETSI EN 319 142 | PDF | Potpisan PDF | Enveloped |
-| CAdES | ETSI EN 319 122 | Bilo koji fajl | `.p7s` (PKCS#7/CMS) | Detached |
-| XAdES | ETSI EN 319 132 | Bilo koji fajl | `.xml` (XML-DSIG) | Enveloped ili detached |
-| JAdES | ETSI EN 319 182 | Bilo koji fajl | `.json` (JWS) | Detached |
-| ASiC-E | ETSI EN 319 162 | Bilo koji fajl(ovi) | `.asice` (ZIP kontejner) | Detached (XAdES unutra) |
+| PAdES | ETSI EN 319 142 | PDF | Потписан PDF | Enveloped |
+| CAdES | ETSI EN 319 122 | Било која датотека | `.p7s` (PKCS#7/CMS) | Detached |
+| XAdES | ETSI EN 319 132 | Било која датотека | `.xml` (XML-DSIG) | Enveloped или detached |
+| JAdES | ETSI EN 319 182 | Било која датотека | `.json` (JWS) | Detached |
+| ASiC-E | ETSI EN 319 162 | Било која датотека(е) | `.asice` (ZIP контејнер) | Detached (XAdES унутра) |
 
-Svaki format podržava četiri nivoa rastućeg poverenja:
+Сваки формат подржава четири нивоа растуће сигурности:
 
-| Nivo | Sadržaj | Zahteva |
+| Ниво | Садржај | Захтева |
 |---|---|---|
-| B-B | Osnovni potpis | Samo sertifikat za potpisivanje |
-| B-T | B-B + vremenski pečat | TSA server |
-| B-LT | B-T + podaci o opozivu (CRL/OCSP) | TSA + izvori opoziva |
-| B-LTA | B-LT + arhivski vremenski pečat | TSA + izvori opoziva |
+| B-B | Основни потпис | Само сертификат за потписивање |
+| B-T | B-B + временски печат | TSA сервер |
+| B-LT | B-T + подаци о опозиву (CRL/OCSP) | TSA + извори опозива |
+| B-LTA | B-LT + архивски временски печат | TSA + извори опозива |
 
 ---
 
-## CMake integracija
+## CMake интеграција
 
-LibreMiddleware je dizajniran za korišćenje putem CMake `FetchContent`. Podrška za potpisivanje je podrazumevano uključena.
+LibreMiddleware је дизајниран за коришћење преко CMake `FetchContent`.
+Подршка за потписивање је подразумевано укључена. Тагови користе голи
+`X.Y.Z` облик (без `v` префикса):
 
 ```cmake
 include(FetchContent)
 FetchContent_Declare(
     LibreMiddleware
     GIT_REPOSITORY https://github.com/LibreSCRS/LibreMiddleware.git
-    GIT_TAG        v3.0.0
+    GIT_TAG        4.0.0
 )
 FetchContent_MakeAvailable(LibreMiddleware)
 
-target_link_libraries(MyApp PRIVATE LibreSign)
+target_link_libraries(MyApp PRIVATE
+    LibreSCRS::Signing
+    LibreSCRS::Trust
+    LibreSCRS::Plugin
+    LibreSCRS::SmartCard
+    LibreSCRS::Auth
+)
 ```
 
-Za lokalni razvoj, usmerite na lokalnu kopiju umesto preuzimanja sa Git-a:
+За локални развој усмерите на локалну копију уместо преузимања са Git-а:
 
 ```bash
 cmake -B build -DFETCHCONTENT_SOURCE_DIR_LIBREMIDDLEWARE=/path/to/LibreMiddleware
 ```
 
-### Opcije izgradnje
+### Опције изградње
 
-| Opcija | Podrazumevano | Opis |
+| Опција | Подразумевано | Опис |
 |---|---|---|
-| `BUILD_SIGNING` | `ON` | Uključi podršku za digitalno potpisivanje (LibreSign biblioteka) |
-| `SIGNING_BACKEND` | `native` | Izbor backend-a: `native`, `dss` ili `both`. DSS backend je zastareo |
+| `BUILD_SIGNING` | `ON` | Укључује подршку за дигитално потписивање (`LibreSCRS::Signing`) |
+| `SIGNING_BACKEND` | `native` | Избор backend-а: `native`, `dss` или `both`. DSS backend је тест оracле и застарео је за продукциону употребу |
 
-Izgradnja izvozi `LIBREMIDDLEWARE_HAS_SIGNING` tako da projekti koji koriste biblioteku mogu uslovno kompajlirati funkcionalnosti potpisivanja.
+Изградња извози `LIBREMIDDLEWARE_HAS_SIGNING` тако да спољни пројекти могу
+условно да компајлирају функционалности потписивања.
 
 ---
 
-## Minimalan primer potpisivanja
+## Минималан пример потписивања
+
+Пример испод обавља комплетан PAdES B-T потпис против картице коју је
+открио регистар додатака. Користи само јавни API — сваки include је из
+`<LibreSCRS/…>`.
 
 ```cpp
-#include <libresign/signing_service_factory.h>
-#include <libresign/types.h>
+#include <LibreSCRS/Auth/CredentialProvider.h>
+#include <LibreSCRS/Plugin/CardPluginService.h>
+#include <LibreSCRS/Signing/SigningRequest.h>
+#include <LibreSCRS/Signing/SigningResult.h>
+#include <LibreSCRS/Signing/SigningService.h>
+#include <LibreSCRS/SmartCard/CardSession.h>
+#include <LibreSCRS/SmartCard/MonitorService.h>
+#include <LibreSCRS/Trust/TrustConfig.h>
+#include <LibreSCRS/Trust/TrustStoreService.h>
 
 #include <fstream>
+#include <iostream>
 #include <vector>
+
+namespace lsc = LibreSCRS;
 
 int main()
 {
-    // 1. Kreiranje servisa za potpisivanje (native backend)
-    auto service = libresign::createSigningService(libresign::Backend::Native);
-    if (!service || !service->isAvailable()) {
+    // 1. Конструишите trust store. Фабрика је noexcept и враћа употребљив
+    //    сервис чак и када је мрежа недоступна — пакетски и (опционо)
+    //    системски анкори су одмах доступни, док eager Trusted-List
+    //    преузимања раде на интерним радним нитима.
+    lsc::Trust::TrustConfig trustConfig;
+    trustConfig.cacheDirectory = "/var/cache/myapp/tl-cache";
+    // trustConfig.sources.push_back({...});   // опционо EU LOTL / национални TL-ови
+
+    auto trustResult = lsc::Trust::TrustStoreService::create(std::move(trustConfig));
+    if (!trustResult) {
+        std::cerr << "Trust store init failed: "
+                  << trustResult.error().userMessage.defaultText << '\n';
         return 1;
     }
+    std::shared_ptr<lsc::Trust::TrustStoreService> trust = *trustResult;
 
-    // 2. Opciono konfigurisanje poverenja (EU Trusted Lists za B-LT/B-LTA)
-    libresign::TrustConfig trust;
-    trust.cacheDirectory = "/tmp/tl-cache";
-    trust.trustedLists.push_back({
-        .url = "https://ec.europa.eu/tools/lotl/eu-lotl.xml",
-        .isLotl = true,
-        .eager = true
-    });
-    service->configure(trust);
+    // 2. Конструишите SigningService. TsaProvider{} = празан std::function;
+    //    B-B потписивање и даље ради, B-T / B-LT / B-LTA захтевају
+    //    callback који враћа TSA URL за дати ниво.
+    lsc::Signing::TsaProvider tsa = [](lsc::Signing::SignatureLevel) {
+        return std::string{"http://timestamp.digicert.com"};
+    };
+    auto signingService = std::make_shared<lsc::Signing::SigningService>(trust, std::move(tsa));
 
-    // 3. Učitavanje dokumenta za potpisivanje
+    // 3. Откријте card plugin + отворите сесију. CardPluginService скенира
+    //    конфигурисани директоријум додатака; MonitorService прати PC/SC
+    //    догађаје. Праве апликације се претплаћују на MonitorService;
+    //    исечак испод само отвара прву картицу видљиву регистру.
+    lsc::Plugin::CardPluginService plugins{"/usr/local/lib/librescrs/plugins"};
+    lsc::SmartCard::MonitorService monitor;
+    auto session = openFirstSession(monitor, plugins);  // помоћник специфичан за апликацију
+    if (!session) {
+        std::cerr << "No card available\n";
+        return 1;
+    }
+    auto cardPlugin = plugins.pluginFor(*session);
+
+    // 4. Прочитајте документ.
     std::ifstream file("document.pdf", std::ios::binary);
-    std::vector<uint8_t> content(
-        (std::istreambuf_iterator<char>(file)),
-        std::istreambuf_iterator<char>()
-    );
+    std::vector<std::uint8_t> content(
+        std::istreambuf_iterator<char>(file), {});
 
-    // 4. Kreiranje zahteva za potpisivanje
-    libresign::SigningRequest request;
-    request.document = std::move(content);
-    request.fileName = "document.pdf";
-    request.format = libresign::SignatureFormat::PAdES;
-    request.level = libresign::SignatureLevel::B_T;
-    request.tsa.url = "http://timestamp.digicert.com";
+    // 5. Изградите захтев за потписивање.
+    auto request = lsc::Signing::SigningRequest::Builder{}
+                       .document(std::move(content), "document.pdf")
+                       .format(lsc::Signing::SignatureFormat::PAdES)
+                       .level(lsc::Signing::SignatureLevel::B_T)
+                       .build();
 
-    // 5. Potpisivanje putem PKCS#11 tokena
-    std::string pin = "1234";  // u produkciji koristite SecureBuffer
-    auto result = service->sign(
-        request,
-        "/usr/local/lib/librescrs-pkcs11.so",  // putanja do PKCS#11 modula
-        libresign::as_pin(pin),          // PIN kao span bajtova
-        "SIGN"                           // alias ključa na kartici
-    );
+    // 6. PIN провајдер — позива га сервис када картица захтева PIN.
+    //    Провајдер прима AuthRequirement који описује шта да прикупи и
+    //    враћа CredentialResult. У GUI хосту ово обично отвара PIN
+    //    дијалог; у batch алатима чита из env променљиве / сигурног
+    //    upita.
+    lsc::Auth::CredentialProvider pinProvider =
+        [](const lsc::Auth::AuthRequirement&) {
+            return lsc::Auth::CredentialResult::withPin(/* безбедни бајтови PIN-а */);
+        };
 
-    if (!result.success) {
-        // result.errorMessage sadrži razlog greške
+    // 7. Потпишите. Позив блокира за време трајања операције (PIN
+    //    верификација + APDU потпис на картици + опционо TSA повратно
+    //    путовање). GUI хостови ово покрећу на радној нити.
+    auto result = signingService->sign(request, std::move(pinProvider), cardPlugin, session);
+
+    if (result.status != lsc::Signing::SigningResult::Status::Success) {
+        std::cerr << "Signing failed: "
+                  << result.errorMessage.defaultText << '\n';
         return 1;
     }
 
-    // 6. Zapisivanje potpisanog dokumenta
+    // 8. Запишите потписан документ.
     std::ofstream out("document-signed.pdf", std::ios::binary);
     out.write(reinterpret_cast<const char*>(result.signedDocument.data()),
-              result.signedDocument.size());
+              static_cast<std::streamsize>(result.signedDocument.size()));
     return 0;
 }
 ```
 
 ---
 
-## Referenca API-ja
+## Референца API-ја
 
-Svi tipovi se nalaze u `libresign` prostoru imena. Zaglavlja su u `libresign/`.
+Сви јавни типови живе под `LibreSCRS::*` PascalCase именским просторима.
+Сваки тип поменут испод има пуни Doxygen уговор у одговарајућем заглављу
+испод `include/LibreSCRS/`.
 
-### SigningService
+### `LibreSCRS::Signing::SigningService`
 
-Apstraktni interfejs za sve operacije potpisivanja. Dobija se putem fabričke funkcije.
+Јавна улазна тачка. Конструише се једном са власником животног циклуса
+поверења и TSA callback-ом; поново се користи за више `sign()` позива.
+
+**Конструкција:**
 
 ```cpp
-// Fabrika — kreira konkretnu instancu servisa
-std::unique_ptr<SigningService> createSigningService(Backend backend);
-
-enum class Backend { Native, DSS };
+SigningService(std::shared_ptr<Trust::TrustStoreService> trustService,
+               TsaProvider tsa);
 ```
 
-**Metode:**
-
-| Metoda | Opis |
-|---|---|
-| `configure(const TrustConfig&)` | Učitavanje lista poverenja i konfiguracija opoziva. Opciono za B-B/B-T, obavezno za B-LT/B-LTA |
-| `sign(request, pkcs11Path, pin, keyAlias, tokenLabel)` | Potpisivanje dokumenta. Vraća `SigningResult` |
-| `isAvailable()` | Provera da li je backend funkcionalan |
-
-### SigningRequest
-
-Opisuje šta se potpisuje i kako.
-
-| Polje | Tip | Podrazumevano | Opis |
-|---|---|---|---|
-| `document` | `vector<uint8_t>` | — | Sirovi bajtovi dokumenta |
-| `fileName` | `string` | — | Originalno ime fajla (koristi se za detekciju formata u ASiC-E) |
-| `format` | `SignatureFormat` | `PAdES` | Ciljni format potpisa |
-| `packaging` | `SignaturePackaging` | `ENVELOPED` | Enveloped ili detached |
-| `level` | `SignatureLevel` | `B_T` | Nivo usklađenosti |
-| `tsa` | `TSAConfig` | — | Konfiguracija servera za vremenske pečate |
-| `visual` | `VisualSignatureParams` | onemogućeno | Vizuelni potpis (samo PAdES) |
-| `allowExpiredCertificate` | `bool` | `false` | Dozvoli potpisivanje isteklim sertifikatima (samo za testiranje) |
-
-### SigningResult
-
-| Polje | Tip | Opis |
-|---|---|---|
-| `success` | `bool` | Da li je potpisivanje uspelo |
-| `signedDocument` | `vector<uint8_t>` | Bajtovi potpisanog izlaza |
-| `errorMessage` | `string` | Poruka o grešci u slučaju neuspeha |
-
-### TrustConfig
-
-Konfiguracija za EU Trusted Lists, koristi se za B-LT i B-LTA nivoe.
-
-| Polje | Tip | Podrazumevano | Opis |
-|---|---|---|---|
-| `trustedLists` | `vector<TrustedListEntry>` | — | Izvori lista poverenja |
-| `cacheDirectory` | `string` | — | Keš na disku za preuzete liste |
-| `crlEnabled` | `bool` | `true` | Preuzimanje CRL-ova za proveru opoziva |
-| `ocspEnabled` | `bool` | `true` | Korišćenje OCSP-a za proveru opoziva |
-
-### TSAConfig
-
-| Polje | Tip | Podrazumevano | Opis |
-|---|---|---|---|
-| `url` | `string` | — | URL RFC 3161 servera za vremenske pečate |
-| `timeoutSeconds` | `int` | `10` | HTTP vremensko ograničenje za TSA zahteve |
-| `crlEnabled` | `bool` | `true` | CRL provera za B-LT/B-LTA |
-| `ocspEnabled` | `bool` | `true` | OCSP provera za B-LT/B-LTA |
-
----
-
-## Podrška za PKCS#11 tokene
-
-Engine za potpisivanje pristupa privatnim ključevima putem PKCS#11. Ne komunicira direktno sa smart karticama — sav I/O sa karticom prolazi kroz PKCS#11 modul.
-
-LibreMiddleware isporučuje sopstveni PKCS#11 modul (`librescrs-pkcs11.so`) koji podržava sve tipove kartica prepoznate od strane middleware sistema dodataka: srpski eID (CardEdge), PKCS#15-kompatibilne kartice, PIV i kartice podržane kroz OpenSC.
-
-Takođe možete koristiti bilo koji PKCS#11 modul treće strane (npr. `opensc-pkcs11.so` iz OpenSC-a).
-
-**Izbor tokena:** Prosledite `tokenLabel` string metodi `sign()` za izbor specifičnog PKCS#11 slota po oznaci. Ako je prazan, servis automatski detektuje prvi dostupan token.
-
-**Izbor ključa:** Parametar `keyAlias` se poklapa sa `CKA_LABEL` atributom na objektu privatnog ključa. Za srpske eID kartice, oznaka ključa za potpisivanje je obično `"SIGN"`.
-
-**Rukovanje PIN-om:** Parametar `pin` je `std::span<const uint8_t>` — pogled koji ne poseduje memoriju i koji upućuje na memoriju kojom upravlja pozivalac. U produkcionom kodu, čuvajte PIN u `smartcard::SecureBuffer` koji automatski briše memoriju pri destrukciji. Servis za potpisivanje ne zadržava PIN nakon povratka iz `sign()` poziva.
-
----
-
-## Tolerancija PDF ulaza
-
-Za PAdES potpisivanje, engine prati Adobe Acrobat Implementation Notes §H.3 pri obradi PDF ulaza, čime se ponaša isto kao Acrobat, Foxit, qpdf i pdfinfo:
-
-- Do **1024 bajta** ne-PDF prefiksa pre `%PDF-` zaglavlja se tolerišu i uklanjaju (npr. `multipart/form-data` omotač iz otpremanja preko veb formi).
-- Prateći podaci posle poslednjeg `%%EOF` se uklanjaju (opcioni jedan CR/LF se zadržava).
-- Kada `startxref` pokazuje na offset na kom se ne nalazi `xref` ključna reč (često nakon uklanjanja prefiksa, ili zbog greške generatora), engine prelazi na rezervno skeniranje poslednjih ~10 KB u potrazi za samostalnom `xref` ključnom rečju i ponovo pokušava.
-
-Ako prvih 1024 bajta ne sadrže `%PDF-` zaglavlje, ulaz se i dalje odbija sa porukom `Input is not a valid PDF (missing %PDF- header)`. Nisu potrebne izmene u pozivnom kodu — tolerancija se primenjuje interno u `PAdESModule::sign`.
-
----
-
-## Rukovanje greškama
-
-Metoda `sign()` vraća `SigningResult` umesto da baca izuzetke. Proverite `result.success` i pročitajte `result.errorMessage` u slučaju neuspeha:
+**Позив потписивања (4 аргумента, `[[nodiscard]]`):**
 
 ```cpp
-auto result = service->sign(request, pkcs11Path, pin, keyAlias);
-if (!result.success) {
-    // Uobičajene greške:
-    // - "PKCS#11 module not found"
-    // - "PIN verification failed"
-    // - "TSA server unreachable"
-    // - "Certificate has expired"
-    log(result.errorMessage);
+SigningResult sign(const SigningRequest& request,
+                   Auth::CredentialProvider credentialProvider,
+                   std::shared_ptr<Plugin::CardPlugin> cardPlugin,
+                   std::shared_ptr<SmartCard::CardSession> session);
+```
+
+Позив је блокирајући и thread-safe преко различитих `(cardPlugin, session)`
+парова. Null plugin или session, или празан `credentialProvider`, враћају
+`SigningResult::Status::InvalidRequest` уместо бацања изузетка.
+
+### `LibreSCRS::Trust::TrustStoreService`
+
+Власник животног циклуса trust store-а. Фабрика је `noexcept` и враћа
+`std::expected<std::shared_ptr<TrustStoreService>, CreateError>`. Eager
+Trusted-List преузимања раде на интерним радним нитима; корисници посматрају
+завршетак преко `status()`, `addObserver()` или блокирајућег
+`waitForEagerFetches()`.
+
+### `LibreSCRS::Signing::SigningRequest`
+
+Непроменљиви параметри потписивања, граде се преко угнежденог `Builder`-а.
+Кључна поља:
+
+| Метода builder-а | Опис |
+|---|---|
+| `document(bytes, fileName)` | Сирови бајтови документа и оригинално име фајла |
+| `format(SignatureFormat)` | PAdES / CAdES / XAdES / JAdES / ASiC-E |
+| `level(SignatureLevel)` | B-B / B-T / B-LT / B-LTA |
+| `visualSignature(VisualSignatureParams)` | PAdES визуелни потпис |
+| `tsaOverride(std::string url)` | TSA override по захтеву |
+| `allowExpiredCertificate(bool)` | Тест exception — задржите `false` у продукцији |
+
+### `LibreSCRS::Signing::SigningResult`
+
+| Поље | Тип | Опис |
+|---|---|---|
+| `status` | `Status` enum | Увек постављен; проверите пре читања payload-а |
+| `signedDocument` | `std::vector<std::uint8_t>` | Бајтови потписаног излаза при успеху |
+| `errorMessage` | `LocalizedText` | Локализован опис грешке |
+| `signerCertificate` | опциони сертификат | Сертификат који је потписао |
+
+### `LibreSCRS::Auth::CredentialProvider`
+
+`SyncProvider<CredentialResult, AuthRequirement>` — callable који обезбеђује
+хост, мапира `AuthRequirement` (шта картица треба) у `CredentialResult`
+(попуњени креденцијали, корисничко поништавање или грешка провајдера).
+Сервис за потписивање позива провајдер највише једном по откључавању
+картице.
+
+### `LibreSCRS::Plugin::CardPlugin` и `LibreSCRS::SmartCard::CardSession`
+
+Plugin покреће операције специфичне за картицу (APDU потписа, проналазак
+кључа) и добија се из `CardPluginService`-а. Сесија енкапсулира отворени
+PC/SC канал и добија се било преко монитора, било директно преко
+`CardSession::open(readerName, plugin)`. Сервис за потписивање држи
+дељено власништво над обоје за време трајања позива.
+
+---
+
+## PKCS#11 подршка
+
+Engine за потписивање приступа приватним кључевима кроз `CardPlugin` /
+`CardSession` апстракцију. Испод хаубе, слој додатака разговара са картицом
+преко LibreSCRS PKCS#11 модула (`librescrs-pkcs11.so`) плус одговарајућих
+драјвера специфичних за картицу — CardEdge, PKCS#15, PIV или OpenSC.
+
+Спољни корисници који већ директно покрећу PKCS#11 модул могу то да раде
+независно од `LibreSCRS::Signing`; јавни API за потписивање у 4.0
+намерно је PKCS#11-агностичан на споју (plugin + session).
+
+PIN никада не опстаје преко `sign()` позива — испоручује се картици преко
+`CredentialProvider`-а (за који се очекује да хост обезбеди подршком за
+нулирање при уништавању као што су `LibreSCRS::Secure::Buffer` /
+`LibreSCRS::Secure::String`) и одмах одбацује после `C_Login`-а.
+
+---
+
+## Толеранција PDF улаза
+
+За PAdES потписивање, engine прати Adobe Acrobat Implementation Notes §H.3
+при обради PDF улаза, чиме се понаша исто као Acrobat, Foxit, qpdf и
+pdfinfo:
+
+- До **1024 бајта** не-PDF префикса пре `%PDF-` заглавља се толеришу и
+  уклањају (нпр. `multipart/form-data` омотачи из веб форми).
+- Пратећи подаци после последњег `%%EOF` се уклањају (опциони један CR/LF
+  се задржава).
+- Када `startxref` показује на offset на ком се не налази `xref` кључна
+  реч (често након уклањања префикса или због грешке генератора), engine
+  прелази на резервно скенирање последњих ~10 KB у потрази за самосталном
+  `xref` кључном речју и поново покушава.
+
+Ако првих 1024 бајта не садрже `%PDF-` заглавље, улаз се и даље одбија са
+структурираним `InvalidRequest` резултатом. Нису потребне измене у позивном
+коду — толеранција се примењује интерно током PAdES обраде.
+
+---
+
+## Руковање грешкама
+
+`SigningService::sign()` враћа `SigningResult` уместо да баца изузетке.
+Проверите `result.status` и `result.errorMessage` у случају неуспеха:
+
+```cpp
+auto result = signingService->sign(request, pinProvider, cardPlugin, session);
+if (result.status != LibreSCRS::Signing::SigningResult::Status::Success) {
+    using S = LibreSCRS::Signing::SigningResult::Status;
+    switch (result.status) {
+        case S::TrustStoreUnavailable:  /* TL преузимање / конфиг одбијен */ break;
+        case S::InvalidRequest:         /* null plugin/session, празан PIN cb */ break;
+        case S::UserCancelled:          /* CredentialProvider вратио cancel */ break;
+        case S::PinVerificationFailed:  /* погрешан PIN */ break;
+        case S::CardCommunicationError: /* APDU / PC/SC слој */ break;
+        case S::TsaUnavailable:         /* B-T или виши захтеван, TSA није успео */ break;
+        case S::CertificateExpired:     /* сертификат потписника истекао */ break;
+        default: break;
+    }
+    log(result.errorMessage.defaultText);
 }
 ```
 
-Metoda `configure()` vraća `false` ako učitavanje liste poverenja ne uspe. Ovo nije fatalno za B-B i B-T nivoe (koji ne zahtevaju liste poverenja), ali će kasnije uzrokovati neuspeh potpisivanja na B-LT i B-LTA nivoima.
+`TrustStoreService::create()` је слично `[[nodiscard]] noexcept` и враћа
+`std::expected<…, CreateError>`. Провера резултата унапред чини путеве
+грешке експлицитним; ниједан изузетак никада не пропагира преко јавне API
+површине.

@@ -4,6 +4,8 @@ title: "Изградња из изворног кода"
 description: "Предуслови, упутства за изградњу и покретање тестова"
 ---
 
+Тренутне опције изградње одражавају LibreSCRS 4.1; основа 4.0 подржавала је само STATIC изградњу.
+
 ## Предуслови
 
 | Зависност | Верзија | Напомена |
@@ -59,6 +61,34 @@ cmake --build build
 ```
 
 На овај начин се измене у LibreMiddleware-у одмах преузимају без потребе за commit-овањем или push-овањем.
+
+---
+
+## Опције изградње (LibreMiddleware 4.1)
+
+LibreMiddleware 4.1.0 увео је две опције система за изградњу које утичу на пакување и употребу са стране клијената.
+
+`LIBREMIDDLEWARE_BUILD_SHARED` (`ON` | `OFF`, подразумевано `OFF`) бира врсту библиотеке. Када је `ON`, сваки `LibreSCRS_*` циљ се гради као `.so`/`.dylib`, што је неопходно за LibreKDE и друге 4.x клијенте који LibreMiddleware учитавају као зависност током извршавања. Када је `OFF`, граде се статичке архиве.
+
+`LIBREMIDDLEWARE_INSTALL_P11KIT_MODULE` (подразумевано `ON`) инсталира `packaging/librescrs.module` у `${CMAKE_INSTALL_DATADIR}/p11-kit/modules/`. Након `cmake --install`, апликације које препознају p11-kit (Firefox, Chromium, GnuPG-gpgsm, Kleopatra, Thunderbird, Evolution) аутоматски проналазе `librescrs-pkcs11.so` без подешавања по апликацији.
+
+CMake Config пакет (`LibreMiddlewareConfig.cmake`) се генерише и инсталира **само** када је `LIBREMIDDLEWARE_BUILD_SHARED=ON`. Клијентски CMake пројекти којима је потребан `find_package(LibreMiddleware CONFIG)` морају стога да конфигуришу горњу изградњу са `-DLIBREMIDDLEWARE_BUILD_SHARED=ON` и да покрену `cmake --install`.
+
+Једном инсталиран, LibreMiddleware се у клијентским CMake пројектима користи преко свог config пакета:
+
+```cmake
+find_package(LibreMiddleware CONFIG REQUIRED)
+
+add_executable(my_consumer main.cpp)
+target_link_libraries(my_consumer PRIVATE
+    LibreSCRS::SmartCard
+    LibreSCRS::Pkcs11Inject
+)
+```
+
+`LibreSCRS::*` ALIAS циљеви чине јавну површину; повежите се са њима, а не са основним именима CMake циљева.
+
+Статичка изградња остаје подразумевана ради компатибилности са линијом издања 4.0.
 
 ---
 

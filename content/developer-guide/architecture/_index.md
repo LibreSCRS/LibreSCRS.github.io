@@ -22,6 +22,8 @@ public API that hides internal libraries behind PascalCase namespaces:
 | `LibreSCRS::SmartCard` | `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` — PC/SC + monitor |
 | `LibreSCRS::Plugin` | `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `ReadResult` |
 | `LibreSCRS::Auth` | `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult` |
+| `LibreSCRS::SecureChannel` | `LibreSCRS::SecureChannel` | `ISecureChannel`, `PaceChannel`, `BacChannel`, `PlainChannel` — cross-plugin secure messaging (introduced in 4.1) |
+| `LibreSCRS::Pkcs11Inject` | `LibreSCRS::Pkcs11` | `SessionAttachment` + `AttachHook` C ABI — in-process PKCS#11 session injection (introduced in 4.1) |
 | `LibreSCRS::Certificate` | `LibreSCRS::Certificate` | X.509 certificate parsing and metadata |
 | `LibreSCRS::Trust` | `LibreSCRS::Trust` | `TrustStoreService`, `TrustStore`, `TrustConfig` |
 | `LibreSCRS::Signing` | `LibreSCRS::Signing` | `SigningService`, `SigningRequest`, `SigningResult`, `VisualSignatureLayout` |
@@ -39,12 +41,10 @@ and should not be linked directly by downstream code.
 | `rs-eid` | Serbian eID card API with card reader implementations (Apollo 2008, Gemalto 2014+, Foreigner IF2020) |
 | `eu-vrc` | EU Vehicle Registration Certificate (Directive 2003/127/EC) |
 | `rs-health` | Serbian health insurance card (RFZO) |
-| `cardedge` | CardEdge PKI applet for Serbian smart cards — certificates, PIN management, digital signing |
 | `emrtd` | eMRTD e-passport communication — data group reading, MRZ parsing |
 | `emrtd-crypto` | eMRTD cryptography — BAC, PACE (ECDH-GM), Secure Messaging |
-| `piv` | PIV card communication (NIST SP 800-73) |
 | `pkcs11` | PKCS#11 shared library (`librescrs-pkcs11`) — supports all card types |
-| `*-plugin` | Card plugins (`.so`): rs-eid, rs-health, eu-vrc, emrtd, piv, pkcs15, cardedge, opensc |
+| `*-plugin` | Card plugins (`.so`): rs-eid, rs-health, eu-vrc, emrtd, pkcs15, opensc. CardEdge and PIV cards are routed through `opensc-plugin` against the vendored OpenSC drivers — no dedicated bucket-B library |
 
 ### LibreCelik (GPL-3.0)
 
@@ -101,11 +101,11 @@ The entire system is built around plugins. There are two independent plugin laye
 │  │           Middleware Plugins (.so)                │   │
 │  │ ┌─────────┐ ┌──────────┐ ┌───────────────────┐ │   │
 │  │ │ rs-eid  │ │  emrtd   │ │     opensc         │ │   │
-│  │ ├─────────┤ ├──────────┤ │ (PKI fallback)     │ │   │
-│  │ │ eu-vrc  │ │ cardedge │ └───────────────────┘ │   │
-│  │ ├─────────┤ ├──────────┤ ┌───────────────────┐ │   │
-│  │ │rs-health│ │   piv    │ │     pkcs15         │ │   │
-│  │ └─────────┘ └──────────┘ └───────────────────┘ │   │
+│  │ ├─────────┤ └──────────┘ │ (CardEdge, PIV,    │ │   │
+│  │ │ eu-vrc  │ ┌──────────┐ │  PKI fallback)     │ │   │
+│  │ ├─────────┤ │ pkcs15   │ └───────────────────┘ │   │
+│  │ │rs-health│ └──────────┘                       │   │
+│  │ └─────────┘                                    │   │
 │  └─────────────────────────────────────────────────┘   │
 │                          │                             │
 │                          │ APDU (ISO 7816-4)           │
@@ -259,9 +259,11 @@ this surface; all other namespaces are internal.
 
 | Namespace | Scope |
 |---|---|
-| `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` — PC/SC + card-event monitor |
+| `LibreSCRS::SmartCard` | `CardSession`, `MonitorService`, `ActiveChannelHolder`, `SmProtocolRequest`, `CardMap` — PC/SC + card-event monitor + SM activation |
 | `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `ReadResult`, `AutoReaderService` |
-| `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult`, `FieldDescriptor` |
+| `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult`, `FieldDescriptor`, `PaceSecretKind` |
+| `LibreSCRS::SecureChannel` | `ISecureChannel`, `PaceChannel`, `BacChannel`, `PlainChannel`, `SessionKeys`, `PACEParams`, `BacInput` — cross-plugin secure messaging (introduced in 4.1) |
+| `LibreSCRS::Pkcs11` | `SessionAttachment` + C ABI (`AttachHook.h`) — in-process PKCS#11 session injection (introduced in 4.1) |
 | `LibreSCRS::Certificate` | X.509 certificate parsing and metadata |
 | `LibreSCRS::Trust` | `TrustStoreService`, `TrustStore`, `TrustConfig` |
 | `LibreSCRS::Signing` | `SigningService`, `SigningRequest`, `SigningResult`, `VisualSignatureLayout` |
@@ -281,10 +283,8 @@ and signatures may change between releases.
 | `eidcard::` | Serbian eID internal types |
 | `euvrc::` | EU Vehicle Registration internal types |
 | `healthcard::` | Serbian health insurance internal types |
-| `cardedge::` | CardEdge PKI applet internal types |
 | `emrtd::` | eMRTD internal data structures and MRZ parsing |
 | `emrtd::crypto` | eMRTD cryptography — BAC, PACE, Secure Messaging |
-| `piv::` | PIV internal types |
 | `pkcs15::` | PKCS#15 internal parser types |
 | `libresign::` | Signing engine internals (PAdES / XAdES / JAdES / CAdES / ASiC-E) |
 

@@ -12,7 +12,7 @@ Any passport or national ID card compliant with ICAO 9303. PACE and BAC authenti
 
 ### Serbian eID
 
-Gemalto 2014+, IF2020 Foreigner. Personal data, address, document info, photo. Digital signature certificates and PIN management via CardEdge.
+Gemalto 2014+, IF2020 Foreigner. Personal data, address, document info, photo. Digital signature certificates and PIN management via OpenSC srbeid (Gemalto 2014+) and PKCS#15 (Apollo 2008, IF2020 Foreigner).
 
 ### Serbian Vehicle Registration (EU VRC)
 
@@ -28,7 +28,7 @@ US federal ID standard. Certificates, photo, fingerprints, PIN management.
 
 ### PKCS#15 Compatible Cards
 
-Generic PKI standard for certificate discovery, PIN management, and digital signing. Covers Gemalto, CardEdge, and other compliant cards — including PKI on eMRTD-capable national ID cards.
+Generic PKI standard for certificate discovery, PIN management, and digital signing. Covers Gemalto and other compliant cards — including PKI on eMRTD-capable national ID cards.
 
 ---
 
@@ -40,14 +40,14 @@ Generic PKI standard for certificate discovery, PIN management, and digital sign
 - **Multi-PIN management** — cards with multiple PINs (e.g., separate authentication and signing PINs) show each PIN's status and allow independent change.
 - **Plugin architecture** — add support for new card types by dropping in a shared library. Both middleware (card communication) and GUI (data display) are extensible.
 - **Multilingual** — English and Serbian (Cyrillic) interface.
-- **PKCS#11 module** — universal cryptographic token interface supporting CardEdge, PKCS#15, and PIV cards. Use in Firefox, Chrome, SSH, and email signing.
+- **PKCS#11 module** — universal cryptographic token interface supporting OpenSC-backed PKI cards (Serbian eID/PKS, PIV, generic PKCS#15). Use in Firefox, Chrome, SSH, and email signing.
 - **OpenSC integration** — Serbian CardEdge driver merged into OpenSC mainline. External driver available for current OpenSC releases.
 
 ---
 
 ## For Developers
 
-LibreMiddleware is a set of C++23 static libraries with no Qt dependency. Use them to build your own smart card application.
+LibreMiddleware is a set of C++23 libraries (static or shared build, with CMake Config package and p11-kit auto-registration) with no Qt dependency. Use them to build your own smart card application.
 
 - Plugin API for adding new card types
 - Streaming card read API

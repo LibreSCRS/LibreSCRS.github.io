@@ -4,6 +4,8 @@ title: "Building From Source"
 description: "Prerequisites, build instructions, and running tests"
 ---
 
+Current build options reflect LibreSCRS 4.1; the 4.0 baseline supported only the STATIC build.
+
 ## Prerequisites
 
 | Dependency | Version | Notes |
@@ -59,6 +61,34 @@ cmake --build build
 ```
 
 This way changes to LibreMiddleware are picked up immediately without committing or pushing.
+
+---
+
+## Build options (LibreMiddleware 4.1)
+
+LibreMiddleware 4.1.0 introduced two build-system options that affect packaging and downstream consumption.
+
+`LIBREMIDDLEWARE_BUILD_SHARED` (`ON` | `OFF`, default `OFF`) selects the library kind. When `ON`, every `LibreSCRS_*` target is built as a `.so`/`.dylib`, which is required for LibreKDE and other 4.x downstream consumers that load LibreMiddleware as a runtime dependency. When `OFF`, the static archives are produced.
+
+`LIBREMIDDLEWARE_INSTALL_P11KIT_MODULE` (default `ON`) installs `packaging/librescrs.module` to `${CMAKE_INSTALL_DATADIR}/p11-kit/modules/`. After `cmake --install`, p11-kit-aware applications (Firefox, Chromium, GnuPG-gpgsm, Kleopatra, Thunderbird, Evolution) discover `librescrs-pkcs11.so` automatically with no per-application configuration.
+
+The CMake Config package (`LibreMiddlewareConfig.cmake`) is generated and installed **only** when `LIBREMIDDLEWARE_BUILD_SHARED=ON`. Downstream CMake projects that need `find_package(LibreMiddleware CONFIG)` must therefore configure the upstream build with `-DLIBREMIDDLEWARE_BUILD_SHARED=ON` and run `cmake --install` first.
+
+Once installed, downstream CMake projects consume LibreMiddleware through its config package:
+
+```cmake
+find_package(LibreMiddleware CONFIG REQUIRED)
+
+add_executable(my_consumer main.cpp)
+target_link_libraries(my_consumer PRIVATE
+    LibreSCRS::SmartCard
+    LibreSCRS::Pkcs11Inject
+)
+```
+
+The `LibreSCRS::*` ALIAS targets are the public surface; link against them rather than the underlying CMake target names.
+
+The static build remains the default for compatibility with the 4.0 release line.
 
 ---
 

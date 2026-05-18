@@ -27,9 +27,10 @@ sudo ldconfig
 
 > **Note:** automatic system-wide p11-kit module discovery (so applications
 > like Kleopatra, GnuPG-gpgsm, Firefox, Chromium, Thunderbird and Evolution
-> pick up LibreSCRS cards without any per-application configuration) ships
-> in the **next release** of LibreMiddleware. With 4.0.0 you still need to
-> point each application at `librescrs-pkcs11.so` manually as shown below.
+> pick up LibreSCRS cards without any per-application configuration) shipped
+> in LibreMiddleware 4.1.0-dev (build the 4.1 branch from source for now;
+> bundled in next stable release). With 4.0.0 you still need to point each
+> application at `librescrs-pkcs11.so` manually as shown below.
 
 ### macOS
 

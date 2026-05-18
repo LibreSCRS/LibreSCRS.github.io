@@ -280,7 +280,7 @@ service invokes the provider at most once per card unlock.
 The plugin drives card-specific operations (signing APDUs, key discovery)
 and is obtained from `CardPluginService`. The session encapsulates an open
 PC/SC channel and is obtained either through the monitor flow or directly
-via `CardSession::open(readerName, plugin)`. The signing service holds
+via `CardSession::open(readerName)`. The signing service holds
 shared ownership of both for the duration of the call.
 
 ---

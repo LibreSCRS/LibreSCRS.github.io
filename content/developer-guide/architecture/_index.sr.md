@@ -22,6 +22,8 @@ LibreSCRS се састоји од два главна пројекта који
 | `LibreSCRS::SmartCard` | `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` — PC/SC + монитор |
 | `LibreSCRS::Plugin` | `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `ReadResult` |
 | `LibreSCRS::Auth` | `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult` |
+| `LibreSCRS::SecureChannel` | `LibreSCRS::SecureChannel` | `ISecureChannel`, `PaceChannel`, `BacChannel`, `PlainChannel` — међу-додатачко безбедно слање порука (уведено у 4.1) |
+| `LibreSCRS::Pkcs11Inject` | `LibreSCRS::Pkcs11` | `SessionAttachment` + `AttachHook` C ABI — у-процесно убацивање PKCS#11 сесије (уведено у 4.1) |
 | `LibreSCRS::Certificate` | `LibreSCRS::Certificate` | Парсирање и метаподаци X.509 сертификата |
 | `LibreSCRS::Trust` | `LibreSCRS::Trust` | `TrustStoreService`, `TrustStore`, `TrustConfig` |
 | `LibreSCRS::Signing` | `LibreSCRS::Signing` | `SigningService`, `SigningRequest`, `SigningResult`, `VisualSignatureLayout` |
@@ -39,12 +41,10 @@ LibreSCRS се састоји од два главна пројекта који
 | `rs-eid` | API за српску eID картицу са имплементацијама читача (Apollo 2008, Gemalto 2014+, Foreigner IF2020) |
 | `eu-vrc` | ЕУ саобраћајна дозвола (Директива 2003/127/EC) |
 | `rs-health` | Картица српског здравственог осигурања (РФЗО) |
-| `cardedge` | CardEdge PKI аплет за српске смарт картице — сертификати, управљање PIN-ом, дигитално потписивање |
 | `emrtd` | eMRTD комуникација са е-пасошем — читање група података, парсирање MRZ-а |
 | `emrtd-crypto` | eMRTD криптографија — BAC, PACE (ECDH-GM), Secure Messaging |
-| `piv` | PIV комуникација са картицом (NIST SP 800-73) |
 | `pkcs11` | PKCS#11 дељена библиотека (`librescrs-pkcs11`) — подржава све типове картица |
-| `*-plugin` | Додаци за картице (`.so`): rs-eid, rs-health, eu-vrc, emrtd, piv, pkcs15, cardedge, opensc |
+| `*-plugin` | Додаци за картице (`.so`): rs-eid, rs-health, eu-vrc, emrtd, pkcs15, opensc. CardEdge и PIV картице се рутирају кроз `opensc-plugin` користећи vendored OpenSC драјвере — нема посебне bucket-B библиотеке |
 
 ### LibreCelik (GPL-3.0)
 
@@ -101,11 +101,11 @@ LibreCelik преузима LibreMiddleware преко CMake `FetchContent`. З�
 │  │         Middleware додаци (.so)                   │   │
 │  │ ┌─────────┐ ┌──────────┐ ┌───────────────────┐ │   │
 │  │ │ rs-eid  │ │  emrtd   │ │     opensc         │ │   │
-│  │ ├─────────┤ ├──────────┤ │ (PKI резервна)     │ │   │
-│  │ │ eu-vrc  │ │ cardedge │ └───────────────────┘ │   │
-│  │ ├─────────┤ ├──────────┤ ┌───────────────────┐ │   │
-│  │ │rs-health│ │   piv    │ │     pkcs15         │ │   │
-│  │ └─────────┘ └──────────┘ └───────────────────┘ │   │
+│  │ ├─────────┤ └──────────┘ │ (CardEdge, PIV,    │ │   │
+│  │ │ eu-vrc  │ ┌──────────┐ │  PKI резервна)     │ │   │
+│  │ ├─────────┤ │ pkcs15   │ └───────────────────┘ │   │
+│  │ │rs-health│ └──────────┘                       │   │
+│  │ └─────────┘                                    │   │
 │  └─────────────────────────────────────────────────┘   │
 │                          │                             │
 │                          │ APDU (ISO 7816-4)           │
@@ -259,9 +259,11 @@ PascalCase именским просторима. Свако заглавље и
 
 | Простор имена | Опсег |
 |---|---|
-| `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` — PC/SC + монитор догађаја картице |
+| `LibreSCRS::SmartCard` | `CardSession`, `MonitorService`, `ActiveChannelHolder`, `SmProtocolRequest`, `CardMap` — PC/SC + монитор догађаја картице + активација безбедних канала |
 | `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `ReadResult`, `AutoReaderService` |
-| `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult`, `FieldDescriptor` |
+| `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult`, `FieldDescriptor`, `PaceSecretKind` |
+| `LibreSCRS::SecureChannel` | `ISecureChannel`, `PaceChannel`, `BacChannel`, `PlainChannel`, `SessionKeys`, `PACEParams`, `BacInput` — међу-додатачко безбедно слање порука (уведено у 4.1) |
+| `LibreSCRS::Pkcs11` | `SessionAttachment` + C ABI (`AttachHook.h`) — убацивање PKCS#11 сесије унутар процеса (уведено у 4.1) |
 | `LibreSCRS::Certificate` | Парсирање и метаподаци X.509 сертификата |
 | `LibreSCRS::Trust` | `TrustStoreService`, `TrustStore`, `TrustConfig` |
 | `LibreSCRS::Signing` | `SigningService`, `SigningRequest`, `SigningResult`, `VisualSignatureLayout` |
@@ -281,10 +283,8 @@ PascalCase именским просторима. Свако заглавље и
 | `eidcard::` | Интерни типови за српску еИД картицу |
 | `euvrc::` | Интерни типови за ЕУ саобраћајну дозволу |
 | `healthcard::` | Интерни типови за здравствену картицу |
-| `cardedge::` | Интерни типови CardEdge PKI аплета |
 | `emrtd::` | eMRTD интерне структуре података и парсирање MRZ-а |
 | `emrtd::crypto` | eMRTD криптографија — BAC, PACE, Secure Messaging |
-| `piv::` | PIV интерни типови |
 | `pkcs15::` | PKCS#15 интерни типови парсера |
 | `libresign::` | Унутрашњи engine за потписивање (PAdES / XAdES / JAdES / CAdES / ASiC-E) |
 

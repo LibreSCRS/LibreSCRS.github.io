@@ -3,7 +3,7 @@ title: "About"
 layout: "simple"
 ---
 
-LibreSCRS started as a reverse-engineering effort to liberate Serbian government smart cards from Windows-only proprietary software. Through protocol analysis and AI-assisted development, we built open-source tools that now support any smart card — from national eIDs to vehicle registration documents and eMRTD e-passports.
+LibreSCRS started as a reverse-engineering effort to liberate Serbian government smart cards from Windows-only proprietary software. Through protocol analysis and AI-assisted development, we built open-source tools that now support a wide range of smart cards (national eIDs, PIV, eMRTD passports, vehicle registration, PKCS#15 PKI cards).
 
 ---
 

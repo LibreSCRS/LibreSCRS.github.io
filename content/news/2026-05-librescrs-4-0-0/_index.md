@@ -1,7 +1,7 @@
 ---
 title: "LibreSCRS 4.0.0 — first stable of the 4.0 cycle"
 date: 2026-05-11
-summary: "LibreMiddleware 4.0.0 + LibreCelik 4.0.0 released. C++23 core, ABI v6, native PAdES/XAdES/JAdES/CAdES/ASiC-E signing, RFC 5280 trust chain, eMRTD PACE, Serbian eID + AET SafeSign + GEO testna + PIV + generic PKCS#15 cards."
+summary: "LibreMiddleware 4.0.0 + LibreCelik 4.0.0 released. C++23 core, ABI v6, native PAdES/XAdES/JAdES/CAdES/ASiC-E signing, RFC 5280 trust chain, eMRTD PACE, Serbian eID + AET SafeSign + PIV + generic PKCS#15 cards."
 draft: false
 ---
 

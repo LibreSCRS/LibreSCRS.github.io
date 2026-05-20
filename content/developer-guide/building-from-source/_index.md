@@ -68,7 +68,7 @@ This way changes to LibreMiddleware are picked up immediately without committing
 
 LibreMiddleware 4.1.0 introduced two build-system options that affect packaging and downstream consumption.
 
-`LIBREMIDDLEWARE_BUILD_SHARED` (`ON` | `OFF`, default `OFF`) selects the library kind. When `ON`, every `LibreSCRS_*` target is built as a `.so`/`.dylib`, which is required for LibreKDE and other 4.x downstream consumers that load LibreMiddleware as a runtime dependency. When `OFF`, the static archives are produced.
+`LIBREMIDDLEWARE_BUILD_SHARED` (`ON` | `OFF`, default `OFF`) selects the library kind. When `ON`, every `LibreSCRS_*` target is built as a `.so`/`.dylib`, which is required for downstream 4.x consumers (including the planned LibreKDE host) that load LibreMiddleware as a runtime dependency. When `OFF`, the static archives are produced.
 
 `LIBREMIDDLEWARE_INSTALL_P11KIT_MODULE` (default `ON`) installs `packaging/librescrs.module` to `${CMAKE_INSTALL_DATADIR}/p11-kit/modules/`. After `cmake --install`, p11-kit-aware applications (Firefox, Chromium, GnuPG-gpgsm, Kleopatra, Thunderbird, Evolution) discover `librescrs-pkcs11.so` automatically with no per-application configuration.
 

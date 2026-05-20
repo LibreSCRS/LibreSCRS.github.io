@@ -68,7 +68,7 @@ cmake --build build
 
 LibreMiddleware 4.1.0 увео је две опције система за изградњу које утичу на пакување и употребу са стране клијената.
 
-`LIBREMIDDLEWARE_BUILD_SHARED` (`ON` | `OFF`, подразумевано `OFF`) бира врсту библиотеке. Када је `ON`, сваки `LibreSCRS_*` циљ се гради као `.so`/`.dylib`, што је неопходно за LibreKDE и друге 4.x клијенте који LibreMiddleware учитавају као зависност током извршавања. Када је `OFF`, граде се статичке архиве.
+`LIBREMIDDLEWARE_BUILD_SHARED` (`ON` | `OFF`, подразумевано `OFF`) бира врсту библиотеке. Када је `ON`, сваки `LibreSCRS_*` циљ се гради као `.so`/`.dylib`, што је неопходно за 4.x клијенте (укључујући планирани LibreKDE интерфејс) који LibreMiddleware учитавају као зависност током извршавања. Када је `OFF`, граде се статичке архиве.
 
 `LIBREMIDDLEWARE_INSTALL_P11KIT_MODULE` (подразумевано `ON`) инсталира `packaging/librescrs.module` у `${CMAKE_INSTALL_DATADIR}/p11-kit/modules/`. Након `cmake --install`, апликације које препознају p11-kit (Firefox, Chromium, GnuPG-gpgsm, Kleopatra, Thunderbird, Evolution) аутоматски проналазе `librescrs-pkcs11.so` без подешавања по апликацији.
 

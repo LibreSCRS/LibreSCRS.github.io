@@ -1,7 +1,7 @@
 ---
 title: "LibreSCRS 4.0.0 — прво стабилно издање 4.0 циклуса"
 date: 2026-05-11
-summary: "LibreMiddleware 4.0.0 + LibreCelik 4.0.0 објављени. C++23 језгро, ABI v6, нативно PAdES/XAdES/JAdES/CAdES/ASiC-E потписивање, RFC 5280 ланац поверења, eMRTD PACE, лична карта Србије + AET SafeSign + ГЕО тестна + PIV + генеричке PKCS#15 картице."
+summary: "LibreMiddleware 4.0.0 + LibreCelik 4.0.0 објављени. C++23 језгро, ABI v6, нативно PAdES/XAdES/JAdES/CAdES/ASiC-E потписивање, RFC 5280 ланац поверења, eMRTD PACE, лична карта Србије + AET SafeSign + PIV + генеричке PKCS#15 картице."
 draft: false
 ---
 

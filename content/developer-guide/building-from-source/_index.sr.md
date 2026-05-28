@@ -4,7 +4,7 @@ title: "Изградња из изворног кода"
 description: "Предуслови, упутства за изградњу и покретање тестова"
 ---
 
-Тренутне опције изградње одражавају LibreSCRS 4.1; основа 4.0 подржавала је само STATIC изградњу.
+Тренутне опције изградње одражавају LibreSCRS 4.2; основа 4.0 подржавала је само STATIC изградњу.
 
 ## Предуслови
 
@@ -64,9 +64,9 @@ cmake --build build
 
 ---
 
-## Опције изградње (LibreMiddleware 4.1)
+## Опције изградње (LibreMiddleware 4.2)
 
-LibreMiddleware 4.1.0 увео је две опције система за изградњу које утичу на пакување и употребу са стране клијената.
+LibreMiddleware 4.1.0 увео је две опције система за изградњу које утичу на пакување и употребу са стране клијената; оне се непромењене преносе у 4.2.
 
 `LIBREMIDDLEWARE_BUILD_SHARED` (`ON` | `OFF`, подразумевано `OFF`) бира врсту библиотеке. Када је `ON`, сваки `LibreSCRS_*` циљ се гради као `.so`/`.dylib`, што је неопходно за 4.x клијенте (укључујући планирани LibreKDE интерфејс) који LibreMiddleware учитавају као зависност током извршавања. Када је `OFF`, граде се статичке архиве.
 
@@ -82,7 +82,7 @@ find_package(LibreMiddleware CONFIG REQUIRED)
 add_executable(my_consumer main.cpp)
 target_link_libraries(my_consumer PRIVATE
     LibreSCRS::SmartCard
-    LibreSCRS::Pkcs11Inject
+    LibreSCRS::Signing
 )
 ```
 

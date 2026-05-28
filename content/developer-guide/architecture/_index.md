@@ -19,11 +19,10 @@ public API that hides internal libraries behind PascalCase namespaces:
 
 | Target | Namespace | Purpose |
 |---|---|---|
-| `LibreSCRS::SmartCard` | `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` — PC/SC + monitor |
-| `LibreSCRS::Plugin` | `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `ReadResult` |
+| `LibreSCRS::SmartCard` | `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` (reader-list snapshot API since 4.2), `CardMap` — PC/SC + monitor |
+| `LibreSCRS::Plugin` | `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `CardDataAccess` (`textValue` / `textValueAt`, since 4.2), `ReadResult` |
 | `LibreSCRS::Auth` | `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult` |
 | `LibreSCRS::SecureChannel` | `LibreSCRS::SecureChannel` | `ISecureChannel`, `PaceChannel`, `BacChannel`, `PlainChannel` — cross-plugin secure messaging (introduced in 4.1) |
-| `LibreSCRS::Pkcs11Inject` | `LibreSCRS::Pkcs11` | `SessionAttachment` + `AttachHook` C ABI — in-process PKCS#11 session injection (introduced in 4.1) |
 | `LibreSCRS::Certificate` | `LibreSCRS::Certificate` | X.509 certificate parsing and metadata |
 | `LibreSCRS::Trust` | `LibreSCRS::Trust` | `TrustStoreService`, `TrustStore`, `TrustConfig` |
 | `LibreSCRS::Signing` | `LibreSCRS::Signing` | `SigningService`, `SigningRequest`, `SigningResult`, `VisualSignatureLayout` |
@@ -43,7 +42,7 @@ and should not be linked directly by downstream code.
 | `rs-health` | Serbian health insurance card (RFZO) |
 | `emrtd` | eMRTD e-passport communication — data group reading, MRZ parsing |
 | `emrtd-crypto` | eMRTD cryptography — BAC, PACE (ECDH-GM), Secure Messaging |
-| `pkcs11` | PKCS#11 shared library (`librescrs-pkcs11`) — supports all card types |
+| `pkcs11` | PKCS#11 shared library (`librescrs-pkcs11`) — surfaces the PKCS#15 / OpenSC-bound card families (see Supported cards) as PKCS#11 tokens |
 | `*-plugin` | Card plugins (`.so`): rs-eid, rs-health, eu-vrc, emrtd, pkcs15, opensc. CardEdge and PIV cards are routed through `opensc-plugin` against the vendored OpenSC drivers — no dedicated bucket-B library |
 
 ### LibreCelik (GPL-3.0)
@@ -253,17 +252,16 @@ The complete flow when a smart card is inserted:
 
 ### Public API (`LibreSCRS::*`)
 
-The 4.0 public consumer surface lives under the `LibreSCRS::` root in
+The public consumer surface lives under the `LibreSCRS::` root in
 PascalCase namespaces. Every header under `include/LibreSCRS/` belongs to
 this surface; all other namespaces are internal.
 
 | Namespace | Scope |
 |---|---|
-| `LibreSCRS::SmartCard` | `CardSession`, `MonitorService`, `ActiveChannelHolder`, `SmProtocolRequest`, `CardMap` — PC/SC + card-event monitor + SM activation |
-| `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `ReadResult`, `AutoReaderService` |
+| `LibreSCRS::SmartCard` | `CardSession`, `MonitorService` (`subscribeReaderList` snapshot API since 4.2), `ActiveChannelHolder`, `SmProtocolRequest`, `CardMap` — PC/SC + card-event monitor + SM activation |
+| `LibreSCRS::Plugin` | `CardPlugin`, `CardPluginService`, `CardData`, `CardDataAccess` (`textValue` / `textValueAt`, since 4.2), `ReadResult`, `AutoReaderService` |
 | `LibreSCRS::Auth` | `CredentialProvider`, `AuthRequirement`, `CredentialResult`, `FieldDescriptor`, `PaceSecretKind` |
 | `LibreSCRS::SecureChannel` | `ISecureChannel`, `PaceChannel`, `BacChannel`, `PlainChannel`, `SessionKeys`, `PACEParams`, `BacInput` — cross-plugin secure messaging (introduced in 4.1) |
-| `LibreSCRS::Pkcs11` | `SessionAttachment` + C ABI (`AttachHook.h`) — in-process PKCS#11 session injection (introduced in 4.1) |
 | `LibreSCRS::Certificate` | X.509 certificate parsing and metadata |
 | `LibreSCRS::Trust` | `TrustStoreService`, `TrustStore`, `TrustConfig` |
 | `LibreSCRS::Signing` | `SigningService`, `SigningRequest`, `SigningResult`, `VisualSignatureLayout` |

@@ -28,7 +28,7 @@ US federal ID standard. Certificates, photo, fingerprints, PIN management.
 
 ### PKCS#15 Compatible Cards
 
-Generic PKI standard for certificate discovery, PIN management, and digital signing. Covers Gemalto and other compliant cards — including PKI on eMRTD-capable national ID cards.
+Generic PKI standard for certificate discovery, PIN management, and digital signing. Covers Gemalto, AET SafeSign QSCD (Infineon), and other compliant cards — including PKI on eMRTD-capable national ID cards.
 
 ---
 

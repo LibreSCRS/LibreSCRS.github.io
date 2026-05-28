@@ -13,14 +13,16 @@ LibreSCRS started as a reverse-engineering effort to liberate Serbian government
 2. **Early 2026** — LibreMiddleware extracted as standalone Qt-free library (no Qt dependency)
 3. **Early 2026** — PKCS#11 module ships; OpenSC Serbian eID driver contributed upstream (PR #3595, merged)
 4. **Early 2026** — Plugin architecture: both middleware and GUI become card-agnostic
-5. **2026** — eMRTD, PKCS#15, and PIV support: e-passports, any PKCS#15-based PKI card, PIV smart cards. PKCS#11 module generalized to support all card types. Universal toolkit.
+5. **2026** — eMRTD, PKCS#15, and PIV support: e-passports, PKCS#15-based PKI cards, PIV smart cards. PKCS#11 module generalized across the supported card families.
 6. **May 2026** — **4.0.0 release**: C++23 core, native PAdES / XAdES / JAdES / CAdES / ASiC-E signing, RFC 5280 trust chain validation, eIDAS qcStatements conformance, auto-fit visual signature layout.
+7. **May 2026** — **4.1.0 release**: Card+Slot model fixing multi-card PIN routing, multi-PIN PKCS#11 dispatch, cross-plugin secure channels (PACE / BAC / plain), and in-process PKCS#11 session sharing.
+8. **May 2026** — **4.2.0 release**: Qt-free reader-list snapshot API and CardData accessors, automatic in-process session sharing via the SessionPresence registry, AET SafeSign QSCD support, and a fail-closed bundled-license check.
 
 ---
 
 ## The Story
 
-There was no native Linux application that could read all types of Serbian government smart cards. Existing open-source projects — JFreesteel (Java) and Bas Celik (Go) — proved that reading citizen data from eID cards was possible without proprietary software, but they focused on demographic data. Nobody had tackled the cryptographic side: the CardEdge PKI applet that handles certificates, digital signatures, and PIN management. LibreSCRS set out to cover both — data reading and full PKI support — across all Serbian card types, on Linux, macOS, and Windows.
+There was no native Linux application that could read all types of Serbian government smart cards. Existing open-source projects — JFreesteel (Java) and Bas Celik (Go) — proved that reading citizen data from eID cards was possible without proprietary software, but they focused on demographic data. Nobody had tackled the cryptographic side: the CardEdge PKI applet that handles certificates, digital signatures, and PIN management. LibreSCRS set out to cover both — data reading and full PKI support — across all Serbian card types, on Linux and macOS.
 
 Serbian eID cards have no public protocol documentation. The approach was straightforward: trace what the proprietary Windows software does over PC/SC, capture the APDU sequences, and work out the protocol from there. Vehicle registration cards follow the EU Directive 2003/127/EC standard, so their structure was well-defined from the start. Health insurance cards have their own layout. PKS qualified signature cards from the Chamber of Commerce use CardEdge for cryptographic operations but carry no demographic data at all. Each card type meant testing against real hardware until the protocol was understood.
 

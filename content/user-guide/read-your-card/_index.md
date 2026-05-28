@@ -15,7 +15,7 @@ LibreCelik automatically detects the type of card you insert and displays the ap
 | Health insurance card (RFZO) | Insured person, employer, insurance details |
 | eMRTD e-passports | Personal data, photo, MRZ, data groups — requires BAC or PACE authentication (you may be prompted to enter the CAN from your passport). Passive, Chip, and Active Authentication for document verification |
 | PIV (NIST SP 800-73) | Certificates, photo, fingerprints, PIN management |
-| PKCS#15 compatible cards (Gemalto, CardEdge, PKS, generic PKI) | Certificate discovery, PIN verification and change, multi-PIN support |
+| PKCS#15 compatible cards (Gemalto, CardEdge, PKS, AET SafeSign QSCD, generic PKI) | Certificate discovery, PIN verification and change, multi-PIN support |
 
 The plugin architecture makes it straightforward to add support for new card types — both at the middleware level (card communication) and GUI level (data display).
 

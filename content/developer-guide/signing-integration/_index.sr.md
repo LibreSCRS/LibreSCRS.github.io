@@ -50,7 +50,7 @@ include(FetchContent)
 FetchContent_Declare(
     LibreMiddleware
     GIT_REPOSITORY https://github.com/LibreSCRS/LibreMiddleware.git
-    GIT_TAG        4.0.0
+    GIT_TAG        4.2.0
 )
 FetchContent_MakeAvailable(LibreMiddleware)
 

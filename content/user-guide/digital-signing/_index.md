@@ -8,7 +8,7 @@ Smart cards with private keys can be used for digital signatures. The fastest wa
 
 ## Signing in LibreCelik (recommended)
 
-LibreCelik 4.0 ships a native signing wizard that produces EU eIDAS / ETSI
+LibreCelik ships a native signing wizard that produces EU eIDAS / ETSI
 baseline signatures directly from your smart card — no external signing
 service, no PDF tooling, no manual hash-and-sign dance. The wizard handles
 PAdES (PDF), CAdES (`.p7s`), XAdES (`.xml`), JAdES (`.json`), and ASiC-E

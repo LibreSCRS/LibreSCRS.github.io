@@ -1,184 +1,135 @@
 ---
 layout: "simple"
-title: "PKCS#11 убацивање сесије"
-description: "Уграђивање librescrs-pkcs11.so у процес и дељење CardSession између приказа и потписивања — уведено у LibreSCRS 4.1.0"
+title: "Дељење сесије унутар процеса"
+description: "Дељење живе CardSession између приказа и PKCS#11 путање потписивања унутар процеса преко SessionPresence регистра — преправљено у LibreSCRS 4.2.0"
 weight: 60
 ---
 
-Уведено у **LibreSCRS 4.1.0**. Ова страница се обраћа апликацијама-домаћинима
-(LibreCelik, потписни алати трећих страна, прегледачки интегратори) које
-учитавају `librescrs-pkcs11.so` **унутар свог процеса** и желе да једну
-`CardSession` сесију деле између нити за приказ и PKCS#11 путање за
-потписивање. Отварање друге PC/SC ручке ка истом читачу из модула укинуло би
-стање PACE заштићених порука које је домаћин већ успоставио, па модул
-излаже верзионисану куку за убацивање коју домаћин позива да би уместо тога
-делио своју живу сесију.
+Ова страница је намењена хост апликацијама (LibreCelik, алати за
+потписивање трећих страна, интегратори у стилу прегледача) које воде
+PKCS#11 путању потписивања **унутар процеса** и желе да модул поново
+користи живу `CardSession` хоста уместо да отвара другу PC/SC конекцију ка
+истом читачу. Отварање паралелне конекције уништило би стање безбедне
+размене порука (PACE/BAC, SM) које је хост успоставио, па LibreSCRS
+координира то двоје кроз процес-локални регистар.
 
-## C ABI: `AttachHook.h`
+## Шта је промењено у 4.2
 
-C-позивна површина живи у
-`include/LibreSCRS/Pkcs11/AttachHook.h` и означена је као `extern "C"` —
-безбедна за разрешавање преко `dlsym` из било ког језика са C FFI-јем.
+> **4.1 attach C ABI је уклоњен.** `extern "C"` површина из
+> `AttachHook.h` (`librescrs_pkcs11_attach_session` /
+> `_detach_session`, токен `LibrescrsPkcs11AttachTokenV1`, кодови
+> `LIBRESCRS_PKCS11_ATTACH_*`) и C++ омотач
+> `LibreSCRS::Pkcs11::SessionAttachment` **више не постоје**. У 4.2 нема
+> експлицитног attach/detach позива. Ако имате 4.1 код који зове
+> `SessionAttachment::attach(...)`, погледајте
+> [Прелазак са 4.1](#прелазак-са-41) испод.
 
-### Магични колачић
+У 4.2 је координација **аутоматска**. `CardSession` наслеђује
+`std::enable_shared_from_this`, па у тренутку када сесију поседујете кроз
+`std::shared_ptr<CardSession>` она региструје `weak_ptr` у интерном,
+процес-локалном `SessionPresence` регистру. opensc-pkcs11 провајдер унутар
+процеса консултује тај регистар: када на читачу већ постоји жив SM канал,
+провајдер **одустаје** — одбија да отвори паралелну PC/SC конекцију уместо
+да руши SM тунел везан за сесију хоста. Ваш позив потписивања унутар
+процеса тако поново користи аутентификовану сесију хоста и њену живу
+безбедну размену порука.
 
-```c
-#define LIBRESCRS_PKCS11_ATTACH_MAGIC_V1 0x4C53435253415431ULL
-```
+Регистрација је RAII: када власнички `shared_ptr` нестане, `weak_ptr` се
+сам брише, па нема ничега што треба ручно одрегистровати.
 
-Низ бајтова исписује `LSCRSAT1` у ASCII запису. v1 магија је **замрзнута**:
-будуће несагласне организације токена ће бити испоручене као нова структура
-`LibrescrsPkcs11AttachTokenV2` уз одговарајућу константу
-`LIBRESCRS_PKCS11_ATTACH_MAGIC_V2`, а v1 површина остаје подржана.
+## Одговорност хоста: поседујте сесију као `shared_ptr`
 
-### Структура токена
-
-```c
-typedef struct LibrescrsPkcs11AttachTokenV1
-{
-    unsigned long long magic;
-    void*              session_ptr;
-    unsigned long      flags;
-} LibrescrsPkcs11AttachTokenV1;
-```
-
-Позивалац је власник токена. `session_ptr` је непрозиран за C ABI; модул га
-интерно претвара у свој познати тип паметног показивача на `CardSession`, и
-позивалац мора одржати референцирани објекат живим све до подударног
-позива за откачињање. `flags` је резервисано и мора бити нула у v1.
-
-### Улазне тачке
-
-| Функција | Сврха |
-|---|---|
-| `int librescrs_pkcs11_attach_session(const char* reader_name, const LibrescrsPkcs11AttachTokenV1* token)` | Паркира `session_ptr` уз `reader_name` за следеће пробно очитавање `C_GetSlotList`. Поновно качење за исти читач замењује претходни унос. Безбедно за нити. |
-| `int librescrs_pkcs11_detach_session(const char* reader_name)` | Идемпотентно уклањање. Ослобађа референцу на `shared_ptr` са стране модула. Без ефекта ако унос не постоји. |
-
-Ниједна функција никад не баца изузетке преко C границе.
-
-### Кодови повратка
-
-| Код | Макро | Значење |
-|---|---|---|
-| 0 | `LIBRESCRS_PKCS11_ATTACH_OK` | Успех. |
-| 1 | `LIBRESCRS_PKCS11_ATTACH_BAD_MAGIC` | Неподударно `token->magic`. |
-| 2 | `LIBRESCRS_PKCS11_ATTACH_BAD_FLAGS` | `token->flags` различито од нуле. |
-| 3 | `LIBRESCRS_PKCS11_ATTACH_NULL_PTR` | `reader_name`, `token`, или `token->session_ptr` је `NULL`. |
-| 4 | `LIBRESCRS_PKCS11_ATTACH_NOT_INITIALIZED` | `C_Initialize` још није позвано. |
-| 5 | `LIBRESCRS_PKCS11_ATTACH_OUT_OF_MEMORY` | Унутрашњи неуспех алокације (такође мапирано из ухваћених изузетака). |
-
-## C++ RAII омотач: `SessionAttachment`
-
-`include/LibreSCRS/Pkcs11/SessionInjection.h` додаје померљиву (move-only)
-`final` класу `LibreSCRS::Pkcs11::SessionAttachment` која умотава C ABI у
-идиоматски C++23. Конструкција иде преко статичке фабрике:
+Цео уговор на страни хоста је „држите сесију у
+`std::shared_ptr<CardSession>` и предајте тај показивач потрошачу унутар
+процеса“. `LibreSCRS::Signing::SigningService::sign(...)` већ прима сесију
+као `std::shared_ptr` по вредности, па уобичајен случај не захтева додатни
+код.
 
 ```cpp
-[[nodiscard]] static std::expected<SessionAttachment, Error>
-attach(const std::filesystem::path& modulePath,
-       std::string                  readerName,
-       std::shared_ptr<LibreSCRS::SmartCard::CardSession> session) noexcept;
-```
-
-Фабрика прибија модул преко `RTLD_NOLOAD` тако да већ учитани
-`librescrs-pkcs11.so` не буде истоварен испод домаћина, затим разрешава
-куку за убацивање по имену. Фабрика је `noexcept`: било који `std::bad_alloc`
-или неочекивани изузетак преводи се у `Error::OutOfMemory` и излаже се
-кроз `std::expected`.
-
-| Енумератор `Error` | Узрок |
-|---|---|
-| `ModuleNotLoaded` | `modulePath` није могао бити отворен од стране динамичког учитавача. |
-| `DlsymFailed` | Модул је учитан, али не извози куку за убацивање (старији модул). |
-| `InvalidArguments` | Празан `modulePath` / празан `readerName` / `null` сесија. |
-| `Rejected` | Модул је вратио ненулти нумерички статус из куке за убацивање. |
-| `OutOfMemory` | `std::bad_alloc` који је испливао из унутрашње копије / алокације. |
-
-Деструктор позива одговарајућу куку за откачињање и ослобађа мапирање
-модула; `detach()` је такође доступан за експлицитно рано раздуживање и
-идемпотентан је. `readerName()` враћа везано име читача (празно након
-откачињања). Операције померања су `noexcept`; померени објекат је у
-одвезаном стању и његов деструктор нема ефекта.
-
-## Редослед животног циклуса
-
-1. Домаћин позива `C_Initialize` над учитаним модулом.
-2. Домаћин отвара `CardSession` за активни читач на својој нити за приказ.
-3. Домаћин позива `SessionAttachment::attach(modulePath, readerName, session)`
-   — **после** `C_Initialize`, **пре** `C_GetSlotList`.
-4. Домаћин позива `C_GetSlotList` / `C_OpenSession` / `C_Login` / `C_Sign` —
-   пробна путања модула усваја убачену сесију уместо да отвара сопствену
-   PC/SC ручку ка истом читачу.
-5. Домаћин уништава `SessionAttachment` (или експлицитно позива `detach()`)
-   пре `C_Finalize`.
-
-Поновно качење за исти читач замењује претходни унос; претходна референца
-са стране модула отпада.
-
-## CardMap и расподела више ПИН-ова
-
-PKCS#11 расподелу више ПИН-ова подупире `LibreSCRS::SmartCard::CardMap`
-(`include/LibreSCRS/SmartCard/CardMap.h`), процеска кеш безбедна за нити,
-кључана торком `(reader, atrHex, serial)` која се мапира у `CardMapEntry`
-који носи разрешену PKCS#15 путању, радни SELECT FILE P2 бајт (`0x0C`
-подразумевано, `0x00` за картице које то захтевају), и ПИН ознаке откривене
-у AODF-у. Кеш омогућава да се распоред PKCS#15 једне картице испита
-једном и поново користи кроз набрајање слотова, тако да картица са више
-акредитива излаже један слот по ПИН-у без поновног покретања резервне
-EF.DIR логике на свакој улазној тачки.
-
-| Метод | Сврха |
-|---|---|
-| `get(key)` | Тражи кеширани унос; враћа `std::nullopt` ако не постоји. |
-| `put(key, entry)` | Уписује или преписује унос. |
-| `invalidate(key)` | Уклања унос за једну картицу (нпр. на `cardRemoved`). |
-| `invalidateAll()` | Уклања све уносе, обично у време `C_Finalize`. |
-
-Све јавне методе су `noexcept` и интерно синхронизоване. Апликације
-домаћини углавном не дотичу `CardMap` директно — њега користи PKCS#11
-модул — али је тип јаван како би PKCS#11 пружаоци изграђени на
-LibreMiddleware могли да се интегришу са истим кешом уместо да воде
-паралелни.
-
-## Пример: минимални домаћин качи сесију
-
-```cpp
-#include <LibreSCRS/Pkcs11/SessionInjection.h>
 #include <LibreSCRS/SmartCard/CardSession.h>
+#include <LibreSCRS/Signing/SigningService.h>
 
-namespace lp = LibreSCRS::Pkcs11;
 namespace ls = LibreSCRS::SmartCard;
 
 void run_signing(const std::string& readerName)
 {
-    auto session = ls::CardSession::open(readerName).value();
+    auto opened = ls::CardSession::open(readerName);
+    if (!opened) { return; }
 
-    // C_Initialize над librescrs-pkcs11.so је овде већ успео
-    // (илустративно — домаћин поседује PKCS#11 init/finalize пар).
+    // Поседовање сесије кроз shared_ptr је аутоматски региструје у
+    // процес-локалном SessionPresence регистру (weak_ptr, RAII).
+    auto session = std::make_shared<ls::CardSession>(std::move(*opened));
 
-    auto attached = lp::SessionAttachment::attach(
-        "/usr/lib/librescrs-pkcs11.so", readerName, session);
-    if (!attached) {
-        // Прелаз на самосталну PKCS#11 путању; потпис може и даље успети
-        // за картице без PACE-а. Уписати структуирани Error и одустати.
-        return;
-    }
+    // ... активирајте PACE/BAC канал који картица захтева (види Card-Session SM) ...
 
-    // C_GetSlotList / C_OpenSession / C_Login / C_Sign поново користе
-    // `session`. На изласку из опсега аутоматски се откачиње, потом
-    // домаћин позива C_Finalize.
+    // Потписивање унутар процеса поново користи `session` и њену живу SM.
+    // opensc-pkcs11 провајдер види живо присуство и одустаје уместо да
+    // отвори другу PC/SC конекцију ка `readerName`.
+    signingService.sign(request, session, token);
+
+    // Нестанак `session` на крају опсега брише њен weak_ptr из регистра.
 }
 ```
 
-Извршна референца је
-`LibreMiddleware/lib/pkcs11_inject/test/SessionAttachmentTests.cpp`, која
-проверава фабрику, путеве за грешке и идемпотентан деструктор.
+Ово прати оно што LibreCelik ради:
+`std::make_shared<LibreSCRS::SmartCard::CardSession>(std::move(*opened))`
+у `src/librecelik.cpp`, са истим `shared_ptr`-ом који тече у чаробњак за
+потписивање и `SigningService::sign()`.
 
-## Видети још
+### Сесије чуване по вредности
 
-- [`../card-session-sm/`](../card-session-sm/) — отварање `CardSession` и
-  активирање стања заштићеног канала пре качења.
+Аутоматска `SessionPresence` регистрација ослања се на
+`shared_from_this()`, што важи само када сесију поседује `std::shared_ptr`.
+Сесија чувана **по вредности** (на пример `BridgeSession` SwiftUI хоста,
+који чува `CardSession` уграђено) прескаче регистрацију као документована
+безоперација — иначе би `shared_from_this()` бацио `std::bad_weak_ptr`.
+Такви хостови ионако држе једну PC/SC конекцију, па нема конфликта
+паралелне конекције који би требало координисати.
+
+## CardMap и вишеструки PIN
+
+PKCS#11 расподела вишеструких PIN-ова ослоњена је на
+`LibreSCRS::SmartCard::CardMap`
+(`include/LibreSCRS/SmartCard/CardMap.h`), нит-безбедан процес-локални кеш
+кључеван торком `(reader, atrHex, serial)` који се пресликава у
+`CardMapEntry` са разрешеном PKCS#15 путањом, радним SELECT FILE P2 бајтом
+(`0x0C` подразумевано, `0x00` за картице које то захтевају) и PIN ознакама
+пронађеним у AODF-у. Кеш омогућава да се PKCS#15 распоред сваке картице
+испита једном и поново користи кроз набрајање слотова, тако да картица са
+више акредитива излаже један слот по PIN-у без поновног покретања EF.DIR
+резерве на сваком улазу.
+
+| Метода | Сврха |
+|---|---|
+| `get(key)` | Потражи кеширани унос; враћа `std::nullopt` ако не постоји. |
+| `put(key, entry)` | Постави или препиши унос. |
+| `invalidate(key)` | Уклони унос за једну картицу (нпр. на `cardRemoved`). |
+| `invalidateAll()` | Уклони сваки унос, обично у време `C_Finalize`. |
+
+Све јавне методе су `noexcept` и интерно синхронизоване. Хост апликације
+углавном не дирају `CardMap` директно — користи га PKCS#11 модул — али је
+тип јаван да би PKCS#11 провајдери изграђени на LibreMiddleware могли да се
+интегришу са истим кешом уместо да воде паралелни.
+
+## Прелазак са 4.1
+
+| 4.1 (уклоњено) | 4.2 (замена) |
+|---|---|
+| C позив `librescrs_pkcs11_attach_session(reader, token)` | ништа — поседујте сесију као `std::shared_ptr<CardSession>` |
+| `LibreSCRS::Pkcs11::SessionAttachment::attach(modulePath, reader, session)` | ништа — аутоматска регистрација преко `enable_shared_from_this` |
+| Експлицитан `detach()` / рушење у деструктору пре `C_Finalize` | ништа — `weak_ptr` регистра се брише када `shared_ptr` нестане |
+| `#include <LibreSCRS/Pkcs11/SessionInjection.h>` / `AttachHook.h` | заглавља уклоњена; укључите `<LibreSCRS/SmartCard/CardSession.h>` |
+
+Практично: обришите `SessionAttachment` инсталацију, уверите се да живу
+сесију поседује `std::shared_ptr<CardSession>`, и предајте тај показивач
+потрошачу унутар процеса. Понашање поновне употребе SM које сте раније
+добијали успешним `attach`-ом сада се дешава аутоматски.
+
+## Погледајте такође
+
+- [`../card-session-sm/`](../card-session-sm/) — отварање `CardSession`-а
+  и активирање стања безбедног канала.
 - [`../secure-channels/`](../secure-channels/) — протоколи (PACE, BAC,
-  обичан) чије стање преживљава прелазак границе убацивања.
-- [`../whats-new-in-4-1/`](../whats-new-in-4-1/) — преглед свих
-  4.1.0 површина и напомене за прелазак са 4.0.
+  обичан) чије се стање чува преко границе унутар процеса.
+- [`../whats-new-in-4-2/`](../whats-new-in-4-2/) — преглед промена API-ја
+  у 4.2 и напомене за прелазак.

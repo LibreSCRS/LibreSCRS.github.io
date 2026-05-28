@@ -4,7 +4,7 @@ title: "Building From Source"
 description: "Prerequisites, build instructions, and running tests"
 ---
 
-Current build options reflect LibreSCRS 4.1; the 4.0 baseline supported only the STATIC build.
+Current build options reflect LibreSCRS 4.2; the 4.0 baseline supported only the STATIC build.
 
 ## Prerequisites
 
@@ -64,9 +64,9 @@ This way changes to LibreMiddleware are picked up immediately without committing
 
 ---
 
-## Build options (LibreMiddleware 4.1)
+## Build options (LibreMiddleware 4.2)
 
-LibreMiddleware 4.1.0 introduced two build-system options that affect packaging and downstream consumption.
+LibreMiddleware 4.1.0 introduced two build-system options that affect packaging and downstream consumption; they carry forward unchanged in 4.2.
 
 `LIBREMIDDLEWARE_BUILD_SHARED` (`ON` | `OFF`, default `OFF`) selects the library kind. When `ON`, every `LibreSCRS_*` target is built as a `.so`/`.dylib`, which is required for downstream 4.x consumers (including the planned LibreKDE host) that load LibreMiddleware as a runtime dependency. When `OFF`, the static archives are produced.
 
@@ -82,7 +82,7 @@ find_package(LibreMiddleware CONFIG REQUIRED)
 add_executable(my_consumer main.cpp)
 target_link_libraries(my_consumer PRIVATE
     LibreSCRS::SmartCard
-    LibreSCRS::Pkcs11Inject
+    LibreSCRS::Signing
 )
 ```
 

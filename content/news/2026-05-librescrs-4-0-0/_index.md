@@ -6,7 +6,7 @@ draft: false
 ---
 
 LibreSCRS 4.0.0 lands today. After two release candidates and extensive
-community testing across Linux, macOS, and Windows, both
+community testing on Linux and macOS, both
 **LibreMiddleware 4.0.0** and **LibreCelik 4.0.0** carry GPG-signed git
 tags and cosign-signed release artifacts.
 
@@ -35,8 +35,7 @@ When more than one Serbian smart card is inserted simultaneously and
 the user initiates a signing flow, the PIN entry prompt may be
 associated with a different slot than the certificate selected.
 Single-card setups are unaffected. The fix is architectural — a
-Card+Slot model — and is the headline feature of 4.1.0, already
-implemented on the development branch.
+Card+Slot model — and shipped as the headline feature of 4.1.0.
 
 ## Downloads
 

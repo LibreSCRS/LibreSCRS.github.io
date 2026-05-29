@@ -23,16 +23,13 @@ and `LibreSCRS::Trust` build and run unchanged.
   wrappers.
 - **In-process session sharing replaces the attach C ABI** — the 4.1
   `AttachHook` / `SessionAttachment` PKCS#11 attach C ABI is **removed**.
-  Owning a `CardSession` as a `std::shared_ptr` now auto-coordinates through
-  the internal `SessionPresence` registry, so an in-process signing path
-  reuses the host's live Secure-Messaging session with no explicit attach
-  call.
+  Owning a `CardSession` as a `std::shared_ptr` now automatically lets an
+  in-process signing path reuse the host's live Secure-Messaging session
+  with no explicit attach call.
 - **AET SafeSign QSCD (Infineon)** — read and signing now work on AET
   SafeSign QSCD cards via a software-attestation unlock.
-- **Concurrency hardening** — the `MonitorService` / `Monitor` surface gains
-  deterministic, hardware-free regression coverage (bootstrap-fire race,
-  subscription lifecycle/coalescer, poll-thread teardown, a `CardSession`
-  re-entrancy guard).
+- **Concurrency hardening** — fixed several reader-monitor concurrency
+  races, with deterministic, hardware-free regression tests.
 - **Fail-closed bundled-license check** — LibreCelik enforces, in CI on
   every push, that every bundled shared library maps to a documented
   license across the Linux `.so` and macOS `.dylib` layouts.

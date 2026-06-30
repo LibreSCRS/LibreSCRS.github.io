@@ -15,7 +15,7 @@ Libre smart card tools for Linux & macOS.
 
 ### Read Any Card
 
-GUI smart card reader with plugin support. Passports, e-passports, eID, vehicle registration, PIV, and other PKI cards.
+GUI smart card reader with plugin support. Reads Serbian eID, health, EU vehicle registration, and e-passports; full PKI through OpenSC.
 
 ### Extend With Plugins
 

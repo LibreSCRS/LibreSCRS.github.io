@@ -4,13 +4,35 @@ title: "Architecture Overview"
 description: "System components, data flow, plugin architecture, and design patterns"
 ---
 
-LibreSCRS consists of two main projects that work together to read, process, and display smart card data.
+LibreSCRS is built around one broker: a cross-platform agent that owns the card, the secrets, and the configuration. The broker loads the engine — LibreMiddleware — in its own process. Every other surface is a thin client that talks to the broker and never touches the card itself. On Linux the broker uses D-Bus and systemd. A macOS backend (an App-Group socket and launchd) is on the roadmap.
+
+```
+                       Smart cards
+   Serbian eID · PKS · health · vehicle · ePassport · PIV · OpenPGP · …
+                            │
+                    PC/SC readers (pcscd)
+                            │
+   Broker — one cross-platform agent: owns card, secrets, config
+   (Linux: D-Bus + systemd · macOS: App-Group socket + launchd)
+     loads LibreMiddleware (engine):
+       PKI  — opensc → OpenSC + pkcs15
+       Data — rs-eid · rs-health · eu-vrc · emrtd
+                            │ serves clients (all LibreMiddleware-free)
+   LibreCelik · LibreKDE · LibreMac (host + CTK extension) · standard PKCS#11 apps
+```
+
+Per surface today:
+
+- **LibreCelik** (Qt6 GUI) is the shipping client; it runs on the Linux backend.
+- **LibreKDE** (KDE Plasma) is the next Linux client and is on the roadmap.
+- **LibreMac** pairs a SwiftUI host with a thin CryptoTokenKit token extension; its macOS backend is on the roadmap and has run on real hardware.
+- **Standard PKCS#11 apps** reach the card through the agent's PKCS#11 client. A direct LibreMiddleware-linked PKCS#11 module also exists for headless use.
 
 ## Components
 
 ### LibreMiddleware (LGPL-2.1)
 
-A Qt-free C++23 static library collection for smart card communication. It handles everything from low-level APDU command/response exchanges to high-level card data extraction. **All PC/SC communication lives exclusively in LibreMiddleware** — LibreCelik has no direct dependency on PC/SC.
+A Qt-free C++23 static library collection for smart card communication. It handles everything from low-level APDU command/response exchanges to high-level card data extraction. The broker loads it in process and owns all PC/SC communication; clients never touch the card directly.
 
 #### Public CMake targets
 
@@ -65,60 +87,6 @@ LibreCelik fetches LibreMiddleware via CMake `FetchContent`. For local developme
 ## Plugin Architecture
 
 The entire system is built around plugins. There are two independent plugin layers — **middleware plugins** handle card communication, **GUI plugins** handle display. They connect through `CardData`, a universal data model that any middleware plugin produces and any GUI plugin consumes.
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                      LibreCelik (GUI)                   │
-│                                                         │
-│  ┌──────────────────────┐ ┌────────────────────────┐    │
-│  │SmartCardReaderListener│ │ CardWidgetPluginRegistry│    │
-│  │(Qt adapter for Monitor│ │ (QPluginLoader)        │    │
-│  └──────────────────────┘ └──────────┬─────────────┘    │
-│           ▲                          │ loads             │
-│           │ wraps             ┌──────▼──────────────┐   │
-│           │                   │  GUI Plugins (.so)   │   │
-│           │                   │ ┌──────┐ ┌────────┐ │   │
-│           │                   │ │rs-eid│ │eu-vrc  │ │   │
-│           │                   │ ├──────┤ ├────────┤ │   │
-│           │                   │ │rs-   │ │ emrtd  │ │   │
-│           │                   │ │health│ ├────────┤ │   │
-│           │                   │ ├──────┤ │  piv   │ │   │
-│           │                   │ │token │ └────────┘ │   │
-│           │                   │ └──────┘            │   │
-│           │                   └─────────────────────┘   │
-│           │                          ▲                  │
-│           │                          │ CardData         │
-├───────────┼──────────────────────────┼──────────────────┤
-│           │           LibreMiddleware│                   │
-│           │                          │                  │
-│  ┌────────┴─────────┐ ┌─────────────┴──────────┐       │
-│  │ smartcard::Monitor│ │ CardPluginRegistry     │       │
-│  │ (PC/SC polling)  │ │ (dlopen)               │       │
-│  └──────────────────┘ └──────────┬─────────────┘       │
-│                                  │ loads                │
-│  ┌───────────────────────────────▼─────────────────┐   │
-│  │           Middleware Plugins (.so)                │   │
-│  │ ┌─────────┐ ┌──────────┐ ┌───────────────────┐ │   │
-│  │ │ rs-eid  │ │  emrtd   │ │     opensc         │ │   │
-│  │ ├─────────┤ └──────────┘ │ (CardEdge, PIV,    │ │   │
-│  │ │ eu-vrc  │ ┌──────────┐ │  PKI fallback)     │ │   │
-│  │ ├─────────┤ │ pkcs15   │ └───────────────────┘ │   │
-│  │ │rs-health│ └──────────┘                       │   │
-│  │ └─────────┘                                    │   │
-│  └─────────────────────────────────────────────────┘   │
-│                          │                             │
-│                          │ APDU (ISO 7816-4)           │
-│                          ▼                             │
-│                   ┌──────────────┐                     │
-│                   │PCSCConnection│                     │
-│                   │  (PC/SC)     │                     │
-│                   └──────┬──────┘                      │
-└──────────────────────────┼─────────────────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │ Smart Card  │
-                    └─────────────┘
-```
 
 ### Card Detection: smartcard::Monitor
 

@@ -6,29 +6,9 @@ description: "Supported smart cards and capabilities"
 
 ## Supported Cards
 
-### eMRTD / ePassport
+**Full PKI through OpenSC.** OpenSC is the PKI engine. It works with every card OpenSC supports — the Serbian CardEdge cards (eID, qualified-signature/PKS, health) via the `srbeid` driver, plus IAS-ECC, CardOS, PIV, OpenPGP and more. Where OpenSC does not cover something, a built-in PKCS#15 plugin fills the gap (for example, on-card SHA-256 signing on the NAM card).
 
-Any passport or national ID card compliant with ICAO 9303. PACE and BAC authentication, Secure Messaging, biometric data (photo, MRZ), data groups. Passive, Chip, and Active Authentication for document authenticity verification.
-
-### Serbian eID
-
-Gemalto 2014+, IF2020 Foreigner. Personal data, address, document info, photo. Digital signature certificates and PIN management via OpenSC srbeid (Gemalto 2014+) and PKCS#15 (Apollo 2008, IF2020 Foreigner).
-
-### Serbian Vehicle Registration (EU VRC)
-
-EU Directive 2003/127/EC compliant. Owner, vehicle data, registration dates — all EU mandatory and optional fields. Print support.
-
-### Serbian Health Insurance (RFZO)
-
-Insured person, employer, insurance details.
-
-### PIV (NIST SP 800-73)
-
-US federal ID standard. Certificates, photo, fingerprints, PIN management.
-
-### PKCS#15 Compatible Cards
-
-Generic PKI standard for certificate discovery, PIN management, and digital signing. Covers Gemalto, AET SafeSign QSCD (Infineon), and other compliant cards — including PKI on eMRTD-capable national ID cards.
+**Card data through plugins.** Built-in plugins read the document data: Serbian eID, Serbian health insurance, EU vehicle registration, and electronic passports (eMRTD).
 
 ---
 
@@ -40,7 +20,7 @@ Generic PKI standard for certificate discovery, PIN management, and digital sign
 - **Multi-PIN management** — cards with multiple PINs (e.g., separate authentication and signing PINs) show each PIN's status and allow independent change.
 - **Plugin architecture** — add support for new card types by dropping in a shared library. Both middleware (card communication) and GUI (data display) are extensible.
 - **Multilingual** — English and Serbian (Cyrillic) interface.
-- **PKCS#11 module** — universal cryptographic token interface supporting OpenSC-backed PKI cards (Serbian eID/PKS, PIV, generic PKCS#15). Use in Firefox, Chrome, SSH, and email signing.
+- **PKCS#11 module** — universal cryptographic token interface supporting OpenSC-backed PKI cards (Serbian eID/PKS, generic PKCS#15). Use in Firefox, Chrome, SSH, and email signing.
 - **OpenSC integration** — Serbian CardEdge driver merged into OpenSC mainline. External driver available for current OpenSC releases.
 
 ---

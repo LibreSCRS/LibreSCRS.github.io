@@ -1,5 +1,6 @@
 ---
-title: ""
+title: "LibreSCRS"
+description: "Слободни алати за смарт картице за Linux и macOS — лична карта, здравствена, саобраћајна и е-пасоши, уз картичног агента, дигитално потписивање и PKCS#11"
 ---
 
 # LibreSCRS — Libre Smart Card Reader System

@@ -1,5 +1,6 @@
 ---
 title: "О пројекту"
+description: "Зашто LibreSCRS постоји, шта чита и како се пројекат гради"
 layout: "simple"
 ---
 

@@ -1,5 +1,6 @@
 ---
-title: ""
+title: "LibreSCRS"
+description: "Libre smart card tools for Linux and macOS — Serbian eID, health, vehicle registration and ePassports, with a card agent, digital signing and PKCS#11"
 ---
 
 # LibreSCRS — Libre Smart Card Reader System

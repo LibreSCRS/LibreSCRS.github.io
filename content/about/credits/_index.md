@@ -1,5 +1,6 @@
 ---
 title: "Third-Party Credits"
+description: "Every third-party component bundled in a LibreSCRS binary, with its licence"
 layout: "simple"
 weight: 50
 ---

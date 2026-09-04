@@ -1,5 +1,6 @@
 ---
 title: "About"
+description: "Why LibreSCRS exists, what it reads, and how the project is built"
 layout: "simple"
 ---
 

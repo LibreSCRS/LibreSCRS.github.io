@@ -4,7 +4,9 @@ title: "Architecture Overview"
 description: "System components, data flow, plugin architecture, and design patterns"
 ---
 
-LibreSCRS is built around one broker: a cross-platform agent that owns the card, the secrets, and the configuration. The broker loads the engine — LibreMiddleware — in its own process. Every other surface is a thin client that talks to the broker and never touches the card itself. On Linux the broker uses D-Bus and systemd. A macOS backend (an App-Group socket and launchd) is on the roadmap.
+LibreSCRS is built around one broker: a cross-platform agent that owns the card, the secrets, and the configuration. The broker loads the engine — LibreMiddleware — in its own process. Every other surface is a thin client that talks to the broker and never touches the card itself. On Linux the broker uses D-Bus and systemd; the macOS backend (an App-Group socket and launchd) is written and has run on real hardware, but is not yet part of a signed, notarised release.
+
+The broker is not an abstraction — it is a pair of named packages on each platform: **LibreAgent + LibreLinux** on Linux, **LibreDarwin + LibreMac** on macOS. LibreAgent and LibreDarwin are the platform-neutral core and the Darwin host; LibreLinux is the Linux host that ships the running daemon, and LibreMac is the SwiftUI host. That is what to look for on the [downloads page](/downloads/).
 
 ```
                        Smart cards
@@ -24,9 +26,9 @@ LibreSCRS is built around one broker: a cross-platform agent that owns the card,
 Per surface today:
 
 - **LibreCelik** (Qt6 GUI) is the shipping client; it runs on the Linux backend.
-- **LibreKDE** (KDE Plasma) is the next Linux client and is on the roadmap.
-- **LibreMac** pairs a SwiftUI host with a thin CryptoTokenKit token extension; its macOS backend is on the roadmap and has run on real hardware.
-- **Standard PKCS#11 apps** reach the card through the agent's PKCS#11 client. A direct LibreMiddleware-linked PKCS#11 module also exists for headless use.
+- **LibreKDE** (KDE Plasma) ships in this release with its own passing test suite, and tags `5.0.0` alongside the rest.
+- **LibreMac** pairs a SwiftUI host with a thin CryptoTokenKit token extension; its macOS backend has run on real hardware.
+- **Standard PKCS#11 apps** reach the card through the agent's PKCS#11 client, which is the only provider registered from 5.0 onward. A direct LibreMiddleware-linked PKCS#11 module is still built for a headless host that runs no agent, but it is no longer registered by default — see the [PKCS#11 guide](/user-guide/pkcs11/).
 
 ## Components
 
@@ -105,7 +107,7 @@ A middleware plugin is a shared library (`.so` / `.dylib`) loaded by `CardPlugin
 - **`canHandleConnection(PCSCConnection& conn)`** — live connection probe. Sends SELECT commands for known AIDs to confirm card support. Called only on plugins that did **not** match in `canHandle()` — giving them a second chance to claim the card via live communication.
 - **`readCard(PCSCConnection& conn)`** — extract all data from the card. Sends APDU commands, parses TLV/BER-TLV responses, and returns a `CardData` object containing typed field groups (personal data, document data, photos, certificates).
 
-**Two-phase probe:** The registry first calls `canHandle(atr)` on all plugins — those that return `true` go into the candidate list immediately, ranked by `probePriority()`. Then `canHandleConnection(conn)` is called only on plugins that returned `false` in Phase 1, giving generic plugins (like OpenSC) a chance to claim the card by probing the live connection. This avoids unnecessary card communication for plugins that already matched by ATR.
+**Two-phase probe:** The registry first calls `canHandle(atr)` on all plugins — those that return `true` go into the candidate list immediately, ranked by `probePriority()`. Then `canHandleConnection(conn)` is called only on plugins that returned `false` in the first pass, giving generic plugins (like OpenSC) a chance to claim the card by probing the live connection. This avoids unnecessary card communication for plugins that already matched by ATR.
 
 **Streaming support:** Plugins can implement `readCardStreaming()` in addition to `readCard()`. Streaming delivers `CardData` incrementally — fields appear in the GUI as they are read from the card, rather than waiting for the entire read to complete. This is especially useful for eMRTD where data groups are read sequentially through encrypted channels.
 
@@ -163,14 +165,14 @@ The complete flow when a smart card is inserted:
    └─ emits signal with MonitorEvent
 
 4. Main window receives signal, starts two-phase plugin discovery:
-   Phase 1 — ATR filtering (no card communication):
+   First pass — ATR filtering (no card communication):
    └─ CardPluginRegistry::findAllCandidates(atr, connection)
       ├─ rs-eid-plugin::canHandle(atr)      → true  (recognized Serbian eID ATR)
       ├─ eu-vrc-plugin::canHandle(atr)      → false
       ├─ emrtd-plugin::canHandle(atr)       → false
       └─ opensc-plugin::canHandle(atr)      → false
       Candidates so far: [rs-eid-plugin (priority 100)]
-   Phase 2 — connection probe (only on plugins that returned false):
+   Second pass — connection probe (only on plugins that returned false):
       ├─ eu-vrc-plugin::canHandleConnection(conn)   → false
       ├─ emrtd-plugin::canHandleConnection(conn)    → false
       └─ opensc-plugin::canHandleConnection(conn)   → true (found PKCS#15)

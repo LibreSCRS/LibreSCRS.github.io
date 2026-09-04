@@ -1,6 +1,7 @@
 ---
 title: "LibreSCRS 4.0.0 — прво стабилно издање 4.0 циклуса"
 date: 2026-05-11
+description: "Најава издања LibreSCRS 4.0.0 — прво стабилно издање 4.0 циклуса"
 summary: "LibreMiddleware 4.0.0 + LibreCelik 4.0.0 објављени. C++23 језгро, ABI v6, нативно PAdES/XAdES/JAdES/CAdES/ASiC-E потписивање, RFC 5280 ланац поверења, eMRTD PACE, лична карта Србије + AET SafeSign + PIV + генеричке PKCS#15 картице."
 draft: false
 ---
@@ -40,5 +41,6 @@ LibreSCRS 4.0.0 је данас објављен. Након два кандид
 - [LibreMiddleware 4.0.0 издање](https://github.com/LibreSCRS/LibreMiddleware/releases/tag/4.0.0)
 - [LibreCelik 4.0.0 издање](https://github.com/LibreSCRS/LibreCelik/releases/tag/4.0.0)
 
-Сви артефакти долазе са `.sigstore.json` cosign потписима; провера:
-`cosign verify-blob --bundle <name>.sigstore.json <name>`.
+Сви артефакти долазе са `.sigstore.json` cosign потписима. Команду са
+закљученим идентитетом и кључ за потписивање види у
+[провери издања](/sr/security/).

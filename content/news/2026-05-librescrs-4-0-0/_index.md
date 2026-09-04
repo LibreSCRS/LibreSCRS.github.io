@@ -1,6 +1,7 @@
 ---
 title: "LibreSCRS 4.0.0 — first stable of the 4.0 cycle"
 date: 2026-05-11
+description: "Release announcement for LibreSCRS 4.0.0 — the first stable release of the 4.0 cycle"
 summary: "LibreMiddleware 4.0.0 + LibreCelik 4.0.0 released. C++23 core, ABI v6, native PAdES/XAdES/JAdES/CAdES/ASiC-E signing, RFC 5280 trust chain, eMRTD PACE, Serbian eID + AET SafeSign + PIV + generic PKCS#15 cards."
 draft: false
 ---
@@ -42,5 +43,6 @@ Card+Slot model — and shipped as the headline feature of 4.1.0.
 - [LibreMiddleware 4.0.0 release](https://github.com/LibreSCRS/LibreMiddleware/releases/tag/4.0.0)
 - [LibreCelik 4.0.0 release](https://github.com/LibreSCRS/LibreCelik/releases/tag/4.0.0)
 
-All artifacts ship with `.sigstore.json` cosign signatures; verify
-with `cosign verify-blob --bundle <name>.sigstore.json <name>`.
+All artifacts ship with `.sigstore.json` cosign signatures. For the
+identity-pinned command and the signing key, see
+[verifying a release](/security/).

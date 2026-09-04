@@ -1,6 +1,7 @@
 ---
 title: "LibreSCRS 4.2.0 — API за снимак листе читача и дељење сесије унутар процеса"
 date: 2026-05-28
+description: "Најава издања LibreSCRS 4.2.0 — друго функционално издање 4.x циклуса"
 summary: "LibreMiddleware 4.2.0 + LibreCelik 4.2.0: Qt-free API за снимак листе читача, помоћни приступници за CardData, аутоматско дељење сесије унутар процеса које замењује 4.1 attach C ABI, подршка за AET SafeSign QSCD и fail-closed провера лиценци у пакету."
 draft: false
 ---
@@ -50,5 +51,6 @@ LibreSCRS 4.2.0 је друго функционално издање у 4.x ц�
 - [LibreMiddleware 4.2.0 издање](https://github.com/LibreSCRS/LibreMiddleware/releases/tag/4.2.0)
 - [LibreCelik 4.2.0 издање](https://github.com/LibreSCRS/LibreCelik/releases/tag/4.2.0)
 
-Сви артефакти долазе са `.sigstore.json` cosign потписима; провера:
-`cosign verify-blob --bundle <name>.sigstore.json <name>`.
+Сви артефакти долазе са `.sigstore.json` cosign потписима. Команду са
+закљученим идентитетом и кључ за потписивање види у
+[провери издања](/sr/security/).

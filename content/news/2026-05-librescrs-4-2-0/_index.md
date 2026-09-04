@@ -1,6 +1,7 @@
 ---
 title: "LibreSCRS 4.2.0 — reader-list snapshot API and in-process session sharing"
 date: 2026-05-28
+description: "Release announcement for LibreSCRS 4.2.0 — the second feature release of the 4.x cycle"
 summary: "LibreMiddleware 4.2.0 + LibreCelik 4.2.0: a Qt-free reader-list snapshot API, CardData convenience accessors, automatic in-process session sharing replacing the 4.1 attach C ABI, AET SafeSign QSCD support, and a fail-closed bundled-license check."
 draft: false
 ---
@@ -50,5 +51,6 @@ changes and migration notes from 4.1.
 - [LibreMiddleware 4.2.0 release](https://github.com/LibreSCRS/LibreMiddleware/releases/tag/4.2.0)
 - [LibreCelik 4.2.0 release](https://github.com/LibreSCRS/LibreCelik/releases/tag/4.2.0)
 
-All artifacts ship with `.sigstore.json` cosign signatures; verify
-with `cosign verify-blob --bundle <name>.sigstore.json <name>`.
+All artifacts ship with `.sigstore.json` cosign signatures. For the
+identity-pinned command and the signing key, see
+[verifying a release](/security/).

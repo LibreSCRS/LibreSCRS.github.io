@@ -34,6 +34,18 @@ jobs:
       - name: Build
         run: hugo --minify
 
+      # Fails the deploy if content ships with a missing title or description,
+      # an unpaired page, or a link one language carries and the other does not.
+      # Needs only content/, so it runs here with nothing else checked out.
+      #
+      # tools/check_cross_repo_links.sh is deliberately NOT wired here: it needs
+      # all seven code repositories present to have anything to check against,
+      # and this workflow checks out only this one. It would report
+      # "checked 0 references / dead: 0" and pass while proving nothing. Run it
+      # locally before publishing.
+      - name: Translation completeness
+        run: python3 tools/check_translation_completeness.py content
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

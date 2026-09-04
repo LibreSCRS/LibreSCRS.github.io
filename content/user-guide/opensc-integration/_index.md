@@ -1,110 +1,71 @@
 ---
 layout: "simple"
 title: "OpenSC Integration"
-description: "Native OpenSC support for Serbian cards and the external driver for current OpenSC releases"
+description: "Native OpenSC support for Serbian cards, and what replaced the withdrawn external driver"
 aliases:
   - /user-guide/cardedge-opensc-driver/
 ---
 
-## Native OpenSC Support
+## Native OpenSC support
 
-The [srbeid driver](https://github.com/OpenSC/OpenSC/pull/3595) for Serbian smart cards has been merged into OpenSC mainline. Serbian eID (Gemalto 2014+, IF2020 Foreigner) and PKS Chamber of Commerce cards will be supported out of the box in the next OpenSC release.
+The [srbeid driver](https://github.com/OpenSC/OpenSC/pull/3595) for Serbian
+smart cards is merged into OpenSC mainline. Serbian eID (Gemalto 2014+, IF2020
+Foreigner) and PKS Chamber of Commerce cards are supported out of the box in an
+OpenSC release that carries it, and in any build from OpenSC's main branch — no
+external driver and no configuration.
 
-If you build OpenSC from source (main branch), native support is already available — no external driver or configuration needed.
+**Supported cards**
 
----
-
-## External Driver
-
-For users on current OpenSC release versions (0.26.x, 0.27.x) that do not yet include the native srbeid driver, LibreSCRS provides an external card driver module. Once installed, any PKCS#11-aware application can use Serbian eID and PKS cards transparently via OpenSC's PKCS#11 bridge.
-
-**Supported cards**:
 - Serbian eID Gemalto (2014+) — matched by ATR `3B:FF:94`
 - Serbian eID IF2020 Foreigner — matched by AID
 - PKS Chamber of Commerce card — matched by AID
 
-**Not supported**: Apollo 2008 eID (no CardEdge applet).
+**Not supported**: Apollo 2008 eID — the card carries no CardEdge applet.
 
-### Download
+## The external driver is withdrawn
 
-Pre-built packages for OpenSC 0.26.x and 0.27.x are available on the [releases page](https://github.com/LibreSCRS/LibreMiddleware/releases).
+Up to 4.x, LibreSCRS shipped a separate OpenSC card-driver module for OpenSC
+releases that predated the merge, together with a `cmake` flag to build it and
+an `opensc.conf` fragment to register it. The driver, the flag and the build
+target are all gone in 5.0: what they existed to backport is upstream.
 
-Extract and copy:
-
-```bash
-# Linux
-sudo cp librescrs-cardedge-opensc.so /usr/local/lib/
-
-# macOS
-sudo cp librescrs-cardedge-opensc.dylib /usr/local/lib/
-```
-
-### Build from source
-
-#### Linux
-
-```bash
-sudo apt install libopensc-dev        # Debian/Ubuntu
-# sudo dnf install opensc-devel       # Fedora/RHEL
-
-cmake -S /path/to/LibreMiddleware -B build -DBUILD_CARDEDGE_OPENSC_DRIVER=ON
-cmake --build build --target librescrs-cardedge-opensc
-sudo cp build/lib/cardedge-opensc-driver/librescrs-cardedge-opensc.so /usr/local/lib/
-```
-
-#### macOS
-
-Homebrew installs OpenSC but not its development headers. Clone the OpenSC source at the matching version tag:
-
-```bash
-brew install opensc
-opensc-tool --version          # note the version, e.g. 0.26.1
-git clone --branch 0.26.1 --depth 1 https://github.com/OpenSC/OpenSC /tmp/opensc-src
-
-cmake -S /path/to/LibreMiddleware -B build \
-    -DBUILD_CARDEDGE_OPENSC_DRIVER=ON \
-    -DOPENSC_INCLUDE_DIR=/tmp/opensc-src/src
-cmake --build build --target librescrs-cardedge-opensc
-sudo cp build/lib/cardedge-opensc-driver/librescrs-cardedge-opensc.dylib /usr/local/lib/
-```
-
-### Configuration
-
-Add the following to your `opensc.conf`:
-
-| Platform | opensc.conf location |
-|----------|----------------------|
-| Linux | `/etc/opensc/opensc.conf` · `/etc/opensc.conf` · `~/.config/opensc/opensc.conf` |
-| macOS | `/opt/homebrew/etc/opensc.conf` · `/Library/Application Support/OpenSC/opensc.conf` |
+If you still carry an `opensc.conf` entry for it, remove it. A `card_driver`
+or `emulate` block naming a module that is no longer installed makes OpenSC log
+a load failure on every card operation:
 
 ```
 app default {
-    card_drivers = librescrs, internal;
-
-    card_driver librescrs {
-        module = /usr/local/lib/librescrs-cardedge-opensc.so;   # Linux
-        # module = /usr/local/lib/librescrs-cardedge-opensc.dylib;  # macOS
-    }
-
+    card_drivers = librescrs, internal;      # <- remove
+    card_driver librescrs { ... }            # <- remove the whole block
     framework pkcs15 {
-        emulate librescrs {
-            module = /usr/local/lib/librescrs-cardedge-opensc.so;   # Linux
-            # module = /usr/local/lib/librescrs-cardedge-opensc.dylib;  # macOS
-        }
+        emulate librescrs { ... }            # <- and this one
     }
 }
 ```
 
-### Verification
+Nothing replaces those blocks; the stock configuration is what you want.
 
-#### Card detection
+## LibreSCRS does not go through OpenSC's PKCS#11
+
+Worth separating, because the two are easy to conflate. OpenSC is the PKI
+engine LibreSCRS uses to talk to these cards, but a PKCS#11 application does
+**not** reach a LibreSCRS card through `opensc-pkcs11.so`. From 5.0 it goes
+through the card agent's own module, which routes operations to the agent that
+owns the card — see the [PKCS#11 guide](/user-guide/pkcs11/).
+
+Both can be installed at once. They are separate providers over separate paths,
+and a browser that lists two devices for one card is showing you exactly that.
+
+## Verification
+
+Card detection:
 
 ```bash
 opensc-tool --list-readers
 # Gemalto USB SmartCard Reader  Slot 0  ATR: 3B FF ...
 ```
 
-#### PKCS#15 objects
+PKCS#15 objects:
 
 ```bash
 pkcs15-tool --list-certificates
@@ -112,9 +73,14 @@ pkcs15-tool --list-keys
 pkcs15-tool --list-pins          # shows tries remaining
 ```
 
-For signing and verifying files, see the [Digital Signing]({{< ref "user-guide/digital-signing" >}}) page.
+`opensc-tool` caches the ATR it saw for a reader, so an inserted card that
+changed since the last run can be reported from the cache rather than from the
+card. If a result surprises you, re-run after a fresh insert.
 
-### Debugging
+For signing and verifying files, see the
+[Digital Signing]({{< ref "user-guide/digital-signing" >}}) page.
+
+## Debugging
 
 Enable OpenSC debug logging in `opensc.conf`:
 
@@ -126,4 +92,5 @@ app default {
 }
 ```
 
-Inspect `/tmp/opensc-debug.txt` after running any `pkcs15-tool` or `pkcs11-tool` command.
+Inspect `/tmp/opensc-debug.txt` after running any `pkcs15-tool` or
+`pkcs11-tool` command.

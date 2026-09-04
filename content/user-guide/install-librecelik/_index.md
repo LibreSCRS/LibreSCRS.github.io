@@ -6,6 +6,11 @@ description: "Download and install the LibreCelik desktop application on Linux o
 
 LibreCelik is a desktop application for reading and displaying smart card data on Linux and macOS. It supports a growing range of card types through its plugin architecture.
 
+> **Install the card agent first.** From 5.0 LibreCelik links no PC/SC stack
+> of its own — all card access happens in the LibreSCRS card agent, and without
+> it LibreCelik starts normally and finds no card. See
+> [Install the card agent](/user-guide/install-agent/).
+
 ## Linux
 
 Download the `.AppImage` from the [releases page](https://github.com/LibreSCRS/LibreCelik/releases), make it executable, and run it:

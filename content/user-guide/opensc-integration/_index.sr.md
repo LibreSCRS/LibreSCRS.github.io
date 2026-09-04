@@ -1,110 +1,72 @@
 ---
 layout: "simple"
 title: "OpenSC интеграција"
-description: "Нативна OpenSC подршка за српске картице и екстерни драјвер за тренутна издања OpenSC-а"
+description: "Нативна OpenSC подршка за српске картице и шта је заменило повучени спољни драјвер"
 aliases:
-  - /sr/user-guide/cardedge-opensc-driver/
+  - /user-guide/cardedge-opensc-driver/
 ---
 
 ## Нативна OpenSC подршка
 
-[srbeid драјвер](https://github.com/OpenSC/OpenSC/pull/3595) за српске смарт картице је интегрисан у главну грану OpenSC-а. Српска лична карта (Gemalto 2014+, IF2020 за странце) и ПКС картице Привредне коморе биће подржане из кутије у следећем издању OpenSC-а.
+[srbeid драјвер](https://github.com/OpenSC/OpenSC/pull/3595) за српске смарт
+картице интегрисан је у главну грану OpenSC-а. Српска лична карта (Gemalto
+2014+, IF2020 за странце) и картица Привредне коморе подржане су из кутије у
+издању OpenSC-а које га носи, као и у свакој изградњи са његове главне гране —
+без спољног драјвера и без подешавања.
 
-Ако компајлирате OpenSC из изворног кода (main грана), нативна подршка је већ доступна — без екстерног драјвера или конфигурације.
+**Подржане картице**
 
----
+- Српска лична карта Gemalto (2014+) — препознаје се по ATR-у `3B:FF:94`
+- Српска лична карта IF2020 за странце — препознаје се по AID-у
+- Картица Привредне коморе — препознаје се по AID-у
 
-## Екстерни драјвер
+**Није подржана**: лична карта Apollo 2008 — та картица не носи CardEdge аплет.
 
-За кориснике на тренутним издањима OpenSC-а (0.26.x, 0.27.x) која још не укључују нативни srbeid драјвер, LibreSCRS пружа екстерни модул. Када се инсталира, свака PKCS#11 апликација може транспарентно користити српске личне картице и ПКС картице преко OpenSC PKCS#11 моста.
+## Спољни драјвер је повучен
 
-**Подржане картице**:
-- Лична карта Gemalto (2014+) — препознавање по ATR `3B:FF:94`
-- Лична карта IF2020 за странце — препознавање по AID
-- ПКС картица Привредне коморе — препознавање по AID
+До 4.x је LibreSCRS испоручивао засебан OpenSC модул драјвера картице за издања
+OpenSC-а старија од интеграције, уз `cmake` заставицу за његову изградњу и
+одељак у `opensc.conf`-у за његову регистрацију. Драјвер, заставица и мета
+изградње у 5.0 више не постоје: оно због чега су постојали сада је узводно.
 
-**Није подржана**: Apollo 2008 лична карта (нема CardEdge аплет).
-
-### Преузимање
-
-Прекомпајлирани пакети за OpenSC 0.26.x и 0.27.x су доступни на [страници издања](https://github.com/LibreSCRS/LibreMiddleware/releases).
-
-Распакујте и копирајте:
-
-```bash
-# Linux
-sudo cp librescrs-cardedge-opensc.so /usr/local/lib/
-
-# macOS
-sudo cp librescrs-cardedge-opensc.dylib /usr/local/lib/
-```
-
-### Компајлирање из изворног кода
-
-#### Linux
-
-```bash
-sudo apt install libopensc-dev        # Debian/Ubuntu
-# sudo dnf install opensc-devel       # Fedora/RHEL
-
-cmake -S /path/to/LibreMiddleware -B build -DBUILD_CARDEDGE_OPENSC_DRIVER=ON
-cmake --build build --target librescrs-cardedge-opensc
-sudo cp build/lib/cardedge-opensc-driver/librescrs-cardedge-opensc.so /usr/local/lib/
-```
-
-#### macOS
-
-Homebrew инсталира OpenSC али не и развојна заглавља. Клонирајте OpenSC извор на одговарајућем тагу верзије:
-
-```bash
-brew install opensc
-opensc-tool --version          # забележите верзију, нпр. 0.26.1
-git clone --branch 0.26.1 --depth 1 https://github.com/OpenSC/OpenSC /tmp/opensc-src
-
-cmake -S /path/to/LibreMiddleware -B build \
-    -DBUILD_CARDEDGE_OPENSC_DRIVER=ON \
-    -DOPENSC_INCLUDE_DIR=/tmp/opensc-src/src
-cmake --build build --target librescrs-cardedge-opensc
-sudo cp build/lib/cardedge-opensc-driver/librescrs-cardedge-opensc.dylib /usr/local/lib/
-```
-
-### Конфигурација
-
-Додајте следеће у ваш `opensc.conf`:
-
-| Платформа | Локација opensc.conf |
-|-----------|----------------------|
-| Linux | `/etc/opensc/opensc.conf` · `/etc/opensc.conf` · `~/.config/opensc/opensc.conf` |
-| macOS | `/opt/homebrew/etc/opensc.conf` · `/Library/Application Support/OpenSC/opensc.conf` |
+Ако вам је унос за њега остао у `opensc.conf`-у, уклоните га. Блок
+`card_driver` или `emulate` који именује модул који више није инсталиран тера
+OpenSC да пријави неуспех учитавања при свакој радњи са картицом:
 
 ```
 app default {
-    card_drivers = librescrs, internal;
-
-    card_driver librescrs {
-        module = /usr/local/lib/librescrs-cardedge-opensc.so;   # Linux
-        # module = /usr/local/lib/librescrs-cardedge-opensc.dylib;  # macOS
-    }
-
+    card_drivers = librescrs, internal;      # <- уклонити
+    card_driver librescrs { ... }            # <- уклонити цео блок
     framework pkcs15 {
-        emulate librescrs {
-            module = /usr/local/lib/librescrs-cardedge-opensc.so;   # Linux
-            # module = /usr/local/lib/librescrs-cardedge-opensc.dylib;  # macOS
-        }
+        emulate librescrs { ... }            # <- и овај
     }
 }
 ```
 
-### Верификација
+Те блокове ништа не замењује; фабричко подешавање је оно што вам треба.
 
-#### Детекција картице
+## LibreSCRS не иде кроз OpenSC-ов PKCS#11
+
+Вреди раздвојити, јер се то двоје лако помеша. OpenSC јесте PKI мотор којим
+LibreSCRS разговара са овим картицама, али PKCS#11 апликација **не** долази до
+LibreSCRS картице кроз `opensc-pkcs11.so`. Од 5.0 иде кроз сопствени модул
+картичног агента, који радње усмерава на агента који држи картицу — види
+[водич за PKCS#11](/sr/user-guide/pkcs11/).
+
+Оба могу бити инсталирана истовремено. То су засебни добављачи преко засебних
+путева, и прегледач који за једну картицу приказује два уређаја показује вам
+управо то.
+
+## Провера
+
+Препознавање картице:
 
 ```bash
 opensc-tool --list-readers
 # Gemalto USB SmartCard Reader  Slot 0  ATR: 3B FF ...
 ```
 
-#### PKCS#15 објекти
+PKCS#15 објекти:
 
 ```bash
 pkcs15-tool --list-certificates
@@ -112,11 +74,16 @@ pkcs15-tool --list-keys
 pkcs15-tool --list-pins          # приказује преостале покушаје
 ```
 
-За потписивање и верификацију датотека, погледајте страницу [Дигитално потписивање](/sr/user-guide/digital-signing/).
+`opensc-tool` кešира ATR који је видео за читач, па убачена картица која се у
+међувремену променила може бити пријављена из кеша уместо са картице. Ако вас
+резултат изненади, поновите после свежег убацивања.
 
-### Дебаговање
+За потписивање и проверу фајлова, види страницу
+[Дигитално потписивање]({{< ref "user-guide/digital-signing" >}}).
 
-Укључите OpenSC логовање у `opensc.conf`:
+## Отклањање грешака
+
+Укључите OpenSC логовање у `opensc.conf`-у:
 
 ```
 app default {
@@ -126,4 +93,5 @@ app default {
 }
 ```
 
-Прегледајте `/tmp/opensc-debug.txt` после покретања било које `pkcs15-tool` или `pkcs11-tool` команде.
+Прегледајте `/tmp/opensc-debug.txt` после било које `pkcs15-tool` или
+`pkcs11-tool` команде.

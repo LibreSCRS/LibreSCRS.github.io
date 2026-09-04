@@ -1,111 +1,175 @@
 ---
 layout: "simple"
 title: "PKCS#11 Module"
-description: "Using the LibreSCRS PKCS#11 module with Firefox, Chrome, Thunderbird, and SSH"
+description: "Using the LibreSCRS card agent's PKCS#11 module with Firefox, Chrome, Thunderbird and SSH, and removing an older direct-module registration"
 ---
 
-> **Note:** A built-in Serbian card driver ([srbeid](https://github.com/OpenSC/OpenSC/pull/3595)) has been merged into OpenSC mainline. It will be included in the next OpenSC release. Until then, this module remains the recommended option for PKCS#11 access to smart cards.
+Any PKCS#11-aware application — Firefox, Chrome, Thunderbird, `ssh`, Kleopatra
+— can use your smart card through LibreSCRS, with LibreCelik closed.
 
-The LibreSCRS PKCS#11 module is a universal cryptographic token interface that automatically detects your card type and uses the appropriate provider. It works with any PKCS#11-aware application — Firefox, Chrome, SSH, email clients — without LibreCelik being open.
+From 5.0 the module those applications load is the **card agent's client
+module**, `librescrs-pkcs11-agent.so`. It performs no cryptography itself and
+holds no card secret: it maps the PKCS#11 `C_*` calls onto the per-user agent,
+which owns the card, the prompter and the authorization policy.
+
+The practical consequence is worth stating before anything else. The token
+advertises a **protected authentication path**, so your PIN is typed into the
+agent's own prompter and never reaches the application. An application that
+passes a PIN to `C_Login` has it ignored.
 
 **Card types recognized automatically:**
-- **CardEdge** — Serbian eID Gemalto (2014+), IF2020 Foreigner, PKS Chamber of Commerce
-- **PKCS#15** — any PKCS#15-compliant smart card (generic PKI standard)
+
+- **CardEdge** — Serbian eID Gemalto (2014+), IF2020 Foreigner, PKS Chamber of
+  Commerce
+- **PKCS#15** — any PKCS#15-compliant smart card
 - **PIV** — US federal ID cards (NIST SP 800-73)
 
 ## Installation
 
-Download the package for your platform from the [releases page](https://github.com/LibreSCRS/LibreMiddleware/releases) and extract it.
+There is nothing to download. The module is installed by the card agent
+package — see [Install the card agent](/user-guide/install-agent/) and the
+[downloads page](/downloads/) — and registered with p11-kit by that same
+package. Applications wired into p11-kit find it with no per-application
+configuration at all.
 
-### Linux
+Confirm the registration:
 
-```bash
-tar -xzf librescrs-pkcs11-*-linux-*.tar.gz
-sudo cp lib/librescrs-pkcs11.so* /usr/local/lib/
-sudo ldconfig
+```
+p11-kit list-modules
 ```
 
-> **Note:** automatic system-wide p11-kit module discovery (so applications
-> like Kleopatra, GnuPG-gpgsm, Firefox, Chromium, Thunderbird and Evolution
-> pick up LibreSCRS cards without any per-application configuration) shipped
-> in LibreMiddleware 4.1.0 and is included in 4.2.0. The manual per-application
-> steps below are only needed on the older 4.0.0 release, or for applications
-> that do not consume p11-kit's module registry.
+The LibreSCRS entry must be listed, and its token must show
+`protected authentication path`. That line is the check that matters: without
+it, the application would try to collect the PIN itself.
 
-### macOS
+The same command prints the module's absolute path, which the sections below
+call `<module>`. On a stock Linux install it is
+`/usr/lib/pkcs11/librescrs-pkcs11-agent.so`.
 
-```bash
-unzip librescrs-pkcs11-*-macos-universal.zip
-sudo cp librescrs-pkcs11.dylib /usr/local/lib/
+## If you installed a PKCS#11 module before 5.0
+
+Up to 4.x the middleware shipped its own direct module and told you to register
+it by hand. That module is no longer the registered provider, and one card
+offering two providers with two different PIN-entry models is exactly the
+situation this release exists to end. Three populations, and a package manager
+cleans only one of them:
+
+- **You installed a distribution package.** Nothing to do. `pacman`, `dpkg` and
+  `rpm` remove files that leave the manifest.
+- **You installed from source with `cmake --install`.** Not cleaned:
+  `install()` overwrites and never deletes. Remove the old library and any
+  registration you added by hand.
+- **You installed from a release archive**, following the instructions that
+  release shipped. Not cleaned either, and this is the install base that
+  actually exists, because the published archive is what created it. Remove the
+  registration:
+
+  ```
+  rm ~/.config/pkcs11/modules/librescrs.module
+  ```
+
+Then re-run `p11-kit list-modules` and confirm exactly one LibreSCRS provider
+is listed. If a browser still offers two devices for one card, an NSS database
+registration is left over as well — see
+[Firefox and Thunderbird](#firefox-and-thunderbird) below and remove the entry
+you added.
+
+## Firefox and Thunderbird
+
+Firefox and Thunderbird consume p11-kit on most Linux distributions and need no
+setup. If yours does not:
+
+1. **Settings** → **Privacy & Security** → **Security** → **Security Devices**
+2. **Load**
+3. Name it `LibreSCRS` and give the module path from `p11-kit list-modules`
+4. **OK**
+
+Insert your card and refresh. When a service asks for a client certificate —
+Serbian eUprava, for instance — the agent's prompter asks for the PIN.
+
+To remove a stale entry, select it in the same dialog and choose **Unload**.
+
+## Chrome and Chromium
+
+Chrome on Linux uses the NSS database rather than p11-kit. Register once:
+
 ```
-
----
-
-## Firefox
-
-1. Open **Settings** > **Privacy & Security** > scroll to **Security** > **Security Devices**
-2. Click **Load**
-3. Enter a name (e.g. `LibreSCRS`) and the path to the module:
-   - Linux: `/usr/local/lib/librescrs-pkcs11.so`
-   - macOS: `/usr/local/lib/librescrs-pkcs11.dylib`
-4. Click **OK**
-
-Insert your smart card and refresh — Firefox will prompt for PIN when a certificate is needed. This is how you authenticate to services that require client certificate authentication, such as Serbian eUprava.
-
----
-
-## Chrome / Chromium
-
-Chrome on Linux uses the NSS database. Register the module once:
-
-```bash
-# Install modutil if not present
+# modutil, if not already present
 sudo apt install libnss3-tools     # Debian/Ubuntu
 sudo dnf install nss-tools         # Fedora
 
-# Register for the current user
-modutil -dbdir sql:$HOME/.pki/nssdb -add "LibreSCRS" \
-    -libfile /usr/local/lib/librescrs-pkcs11.so
+modutil -dbdir sql:$HOME/.pki/nssdb -add librescrs -libfile <module>
 ```
 
-Restart Chrome. The card's certificates will appear in **Settings** > **Privacy and security** > **Manage certificates**.
-
----
-
-## Thunderbird
-
-Same as Firefox — **Preferences** > **Privacy & Security** > **Security Devices** > **Load**.
-
----
+Restart Chrome. The card's certificates appear under **Settings** → **Privacy
+and security** → **Manage certificates**.
 
 ## OpenSSH
 
 List the public keys on the card:
 
-```bash
-ssh-keygen -D /usr/local/lib/librescrs-pkcs11.so
+```
+ssh-keygen -D <module>
 ```
 
-Use the module for SSH authentication:
+Authenticate with it:
 
-```bash
-ssh -I /usr/local/lib/librescrs-pkcs11.so user@host
+```
+ssh -I <module> user@host
 ```
 
-Or add to `~/.ssh/config`:
+Or, in `~/.ssh/config`:
 
 ```
 Host myserver
-    PKCS11Provider /usr/local/lib/librescrs-pkcs11.so
+    PKCS11Provider <module>
 ```
 
----
+## Checking it from the command line
 
-## Building from source
+```
+pkcs11-tool --module <module> -T
+```
 
-See [LibreMiddleware on GitHub](https://github.com/LibreSCRS/LibreMiddleware) for build instructions.
+The token must list `protected authentication path`. PKCS#11 URI selection
+(`pkcs11:token=…`) works across p11-kit modules once the agent is running.
 
-```bash
-cmake -S /path/to/LibreMiddleware -B build
+## Out-of-process isolation
+
+By default the module runs in the calling application's process, where it holds
+no secret and does no cryptography. If you would rather it did not run there at
+all, p11-kit can host it out of process — either one short-lived child per
+consumer, or a long-lived per-user server over a socket. Both are configuration
+changes to the installed `.module` file, which documents the two forms inline;
+the library itself is the same either way.
+
+## macOS
+
+**There is no agent PKCS#11 provider on macOS in 5.0.0.** The macOS agent host
+is written and has run on real hardware, but it is not part of this release,
+and neither is a proxy module for it.
+
+A macOS user who needs a PKCS#11 provider today builds the middleware's direct
+module from source and registers it explicitly. It is the same module Linux
+used up to 4.x, with the same property this page otherwise argues against: the
+application collects the PIN.
+
+<!-- Where the macOS agent-proxy .dylib will be installed from — inside the
+     application bundle, a per-user copy, or a signed .pkg — is not decided,
+     so this page deliberately describes no path for it. -->
+
+## Headless Linux hosts
+
+A machine that runs no agent — a build server signing artifacts, say — can
+still use the middleware's direct module. It is built and installed as before;
+only its p11-kit declaration is gone, and
+`-DLIBREMIDDLEWARE_INSTALL_P11KIT_MODULE=ON` restores that:
+
+```
+cmake -S /path/to/LibreMiddleware -B build \
+      -DLIBREMIDDLEWARE_INSTALL_P11KIT_MODULE=ON
 cmake --build build --target librescrs-pkcs11
 ```
+
+On such a host there is no prompter, so the application supplies the PIN — which
+is why this is the headless case and not the default one.

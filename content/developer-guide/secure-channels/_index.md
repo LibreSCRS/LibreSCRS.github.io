@@ -32,7 +32,7 @@ A channel is opened by a concrete protocol class (`PaceChannel::establish`, `Bac
 
 `SessionKeys` carries the encryption key, MAC key and send-sequence counter; its destructor zeroes every non-empty buffer through `OPENSSL_cleanse` before the underlying `std::vector` releases its allocation. Move-from leaves the source vectors empty so the post-move cleanse is a no-op — live key material follows ownership into the move destination, which carries the same cleansing contract.
 
-PACE and BAC session keys are **session-scoped** (whole-card scope, not per-applet). The PACE handshake runs at MF and binds session keys to the card-side SM tunnel for the entire card session; applet switches happen via a wrapped `SELECT` issued through the channel itself, after which `CardSession` calls `PaceChannel::setCurrentApplet` to record the new AID. Do **not** re-PACE on every applet switch — that is a card-OS-level protocol error and is wrong by construction (memory entry `feedback_pace_sm_per_session_not_per_applet`, verified empirically on NAM and GEO contactless since 4.0.0).
+PACE and BAC session keys are **session-scoped** (whole-card scope, not per-applet). The PACE handshake runs at MF and binds session keys to the card-side SM tunnel for the entire card session; applet switches happen via a wrapped `SELECT` issued through the channel itself, after which `CardSession` calls `PaceChannel::setCurrentApplet` to record the new AID.
 
 ## Example: activating a PACE channel via `CardSession`
 

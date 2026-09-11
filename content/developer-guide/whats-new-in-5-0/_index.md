@@ -127,6 +127,30 @@ PKCS#15 card that expects a caller-built DigestInfo, the plugin reports the
 mechanism as not implemented, so callers fall back to the existing `RSA_PKCS`
 DigestInfo path.
 
+## Signing from a byte buffer
+
+`LibreSCRS::Signing::SigningService` gained a second `sign()` overload that
+takes the document as a `std::span<const std::uint8_t>` instead of a file path.
+It shares everything with the file-based call — trust configuration, backend
+dispatch, blocking behaviour and the error taxonomy — and differs only at the
+I/O seams, so a host that already signs files can adopt it without
+restructuring anything around the call.
+
+Build the request with `SigningRequest::Builder::buildForBufferSign()` rather
+than `build()`: that is what waives the `inputFile()` / `outputFile()`
+required-field checks. An `inputFile()` may still be set as a name hint, but it
+is never opened. The input span is borrowed for the duration of the call and is
+not retained; an empty input, or one larger than 256 MiB, returns
+`SigningResult::Status::InvalidRequest`.
+
+On success the artifact comes back in `SigningResult::signedDocumentBytes` and
+`SigningResult::outputPath` is absent — nothing is written to disk, so a
+consumer branching on `outputPath.has_value()` sees a consistent in-memory
+result. Container formats need a name for the entry they wrap: set
+`documentName()`, or ASiC-E creation fails with `Invalid filename for ASiC
+entry`. The full contract, with an example, is in the
+[signing integration guide]({{< ref "developer-guide/signing-integration" >}}).
+
 ## Plugin ABI version 9
 
 The card-plugin ABI is now version 9

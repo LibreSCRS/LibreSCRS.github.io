@@ -263,6 +263,36 @@ Every returned error is a refusal: there is no "unknown" case. A call either
 yields anchors or names the first check that failed, and rejections are silent
 — the error is the whole diagnosis, and nothing is logged.
 
+### Handing the anchors to the card plugins
+
+The import above fills a directory with anchors; a card plugin doing passive
+authentication on a travel document still has to be told where that directory
+is. The host publishes it once per plugin:
+
+```cpp
+LibreSCRS::Plugin::CardPluginService plugins{"/usr/local/lib/librescrs/plugins"};
+
+// Once, for every plugin the registry loaded.
+plugins.setCscaAnchorDirectory("/var/lib/librescrs/csca");
+```
+
+`CardPluginService::setCscaAnchorDirectory` is the ordinary entry point; it
+forwards to `CardPlugin::setCscaAnchorDirectory` on each plugin the registry
+holds. That per-plugin call is **single-shot**: the first path wins and every
+later call is a silent no-op, so the directory cannot be re-pointed mid-process
+by whoever calls last. The value arrives through the interface and from nowhere
+else — a plugin must not read an environment variable for it. Anything running
+as the person at the keyboard can set one, mint a certification authority of
+its own, and have a forged document reported as chaining to a country signing
+certificate.
+
+Only the path travels; the anchor bytes never do. They are read at each
+verification, so a master list imported long after the host published the path
+is picked up by the next document read, and anchors withdrawn by a later import
+stop being used — both with no re-injection. A plugin that was never given a
+directory sees an empty path, and must answer "not configured" rather than
+return a verdict about the document in front of it.
+
 ## Secure channel parameters
 
 `SecureChannel/PaceParams.h` and `BacParams.h` carry the parameters for the two

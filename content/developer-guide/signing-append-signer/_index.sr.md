@@ -89,12 +89,12 @@ int main()
     //  Signing Integration Guide; изостављено ради сажетости)
 
     // 1. Први потписник — Alice потписује нов PDF са sign().
-    auto firstReq = lsc::Signing::SigningRequest::Builder{}
-                        .inputFile("contract.pdf")
-                        .outputFile("contract-alice.pdf")
-                        .format(lsc::Signing::SignatureFormat::Pades)
-                        .level(lsc::Signing::SignatureLevel::B_T)
-                        .build();
+    lsc::Signing::SigningRequest::Builder firstBuilder;
+    firstBuilder.inputFile("contract.pdf")
+        .outputFile("contract-alice.pdf")
+        .format(lsc::Signing::SignatureFormat::Pades)
+        .level(lsc::Signing::SignatureLevel::B_T);
+    auto firstReq = std::move(firstBuilder).build();   // build() је rvalue-квалификован
     auto first = signingService->sign(firstReq, alicePinProvider,
                                       cardPlugin, session);
 
@@ -104,13 +104,13 @@ int main()
     //    span-based) али ЈЕСУ коришћени за поља која builder захтева
     //    и за циљ писања излаза. Поставите оба ради будуће
     //    компатибилности.
-    auto secondReq = lsc::Signing::SigningRequest::Builder{}
-                         .inputFile("contract-alice.pdf")
-                         .outputFile("contract-alice-bob.pdf")
-                         .format(lsc::Signing::SignatureFormat::Pades)
-                         .level(lsc::Signing::SignatureLevel::B_T)
-                         .reason("Одобрено од стране Bob-а")
-                         .build();
+    lsc::Signing::SigningRequest::Builder secondBuilder;
+    secondBuilder.inputFile("contract-alice.pdf")
+        .outputFile("contract-alice-bob.pdf")
+        .format(lsc::Signing::SignatureFormat::Pades)
+        .level(lsc::Signing::SignatureLevel::B_T)
+        .reason("Одобрено од стране Bob-а");
+    auto secondReq = std::move(secondBuilder).build();
 
     const auto prior = readBytes("contract-alice.pdf");
     auto second = signingService->appendSigner(

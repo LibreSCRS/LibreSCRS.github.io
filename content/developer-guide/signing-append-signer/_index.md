@@ -89,12 +89,12 @@ int main()
     //  Signing Integration Guide; omitted here for brevity)
 
     // 1. First signer — Alice signs a fresh PDF with sign().
-    auto firstReq = lsc::Signing::SigningRequest::Builder{}
-                        .inputFile("contract.pdf")
-                        .outputFile("contract-alice.pdf")
-                        .format(lsc::Signing::SignatureFormat::Pades)
-                        .level(lsc::Signing::SignatureLevel::B_T)
-                        .build();
+    lsc::Signing::SigningRequest::Builder firstBuilder;
+    firstBuilder.inputFile("contract.pdf")
+        .outputFile("contract-alice.pdf")
+        .format(lsc::Signing::SignatureFormat::Pades)
+        .level(lsc::Signing::SignatureLevel::B_T);
+    auto firstReq = std::move(firstBuilder).build();   // build() is rvalue-qualified
     auto first = signingService->sign(firstReq, alicePinProvider,
                                       cardPlugin, session);
 
@@ -104,13 +104,13 @@ int main()
     //    span-based) but ARE used for any builder-required fields and
     //    for the output write target. Provide both for forward
     //    compatibility.
-    auto secondReq = lsc::Signing::SigningRequest::Builder{}
-                         .inputFile("contract-alice.pdf")
-                         .outputFile("contract-alice-bob.pdf")
-                         .format(lsc::Signing::SignatureFormat::Pades)
-                         .level(lsc::Signing::SignatureLevel::B_T)
-                         .reason("Approved by Bob")
-                         .build();
+    lsc::Signing::SigningRequest::Builder secondBuilder;
+    secondBuilder.inputFile("contract-alice.pdf")
+        .outputFile("contract-alice-bob.pdf")
+        .format(lsc::Signing::SignatureFormat::Pades)
+        .level(lsc::Signing::SignatureLevel::B_T)
+        .reason("Approved by Bob");
+    auto secondReq = std::move(secondBuilder).build();
 
     const auto prior = readBytes("contract-alice.pdf");
     auto second = signingService->appendSigner(

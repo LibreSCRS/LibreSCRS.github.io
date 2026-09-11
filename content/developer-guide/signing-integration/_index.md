@@ -152,15 +152,18 @@ int main()
         return 1;
     }
 
-    // 4. Build the signing request. The engine reads from inputFile and
-    //    writes the signed payload to outputFile — there is no
-    //    byte-buffer ingestion seam on the public API.
-    auto request = lsc::Signing::SigningRequest::Builder{}
-                       .inputFile("document.pdf")
-                       .outputFile("document-signed.pdf")
-                       .format(lsc::Signing::SignatureFormat::Pades)
-                       .level(lsc::Signing::SignatureLevel::B_T)
-                       .build();
+    // 4. Build the signing request. This example uses the file-path seam —
+    //    inputFile() and outputFile(). For an in-memory document use
+    //    Builder::buildForBufferSign() and the sign() overload taking a
+    //    std::span<const std::uint8_t>; the artifact then comes back in
+    //    SigningResult::signedDocumentBytes. See "Signing from a byte buffer"
+    //    below.
+    lsc::Signing::SigningRequest::Builder builder;
+    builder.inputFile("document.pdf")
+        .outputFile("document-signed.pdf")
+        .format(lsc::Signing::SignatureFormat::Pades)
+        .level(lsc::Signing::SignatureLevel::B_T);
+    auto request = std::move(builder).build();   // build() is rvalue-qualified
 
     // 5. PIN provider — invoked by the service when the card requires it.
     //    The provider receives an AuthRequirement describing what to
@@ -234,9 +237,10 @@ completion via `status()`, `addObserver()`, or the blocking
 
 ### `LibreSCRS::Signing::SigningRequest`
 
-Immutable signing parameters built through the inner `Builder`. The engine
-is file-path based — pass `inputFile()` and `outputFile()`; there is no
-byte-buffer overload on the public API. Key builder methods:
+Immutable signing parameters built through the inner `Builder`. Two seams: the
+file-path one — `inputFile()` and `outputFile()` — and, since 5.0, an in-memory
+one built with `buildForBufferSign()` and consumed by the `sign()` overload
+taking a `std::span<const std::uint8_t>`. Key builder methods:
 
 | Builder method | Description |
 |---|---|
@@ -247,12 +251,77 @@ byte-buffer overload on the public API. Key builder methods:
 | `packaging(PackagingMode)` | `Enveloped` or `Detached` |
 | `reason` / `location` / `contactInfo` | PDF signature dictionary fields (ISO 32000-1 §12.8.1) |
 | `certificateLabel(std::string)` | PKCS#11 key alias when the card carries more than one |
+| `keyId(std::vector<std::uint8_t>)` | Card-side `CKA_ID` of the key/certificate pair; the reuse-safe way to select the exact key (since 5.0) |
 | `visualParams(VisualSignatureParams&&)` | PAdES visual signature overlay |
 | `tsaOverride(TsaProvider)` | Per-request TSA override; pair with `staticTsa(url)` for a fixed URL |
 
-`Builder::build()` is rvalue-qualified; finalise with
-`std::move(builder).build()` and wrap the call in a `try/catch` for
-`std::invalid_argument` if you set fields conditionally.
+`Builder::build()` and `Builder::buildForBufferSign()` are both
+rvalue-qualified, while every setter returns `Builder&`. A chain that starts
+at a temporary therefore does not compile: name the builder, set the fields on
+it, and finalise with `std::move(builder).build()`. Wrap that call in a
+`try/catch` for `std::invalid_argument` if you set fields conditionally.
+
+Prefer `keyId()` to `certificateLabel()` on a card that carries more than one
+certificate. A label is not unique — the signing and the authentication
+certificate may share one or carry none — so a label-only selection can
+silently pick the wrong key. `keyId()` selects the private key and its paired
+certificate by `CKA_ID` and refuses ambiguity: more than one match on either
+one fails the operation instead of signing with an arbitrary first match.
+Binding the certificate it chose to the identity you intended is still the
+caller's responsibility.
+
+### Signing from a byte buffer
+
+Since 5.0 the engine also signs a document that never reaches the disk. The
+overload is declared in `<LibreSCRS/Signing/SigningService.h>`:
+
+```cpp
+SigningResult sign(const SigningRequest& request,
+                   std::span<const std::uint8_t> input,
+                   Auth::CredentialProvider credentialProvider,
+                   const std::shared_ptr<const Plugin::CardPlugin>& cardPlugin,
+                   const std::shared_ptr<SmartCard::CardSession>& session) noexcept;
+```
+
+Build the request with `Builder::buildForBufferSign()` rather than `build()` —
+that is what waives the `inputFile()` / `outputFile()` required-field checks.
+Everything else is shared with the file-path overload: trust configuration,
+backend dispatch, blocking behaviour and the error taxonomy are identical. The
+two seams differ only in where the bytes come from and where they go.
+
+| Aspect | Buffer-sign contract |
+|---|---|
+| `input` | Borrowed for the duration of the call; the service does not retain the span past return |
+| Empty input, or input larger than 256 MiB | `SigningResult::Status::InvalidRequest` |
+| Result on `Status::Ok` | Artifact in `SigningResult::signedDocumentBytes`; `outputPath` is absent |
+| `inputFile()` | May still be set, but only as a name hint — it is never opened |
+| `documentName()` | The only name source on this path; required for container formats |
+
+`documentName()` is what names the in-memory document inside the produced
+artifact: it becomes the ASiC-E container entry name and the basename of the
+XAdES / JAdES detached reference. Left empty, ASiC-E container creation fails
+outright with `Invalid filename for ASiC entry`. Only the final path component
+is honoured, so a caller cannot inject path separators into a container entry.
+
+```cpp
+    // The document is already in memory — nothing is read from or written
+    // to disk on this path.
+    std::vector<std::uint8_t> document = fetchDocumentBytes();
+
+    lsc::Signing::SigningRequest::Builder builder;
+    builder.documentName("contract.pdf")
+        .format(lsc::Signing::SignatureFormat::AsicE)
+        .level(lsc::Signing::SignatureLevel::B_T);
+    auto request = std::move(builder).buildForBufferSign();
+
+    auto result = signingService->sign(request, document, std::move(pinProvider),
+                                       cardPlugin, session);
+    if (result.status == lsc::Signing::SigningResult::Status::Ok) {
+        // outputPath is absent here; the artifact is the byte vector.
+        const std::vector<std::uint8_t>& artifact = *result.signedDocumentBytes;
+        std::cout << "Signed " << artifact.size() << " bytes\n";
+    }
+```
 
 ### `LibreSCRS::Signing::SigningResult`
 
@@ -260,6 +329,7 @@ byte-buffer overload on the public API. Key builder methods:
 |---|---|---|
 | `status` | `Status` enum | Always set; check before reading other fields |
 | `outputPath` | `std::optional<std::filesystem::path>` | Path the signed document was written to on success |
+| `signedDocumentBytes` | `std::optional<std::vector<std::uint8_t>>` | Signed artifact of the buffer-sign overload; absent on the file path (since 5.0) |
 | `userMessage` | `LocalizedText` | Translator-friendly user-facing message; mandatory in 4.0 |
 | `diagnosticDetail` | `std::optional<std::string>` | Developer-facing diagnostic for logs |
 

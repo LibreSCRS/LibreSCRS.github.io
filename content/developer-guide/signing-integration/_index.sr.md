@@ -150,15 +150,18 @@ int main()
         return 1;
     }
 
-    // 4. Изградите захтев за потписивање. Engine чита из inputFile и
-    //    пише потписан излаз у outputFile — не постоји улаз преко
-    //    бафера бајтова на јавном API-ју.
-    auto request = lsc::Signing::SigningRequest::Builder{}
-                       .inputFile("document.pdf")
-                       .outputFile("document-signed.pdf")
-                       .format(lsc::Signing::SignatureFormat::Pades)
-                       .level(lsc::Signing::SignatureLevel::B_T)
-                       .build();
+    // 4. Изградите захтев за потписивање. Овај пример користи шав са
+    //    путањама фајлова — inputFile() и outputFile(). За документ у
+    //    меморији користите Builder::buildForBufferSign() и преклоп sign()
+    //    који прима std::span<const std::uint8_t>; артефакт се тада враћа у
+    //    SigningResult::signedDocumentBytes. Видети „Потписивање из бафера
+    //    бајтова“ ниже.
+    lsc::Signing::SigningRequest::Builder builder;
+    builder.inputFile("document.pdf")
+        .outputFile("document-signed.pdf")
+        .format(lsc::Signing::SignatureFormat::Pades)
+        .level(lsc::Signing::SignatureLevel::B_T);
+    auto request = std::move(builder).build();   // build() је rvalue-квалификован
 
     // 5. PIN провајдер — позива га сервис када картица захтева PIN.
     //    Провајдер прима AuthRequirement који описује шта да прикупи и
@@ -232,10 +235,10 @@ Trusted-List преузимања раде на интерним радним н
 
 ### `LibreSCRS::Signing::SigningRequest`
 
-Непроменљиви параметри потписивања, граде се преко угнежденог `Builder`-а.
-Engine је заснован на путањама фајлова — проследите `inputFile()` и
-`outputFile()`; не постоји overload са бафером бајтова на јавном API-ју.
-Кључне методе builder-а:
+Непроменљиви параметри потписивања, граде се преко угнежденог `Builder`-а. Два
+шава: онај са путањама фајлова — `inputFile()` и `outputFile()` — и, од 5.0,
+шав у меморији који се гради са `buildForBufferSign()`, а троши га преклоп
+`sign()` који прима `std::span<const std::uint8_t>`. Кључне методе builder-а:
 
 | Метода builder-а | Опис |
 |---|---|
@@ -246,12 +249,77 @@ Engine је заснован на путањама фајлова — просл
 | `packaging(PackagingMode)` | `Enveloped` или `Detached` |
 | `reason` / `location` / `contactInfo` | Поља PDF речника потписа (ISO 32000-1 §12.8.1) |
 | `certificateLabel(std::string)` | PKCS#11 алијас кључа када картица носи више од једног |
+| `keyId(std::vector<std::uint8_t>)` | Картични `CKA_ID` пара кључ/сертификат; начин избора тачног кључа безбедан на поновну употребу (од 5.0) |
 | `visualParams(VisualSignatureParams&&)` | PAdES визуелни потпис |
 | `tsaOverride(TsaProvider)` | TSA override по захтеву; упарите са `staticTsa(url)` за фиксни URL |
 
-`Builder::build()` је rvalue-квалификован; финализујте са
-`std::move(builder).build()` и обмотајте позив у `try/catch` за
-`std::invalid_argument` ако поља постављате условно.
+`Builder::build()` и `Builder::buildForBufferSign()` су оба
+rvalue-квалификована, док сваки сетер враћа `Builder&`. Ланац који почиње од
+привременог објекта се стога не преводи: именујте билдер, поставите поља на
+њему и финализујте са `std::move(builder).build()`. Обмотајте тај позив у
+`try/catch` за `std::invalid_argument` ако поља постављате условно.
+
+На картици која носи више од једног сертификата користите `keyId()` пре него
+`certificateLabel()`. Алијас није јединствен — сертификат за потписивање и онај
+за аутентификацију умеју да га деле или да га уопште немају — па избор само по
+алијасу може тихо да узме погрешан кључ. `keyId()` бира приватни кључ и његов
+упарени сертификат по `CKA_ID` и одбија двосмисленост: више од једног поготка,
+било на једном било на другом, обара операцију уместо да потпише првим
+наиђеним. Везивање изабраног сертификата за идентитет који сте намеравали и
+даље је одговорност позиваоца.
+
+### Потписивање из бафера бајтова
+
+Од 5.0 engine потписује и документ који никада не стигне на диск. Преклоп је
+декларисан у `<LibreSCRS/Signing/SigningService.h>`:
+
+```cpp
+SigningResult sign(const SigningRequest& request,
+                   std::span<const std::uint8_t> input,
+                   Auth::CredentialProvider credentialProvider,
+                   const std::shared_ptr<const Plugin::CardPlugin>& cardPlugin,
+                   const std::shared_ptr<SmartCard::CardSession>& session) noexcept;
+```
+
+Захтев градите са `Builder::buildForBufferSign()` уместо `build()` — то је оно
+што укида обавезне провере поља `inputFile()` и `outputFile()`. Све остало дели
+се са преклопом заснованим на путањама фајлова: подешавање поверења, избор
+позадине, блокирајуће понашање и таксономија грешака исти су. Два шава се
+разликују само по томе одакле бајтови долазе и куда одлазе.
+
+| Аспект | Уговор потписивања из бафера |
+|---|---|
+| `input` | Позајмљен за трајање позива; сервис не задржава span после повратка |
+| Празан улаз, или улаз већи од 256 MiB | `SigningResult::Status::InvalidRequest` |
+| Резултат при `Status::Ok` | Артефакт је у `SigningResult::signedDocumentBytes`; `outputPath` је одсутан |
+| `inputFile()` | Сме да се постави, али само као наговештај имена — никада се не отвара |
+| `documentName()` | Једини извор имена на овом путу; обавезан за контејнерске формате |
+
+`documentName()` именује документ из меморије унутар произведеног артефакта: он
+постаје име уноса у ASiC-E контејнеру и основа имена XAdES / JAdES одвојене
+референце. Ако остане празан, прављење ASiC-E контејнера пада уз
+`Invalid filename for ASiC entry`. Поштује се само последња компонента путање,
+па позивалац не може да убаци сепараторе путање у унос контејнера.
+
+```cpp
+    // Документ је већ у меморији — на овом путу се са диска ништа не чита
+    // нити се на њега ишта пише.
+    std::vector<std::uint8_t> document = fetchDocumentBytes();
+
+    lsc::Signing::SigningRequest::Builder builder;
+    builder.documentName("contract.pdf")
+        .format(lsc::Signing::SignatureFormat::AsicE)
+        .level(lsc::Signing::SignatureLevel::B_T);
+    auto request = std::move(builder).buildForBufferSign();
+
+    auto result = signingService->sign(request, document, std::move(pinProvider),
+                                       cardPlugin, session);
+    if (result.status == lsc::Signing::SigningResult::Status::Ok) {
+        // outputPath је овде одсутан; артефакт је вектор бајтова.
+        const std::vector<std::uint8_t>& artifact = *result.signedDocumentBytes;
+        std::cout << "Signed " << artifact.size() << " bytes\n";
+    }
+```
 
 ### `LibreSCRS::Signing::SigningResult`
 
@@ -259,6 +327,7 @@ Engine је заснован на путањама фајлова — просл
 |---|---|---|
 | `status` | `Status` enum | Увек постављен; проверите пре читања осталих поља |
 | `outputPath` | `std::optional<std::filesystem::path>` | Путања на коју је потписан документ записан при успеху |
+| `signedDocumentBytes` | `std::optional<std::vector<std::uint8_t>>` | Потписан артефакт преклопа са бафером; одсутан на путу са фајловима (од 5.0) |
 | `userMessage` | `LocalizedText` | Translator-friendly порука за корисника; обавезна у 4.0 |
 | `diagnosticDetail` | `std::optional<std::string>` | Дијагностика за развојне логове |
 

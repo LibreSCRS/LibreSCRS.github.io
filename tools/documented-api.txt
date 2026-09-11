@@ -1,0 +1,26 @@
+# One public symbol per line. Every entry must appear on at least one EN page
+# under content/developer-guide/ AND on its SR mirror. "No public API ships
+# without documentation" was a project rule nobody could fail; this list is
+# what makes it fail.
+#
+# The gate matches whole identifiers, so a symbol renamed into a longer name
+# that contains the old one does NOT discharge its entry.
+#
+# Every entry must ALSO be named by a public header of the library the guide
+# describes. Two pages that agree with each other prove nothing about the code:
+# rename a symbol in the library, rename it on both pages, and a check that
+# reads only this site stays green while the guide publishes a dead name.
+#
+# Add a symbol here in the SAME commit that adds it to a public header. A list
+# seeded only with symbols that already pass is a gate calibrated to what was
+# shipped; the entries below were added while the pages that document them were
+# still missing, and the gate stayed red until they existed.
+buildForBufferSign
+signedDocumentBytes
+setCscaAnchorDirectory
+parseAndVerifyMasterList
+spkiSha256FromCertificateDer
+signerChainsToAnyAnchor
+keyId
+ActivationProfile
+hasCredentialProvider

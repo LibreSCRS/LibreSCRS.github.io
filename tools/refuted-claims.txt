@@ -1,0 +1,28 @@
+# Claims the code has DISPROVED: a sentence that was on a published page while
+# the library shipped the opposite, or a code example the headers reject. None
+# may come back. One Python regex per line; matched against a whitespace-
+# normalised page, so wrapping does not hide one. A line is a comment only when
+# its '#' is followed by a space or ends the line, so a pattern may contain --
+# or start with -- a '#': PKCS#11, #include.
+#
+# 2026-09: LibreMiddleware/include/LibreSCRS/Signing/SigningService.h:206 ships
+# sign(const SigningRequest&, std::span<const std::uint8_t>, ...) marked
+# "@since 5.0", together with SigningRequest::Builder::buildForBufferSign() and
+# SigningResult::signedDocumentBytes. Four sentences on two pages (EN
+# :156-157, :238-239; SR :153-155, :236-237) said it did not exist.
+there is no\s+byte-buffer
+no byte-buffer (overload|ingestion seam)
+не постоји\s+overload са бафером
+не постоји\s+улаз преко
+#
+# 2026-09: SigningRequest.h declares every Builder setter as returning
+# Builder&, and both build() and buildForBufferSign() as rvalue-qualified, so
+# a chain finalises only on an rvalue -- and neither the temporary it started
+# from nor a named builder is one ("passing Builder as this argument discards
+# qualifiers"). Four examples on two pages published the first of those
+# spellings, in both languages, while the same page's prose gave the working
+# idiom. The pattern matches an assignment that reaches build() without going
+# through std::move, so both rejected spellings match it; the idiomatic forms
+# -- a named builder moved into build(), or std::move() wrapped around the
+# whole chain -- do not.
+=(?:(?!std::move)[^;=])*\.build(?:ForBufferSign)?\(\)

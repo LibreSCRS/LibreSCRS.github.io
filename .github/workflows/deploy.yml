@@ -36,15 +36,51 @@ jobs:
 
       # Fails the deploy if content ships with a missing title or description,
       # an unpaired page, or a link one language carries and the other does not.
-      # Needs only content/, so it runs here with nothing else checked out.
+      # Needs nothing but content/.
       #
       # tools/check_cross_repo_links.sh is deliberately NOT wired here: it needs
       # all seven code repositories present to have anything to check against,
-      # and this workflow checks out only this one. It would report
-      # "checked 0 references / dead: 0" and pass while proving nothing. Run it
-      # locally before publishing.
+      # and this workflow checks out this one and, below, the headers the API
+      # claims are held to -- under a path of its own, not as one of those
+      # seven. The script skips every repository it cannot see, so in CI it
+      # would report "checked 0 references / dead: 0" and pass while proving
+      # nothing. Run it locally before publishing.
       - name: Translation completeness
         run: python3 tools/check_translation_completeness.py content
+
+      # The check above compares English against Serbian, so a claim that is
+      # equally wrong in both languages passes it perfectly -- which is how
+      # four sentences denying a signing overload the library had meanwhile
+      # gained stayed on the site until a gate that reads the headers went in.
+      # This one holds the pages against the headers instead: no sentence the
+      # code has disproved anywhere on the site, every symbol listed in
+      # tools/documented-api.txt documented in both languages on a page of the
+      # developer guide, and every one of those symbols still named by a public
+      # header.
+      #
+      # That last rule is why the job checks out a second repository. Two pages
+      # that agree with each other say nothing about the code: a symbol renamed
+      # in the library, and renamed on both pages, would leave this site green
+      # while the guide published a name no header carries. Without the headers
+      # the gate refuses (exit 2) instead of passing, so the step cannot go
+      # green having opened none. It takes the library's default branch, so a
+      # rename that lands there before these pages catch up turns this deploy
+      # red -- which is the point, and makes the library the one to publish
+      # first when both change.
+      - name: Check out the library the guide documents
+        uses: actions/checkout@v4
+        with:
+          repository: LibreSCRS/LibreMiddleware
+          path: _middleware
+          fetch-depth: 1
+
+      - name: API claims match the shipped headers
+        run: python3 tools/check_api_claims.py content _middleware/include
+
+      # A gate nobody has watched fail is a claim, not a check. This one is a
+      # deny-list, so its most likely failure is passing vacuously.
+      - name: Prove the API-claims gate discriminates
+        run: python3 tools/check_api_claims.selftest.py
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

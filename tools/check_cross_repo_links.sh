@@ -9,9 +9,11 @@
 # <public-dir> is the output of `hugo --minify -d <public-dir>`.
 #
 # NOT WIRED INTO CI, ON PURPOSE. The deploy workflow checks out this
-# repository alone, so in CI <workspace-root> would hold no code repositories
-# at all and the check would report "checked 0 references / dead: 0" — a green
-# result that proves nothing. Run it locally before publishing; the
+# repository and, for the API-claims gate, the library whose headers that gate
+# reads — and it puts the library under a path of its own, not as one of the
+# seven siblings this script looks for. So in CI <workspace-root> holds none of
+# them and the check reports "checked 0 references / dead: 0" — a green result
+# that proves nothing. Run it locally before publishing; the
 # translation-completeness gate next to it needs only content/ and is the one
 # CI runs.
 #

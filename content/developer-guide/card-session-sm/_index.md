@@ -9,7 +9,7 @@ This page is for plugin authors and host applications that coordinate secure mes
 
 ## New `CardSession` methods (4.1)
 
-The methods below extend the 4.0 `CardSession` surface. They all live on the public `LibreSCRS::SmartCard::CardSession` class declared in `LibreMiddleware/include/LibreSCRS/SmartCard/CardSession.h`.
+The methods below extend the 4.0 `CardSession` surface. They all live on the public `LibreSCRS::SmartCard::CardSession` class declared in `LibreMiddleware/include/LibreSCRS/SmartCard/CardSession.h`. Every row arrived in 4.1 unless it says otherwise.
 
 | Method | Signature (short) | Purpose |
 |---|---|---|
@@ -21,6 +21,7 @@ The methods below extend the 4.0 `CardSession` surface. They all live on the pub
 | `markDead` | `() noexcept → void` | Mark the session dead after a `CardRemoved` event; later activations return `CardRemoved`. |
 | `isDead` | `() const noexcept → bool` | Predicate paired with `markDead`. |
 | `setCredentialProvider` | `(LibreSCRS::Auth::CredentialProvider) → void` | Install the host callback used on cache miss to prompt for a CAN/PIN/MRZ. The provider is invoked **without** the session mutex held; implementations MAY safely call back into the same `CardSession` (for example `setPaceSecret` to deposit a just-collected CAN). |
+| `hasCredentialProvider` | `() const noexcept → bool` | True when a provider is installed. Lets a plugin tell a broker that will supply secrets on demand from a host that pre-deposits them through `setPaceSecret`. Takes the session mutex, so it is safe to call while another thread installs one; if the lock cannot be taken it answers `false` rather than break its `noexcept` contract. Since 5.0. |
 
 ## Parameter and result types
 
@@ -75,6 +76,29 @@ Coverage of this flow lives in `LibreMiddleware/test/LibreSCRS_CardSessionTests.
 ## Credential preload pattern
 
 When the host has already collected the CAN out of band, pre-populating the cache through `setPaceSecret` before calling `activateChannelWithSm` avoids a second UI prompt. The PKCS#11 module uses this path: it parses the host-supplied "CAN:PIN" string out of `C_Login`, deposits the CAN into the session cache, then activates the SM channel and forwards the bare PIN to `VERIFY`. See [PKCS#11 session injection](../pkcs11-session-injection/) for the host-side wiring.
+
+## Declaring activation instead of driving it
+
+A `CardPlugin` need not call `activateChannelWithSm` itself. It can publish a
+`LibreSCRS::Plugin::ActivationProfile` (`LibreSCRS/Plugin/ActivationProfile.h`)
+from its protected `activationProfile()` hook and let the `readCard` wrapper
+drive the channel on its behalf.
+
+| Field | Meaning |
+|---|---|
+| `aid` | Applet to activate against; empty means a plain channel and no secure messaging. |
+| `primary` | The `SmProtocolRequest` to try first. Read **only** when `requiresActivation()` is true. |
+| `allowBacFallback` | Retry once with BAC when `primary` fails with `PaceUnsupported` — a document structurally without PACE. No other error triggers the fallback. |
+
+`ActivationProfile::plain()` is what the base class returns, and
+`requiresActivation()` is the predicate the wrapper branches on: a plain profile
+goes straight to the read with no channel, an activating one seeds the plugin's
+retained secrets into the session cache and then calls the public factory
+`LibreSCRS::Plugin::acquireChannelForProfile`, which reuses the cache-or-provider
+resolution described above and keeps the channel alive for the whole read. The
+profile carries no secret values, and the same profile feeds the pre-read
+authentication derivation, so a plugin states its activation requirement in one
+place instead of two.
 
 ## See also
 

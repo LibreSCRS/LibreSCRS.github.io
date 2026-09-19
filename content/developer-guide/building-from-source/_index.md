@@ -18,7 +18,7 @@ LibreMiddleware  →  LibreAgent  →  LibreLinux  →  LibreCelik / LibreKDE
 |---|---|---|
 | CMake | 3.24+ | 3.28+ where a `FetchContent` path is used |
 | C++ compiler | GCC 13+ or Clang 17+ | C++23 |
-| Qt 6 | Core, DBus, Widgets, LinguistTools | LibreCelik, LibreKDE, the prompter, and `LibreAgent::ClientQt` |
+| Qt 6 | Core, DBus, Widgets, PrintSupport, LinguistTools | LibreCelik, LibreKDE, the prompter, and `LibreAgent::ClientQt` |
 | PC/SC | `libpcsclite-dev` (Linux) | built in on macOS |
 | OpenSSL 3 | — | bundled in LibreMiddleware `thirdparty/` |
 | sdbus-c++ | 2.0+ | LibreLinux (agent and prompter D-Bus) |

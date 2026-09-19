@@ -18,7 +18,7 @@ LibreMiddleware  →  LibreAgent  →  LibreLinux  →  LibreCelik / LibreKDE
 |---|---|---|
 | CMake | 3.24+ | 3.28+ тамо где се користи `FetchContent` |
 | C++ преводилац | GCC 13+ или Clang 17+ | C++23 |
-| Qt 6 | Core, DBus, Widgets, LinguistTools | LibreCelik, LibreKDE, упитник и `LibreAgent::ClientQt` |
+| Qt 6 | Core, DBus, Widgets, PrintSupport, LinguistTools | LibreCelik, LibreKDE, упитник и `LibreAgent::ClientQt` |
 | PC/SC | `libpcsclite-dev` (Linux) | уграђено на macOS-у |
 | OpenSSL 3 | — | уграђен у LibreMiddleware `thirdparty/` |
 | sdbus-c++ | 2.0+ | LibreLinux (D-Bus агента и упитника) |

@@ -46,7 +46,7 @@ This project was built with AI as a development partner — from analyzing hex d
 
 | Project | Description | License |
 |---|---|---|
-| LibreCelik | Qt6 desktop GUI smart card reader | GPL-3.0 |
+| LibreCelik | Qt6 desktop GUI smart card reader | GPL-3.0-or-later |
 | LibreMiddleware | C++23 smart card middleware libraries | LGPL-2.1-or-later |
 | LibreAgent | Platform-neutral card agent core and Qt client library | LGPL-2.1-or-later |
 | LibreLinux | Linux card agent host and PKCS#11 broker client | LGPL-2.1-or-later |

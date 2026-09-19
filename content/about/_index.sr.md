@@ -46,7 +46,7 @@ LibreSCRS је настао као подухват реверзног инже�
 
 | Пројекат | Опис | Лиценца |
 |---|---|---|
-| LibreCelik | Qt6 десктоп GUI читач смарт картица | GPL-3.0 |
+| LibreCelik | Qt6 десктоп GUI читач смарт картица | GPL-3.0-or-later |
 | LibreMiddleware | C++23 middleware библиотеке за смарт картице | LGPL-2.1-or-later |
 | LibreAgent | Платформски неутрално језгро картичног агента и Qt клијентска библиотека | LGPL-2.1-or-later |
 | LibreLinux | Linux домаћин картичног агента и PKCS#11 клијент брокера | LGPL-2.1-or-later |

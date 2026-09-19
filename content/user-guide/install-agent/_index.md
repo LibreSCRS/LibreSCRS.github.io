@@ -38,7 +38,7 @@ The agent is a per-user systemd service on the session bus:
 systemctl --user status librescrs-agent.service
 ```
 
-It is **socket-and-demand activated**: it does not run until the first card
+It is **D-Bus activated on demand**: it does not run until the first card
 operation asks for it, so `inactive (dead)` right after installing is normal
 rather than a fault. Insert a card, open LibreCelik, and check again.
 

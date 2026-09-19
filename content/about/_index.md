@@ -18,6 +18,7 @@ LibreSCRS started as a reverse-engineering effort to liberate Serbian government
 6. **May 2026** — **4.0.0 release**: C++23 core, native PAdES / XAdES / JAdES / CAdES / ASiC-E signing, RFC 5280 trust chain validation, eIDAS qcStatements conformance, auto-fit visual signature layout.
 7. **May 2026** — **4.1.0 release**: Card+Slot model fixing multi-card PIN routing, multi-PIN PKCS#11 dispatch, cross-plugin secure channels (PACE / BAC / plain), and in-process PKCS#11 session sharing.
 8. **May 2026** — **4.2.0 release**: Qt-free reader-list snapshot API and CardData accessors, automatic in-process session sharing via the SessionPresence registry, AET SafeSign QSCD support, and a fail-closed bundled-license check.
+9. **2026** — **5.0.0 release**: a per-user card agent (LibreAgent, LibreLinux) becomes the sole owner of the card and its secrets, with PIN/CAN/MRZ entry and PKCS#11 access routed through it; Debian and RPM packages; the installed CMake package exports a single `LibreSCRS::` target namespace.
 
 ---
 
@@ -46,7 +47,12 @@ This project was built with AI as a development partner — from analyzing hex d
 | Project | Description | License |
 |---|---|---|
 | LibreCelik | Qt6 desktop GUI smart card reader | GPL-3.0 |
-| LibreMiddleware | C++23 smart card middleware libraries | LGPL-2.1 |
+| LibreMiddleware | C++23 smart card middleware libraries | LGPL-2.1-or-later |
+| LibreAgent | Platform-neutral card agent core and Qt client library | LGPL-2.1-or-later |
+| LibreLinux | Linux card agent host and PKCS#11 broker client | LGPL-2.1-or-later |
+| LibreKDE | KDE Plasma 6 clients for the card agent | LGPL-2.1-or-later |
+| LibreDarwin | macOS card agent host | LGPL-2.1-or-later |
+| LibreMac | SwiftUI menu bar client and CryptoTokenKit extension | LGPL-2.1-or-later |
 
 ---
 

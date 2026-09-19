@@ -215,7 +215,13 @@ def headers(root: Path, symbols: list[str], name: str = "Api.h") -> Path:
     return root / "include"
 
 
+CASES = 0
+RED = 0
+
+
 def run(content: Path | None, **env_overrides: str) -> tuple[int, str]:
+    """Run the gate once. Every invocation is one case, and a non-zero return
+    over a perturbed input is a case that proved the gate red."""
     import os
 
     env = dict(os.environ)
@@ -229,6 +235,10 @@ def run(content: Path | None, **env_overrides: str) -> tuple[int, str]:
     if content is not None:
         argv.append(str(content))
     done = subprocess.run(argv, capture_output=True, text=True, env=env)
+    global CASES, RED
+    CASES += 1
+    if done.returncode != 0:
+        RED += 1
     return done.returncode, done.stdout + done.stderr
 
 
@@ -1018,8 +1028,10 @@ def main() -> int:
     print("---")
     if failures:
         print(f"{failures} case(s) did not behave as required")
+        print(f"selftest: {CASES} cases, {RED} red-proved")
         return 1
     print("OK: the gate passes what it should and refuses what it must")
+    print(f"selftest: {CASES} cases, {RED} red-proved")
     return 0
 
 

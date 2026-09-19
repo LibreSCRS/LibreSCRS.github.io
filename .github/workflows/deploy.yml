@@ -87,6 +87,12 @@ jobs:
         with:
           path: ./public
 
+      # Every self-test this repository ships, by pathspec, each having to
+      # report the cases it ran and how many proved the gate red. Without a
+      # runner the only self-test here was named by hand, one step above.
+      - name: Run every self-test
+        run: ./tools/run-selftests.sh
+
   deploy:
     timeout-minutes: 15
     environment:

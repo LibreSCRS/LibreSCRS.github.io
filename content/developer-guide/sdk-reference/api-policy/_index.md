@@ -164,6 +164,12 @@ ABI bump that does not touch this document is rejected in review, and so is the
 reverse. This is what keeps §4 from going stale against the header, which is
 exactly how the v6 → v8 drift above happened.
 
+In 5.0 every plugin built against this ABI is in-tree: it lives inside the
+LibreMiddleware source tree and is compiled and shipped as part of the
+LibreMiddleware build. A public APDU transport and a stable ABI for
+out-of-tree, third-party plugins are not part of 5.0 and are reserved for a
+future 6.0 cycle.
+
 Third-party plugin authors target a specific ABI version.
 `LibreSCRS::Plugin::kCardPluginAbiVersion` exposes the current ABI integer, and
 the `LIBRESCRS_DECLARE_CARD_PLUGIN(PluginType, AbiVersion)` macro

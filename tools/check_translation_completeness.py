@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: LGPL-2.1-or-later
 """check_translation_completeness.py — every page exists twice, and says the same thing twice.
 
     usage: python3 tools/check_translation_completeness.py <content-dir>

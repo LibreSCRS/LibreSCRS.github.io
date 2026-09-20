@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: LGPL-2.1-or-later
 #
 # check_cross_repo_links.sh — every librescrs.github.io URL committed in the
 # code repositories must resolve against a locally built copy of this site.

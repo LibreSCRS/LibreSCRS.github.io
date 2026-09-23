@@ -83,6 +83,96 @@ jobs:
       - name: Prove the API-claims gate discriminates
         run: python3 tools/check_api_claims.selftest.py
 
+      # The download pages are held to data/artifacts.json, and the data to the
+      # seven files it was generated from -- read at the TAG the data names, not
+      # from a default branch: the site documents a release, and a commit after
+      # the tag must not rewrite what that release published. Data generated
+      # over a ref that is not a tag (before the release exists) makes the gate
+      # refuse with exit 2, so this deploy cannot go green on a provisional file.
+      - name: The release the download pages document
+        id: release
+        run: >-
+          python3 -c 'import json; print("tag=" + json.load(open("data/artifacts.json"))["repos"][0]["tag"])'
+          >> "$GITHUB_OUTPUT"
+
+      - name: Check out what LibreMiddleware declares at that tag
+        uses: actions/checkout@v4
+        with:
+          repository: LibreSCRS/LibreMiddleware
+          ref: ${{ steps.release.outputs.tag }}
+          path: _release/LibreMiddleware
+          sparse-checkout: ci/release-assets.txt
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
+      - name: Check out what LibreAgent declares at that tag
+        uses: actions/checkout@v4
+        with:
+          repository: LibreSCRS/LibreAgent
+          ref: ${{ steps.release.outputs.tag }}
+          path: _release/LibreAgent
+          sparse-checkout: ci/release-assets.txt
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
+      - name: Check out what LibreLinux declares at that tag
+        uses: actions/checkout@v4
+        with:
+          repository: LibreSCRS/LibreLinux
+          ref: ${{ steps.release.outputs.tag }}
+          path: _release/LibreLinux
+          sparse-checkout: ci/release-assets.txt
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
+      - name: Check out what LibreCelik declares at that tag
+        uses: actions/checkout@v4
+        with:
+          repository: LibreSCRS/LibreCelik
+          ref: ${{ steps.release.outputs.tag }}
+          path: _release/LibreCelik
+          sparse-checkout: ci/release-assets.txt
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
+      - name: Check out what LibreKDE declares at that tag
+        uses: actions/checkout@v4
+        with:
+          repository: LibreSCRS/LibreKDE
+          ref: ${{ steps.release.outputs.tag }}
+          path: _release/LibreKDE
+          sparse-checkout: ci/release-assets.txt
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
+      - name: Check out what LibreDarwin declares at that tag
+        uses: actions/checkout@v4
+        with:
+          repository: LibreSCRS/LibreDarwin
+          ref: ${{ steps.release.outputs.tag }}
+          path: _release/LibreDarwin
+          sparse-checkout: ci/release-assets.txt
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
+      - name: Check out what LibreMac declares at that tag
+        uses: actions/checkout@v4
+        with:
+          repository: LibreSCRS/LibreMac
+          ref: ${{ steps.release.outputs.tag }}
+          path: _release/LibreMac
+          sparse-checkout: ci/release-assets.txt
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
+      - name: Prove the download-claims gate discriminates
+        run: python3 tools/check_download_claims.selftest.py
+
+      - name: Download pages name only what the release publishes
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: python3 tools/check_download_claims.py content data/artifacts.json --repos-root _release --ref "$TAG"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -67,6 +67,14 @@ Without them, an attacker who replaces both the artifact and its bundle
 passes the check. With them, they would additionally have to sign as a
 LibreSCRS release workflow.
 
+**What the signature does and does not prove.** A cosign bundle proves which
+release workflow, on which tag, produced the exact bytes you downloaded. It
+does not prove that an independent rebuild would produce the same bytes: the
+source tarball is built to be byte-reproducible — and for LibreLinux,
+LibreCelik and LibreKDE that is measured on every push — but the binary
+packages, the AppImage and the DMG are not yet. Until they are, the identity in
+the certificate is the claim — not a rebuild you can repeat.
+
 ## Reporting a vulnerability
 
 Each repository carries a `SECURITY.md` with the current reporting address

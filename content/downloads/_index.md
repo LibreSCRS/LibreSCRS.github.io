@@ -11,11 +11,14 @@ knowing before you pick anything from this page:
    every application — LibreCelik, LibreKDE, Firefox, Thunderbird, `ssh` — is a
    client of it. Install a GUI without the agent and it starts, finds no card,
    and cannot tell you why.
-2. **Only LibreCelik ships a prebuilt binary in this release.** The agent and
-   the Plasma client ship as source with packaging recipes in their
-   repositories; there is no signed APT or DNF repository and no AUR package
-   yet. Where that is the case, this page says so rather than offering a button
-   that leads nowhere.
+2. **Two components ship prebuilt binaries: LibreCelik and the middleware.**
+   LibreCelik ships an AppImage and a DMG; LibreMiddleware ships `.deb`
+   packages for Debian 13 and Ubuntu 26.04 LTS and `.rpm` packages for Fedora
+   43. The agent host and the Plasma client ship as source with packaging
+   recipes in their repositories. There is no signed APT, DNF or AUR
+   repository, and **nothing installed from this release updates itself** —
+   where that is the case, this page says so rather than offering a button that
+   leads nowhere.
 
 ---
 
@@ -51,13 +54,39 @@ sudo pacman -U librescrs-middleware-5.0.0-1-x86_64.pkg.tar.zst \
                librescrs-pinentry-kde-5.0.0-1-x86_64.pkg.tar.zst
 ```
 
+**What was checked in a clean chroot for this release:** the two agent recipes
+build there. The middleware recipe stops at a test helper that needs the PC/SC
+headers; add `-DBUILD_TESTING=OFF` to the `cmake` line in its `build()`. The
+Plasma recipe does not configure there yet: `librescrs-agent-client-qt` does
+not pull in the package that carries the agent's `Wire` CMake target.
+
+The two agent repositories publish the source tarball those recipes fetch,
+each with its signature:
+
+{{< release-assets repo="LibreAgent" >}}
+
+{{< release-assets repo="LibreLinux" >}}
+
 {{< button href="https://github.com/LibreSCRS/LibreLinux/releases/tag/5.0.0" target="_blank" >}}LibreLinux 5.0.0 source{{< /button >}}
 
 ### Debian, Ubuntu, Fedora
 
-No `.deb` or `.rpm` packages in this release. Build from source — see
-[Building from source](/developer-guide/building-from-source/) for the full
-sequence, which is the same dependency order as above.
+Prebuilt middleware packages ship for Debian 13, Ubuntu 26.04 LTS and Fedora
+43. Each asset names the distribution it was built for, so pick the one that
+matches yours — a package built against another distribution's glibc will
+install and then fail to load.
+
+{{< release-assets repo="LibreMiddleware" >}}
+
+These install the libraries, the card plugins and, if you choose it, the direct
+PKCS#11 registration. **`librescrs-pkcs11-direct` conflicts with the card
+agent.** On Debian and Ubuntu, installing it removes the agent; on Fedora, `dnf`
+refuses the transaction until the agent is removed. Install it only on a
+machine that deliberately has none.
+
+The agent host and the Plasma client have no `.deb` or `.rpm` in this release —
+build them from source, in the dependency order above; see
+[Building from source](/developer-guide/building-from-source/).
 
 ### macOS
 
@@ -87,6 +116,8 @@ stack of its own; all card access happens in the agent.
 
 {{< button href="https://github.com/LibreSCRS/LibreCelik/releases/tag/5.0.0" target="_blank" >}}Download DMG (macOS){{< /button >}}
 
+{{< release-assets repo="LibreCelik" >}}
+
 ---
 
 ## LibreKDE
@@ -97,6 +128,8 @@ window, a Purpose "Sign" plugin, and the `card:/` KIO worker.
 Ships as source with an Arch recipe in `packaging/arch/` (package name
 `librekde`). It depends on `librescrs-agent` and `librescrs-agent-client-qt`,
 so install the agent first.
+
+{{< release-assets repo="LibreKDE" >}}
 
 {{< button href="https://github.com/LibreSCRS/LibreKDE/releases/tag/5.0.0" target="_blank" >}}LibreKDE 5.0.0 source{{< /button >}}
 

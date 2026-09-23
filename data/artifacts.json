@@ -1,0 +1,133 @@
+{
+  "generated_by": "tools/gen-artifacts-data.py -- do not edit",
+  "provisional": true,
+  "repos": [
+    {
+      "repo": "LibreMiddleware",
+      "tag": "HEAD",
+      "assets": [
+        {
+          "glob": "*.debian13.deb",
+          "description": "binary packages built in a Debian 13 container"
+        },
+        {
+          "glob": "*.ubuntu2604.deb",
+          "description": "binary packages built in an Ubuntu 26.04 LTS container"
+        },
+        {
+          "glob": "*.fedora43.rpm",
+          "description": "binary packages built in a Fedora 43 container"
+        },
+        {
+          "glob": "*.orig.tar.gz",
+          "description": "the deterministic source tarball the packaging recipes fetch"
+        },
+        {
+          "glob": "sbom.cdx.json",
+          "description": "CycloneDX bill of materials naming the statically linked OpenSSL, curl and OpenSC"
+        },
+        {
+          "glob": "SHA256SUMS",
+          "description": "checksums over every other asset in this release"
+        },
+        {
+          "glob": "*.sigstore.json",
+          "description": "cosign keyless signature bundle, one per asset"
+        }
+      ],
+      "source_sha256": "bed57b9c2372d31439935b64bcc19dac1c2ceaf17ca1c21eaffd8a4fdb5bd718"
+    },
+    {
+      "repo": "LibreAgent",
+      "tag": "HEAD",
+      "assets": [
+        {
+          "glob": "libreagent_*.orig.tar.gz",
+          "description": "the deterministic source tarball the packaging recipes fetch"
+        },
+        {
+          "glob": "*.sigstore.json",
+          "description": "cosign keyless signature bundle, one per asset"
+        }
+      ],
+      "source_sha256": "6c414d84bc6f4ddc17bb63b3babeb64c109f3ae528515f6919bb80c3617cbaf8"
+    },
+    {
+      "repo": "LibreLinux",
+      "tag": "HEAD",
+      "assets": [
+        {
+          "glob": "librelinux_*.orig.tar.gz",
+          "description": "the deterministic source tarball the packaging recipes fetch"
+        },
+        {
+          "glob": "*.sigstore.json",
+          "description": "cosign keyless signature bundle, one per asset"
+        }
+      ],
+      "source_sha256": "559b7b7576a1fe5fd338b79f404456b309cf2d67bcc596569b70d758fd1a143e"
+    },
+    {
+      "repo": "LibreCelik",
+      "tag": "HEAD",
+      "assets": [
+        {
+          "glob": "LibreCelik-*-x86_64.AppImage",
+          "description": "single-file Linux build; make it executable and run it"
+        },
+        {
+          "glob": "LibreCelik-*-macos.dmg",
+          "description": "universal macOS build (x86_64 + arm64); not Apple-signed or notarised"
+        },
+        {
+          "glob": "librecelik_*.orig.tar.gz",
+          "description": "the deterministic source tarball"
+        },
+        {
+          "glob": "sbom-linux.cdx.json",
+          "description": "CycloneDX bill of materials for the AppImage"
+        },
+        {
+          "glob": "sbom-macos.cdx.json",
+          "description": "CycloneDX bill of materials for the DMG"
+        },
+        {
+          "glob": "SHA256SUMS",
+          "description": "checksums over every other asset in this release"
+        },
+        {
+          "glob": "*.sigstore.json",
+          "description": "cosign keyless signature bundle, one per asset"
+        }
+      ],
+      "source_sha256": "4975cf5ce9954b47bd1889e8230528f6cc3b1808aa2f5386d8da50fc61b497dc"
+    },
+    {
+      "repo": "LibreKDE",
+      "tag": "HEAD",
+      "assets": [
+        {
+          "glob": "librekde_*.orig.tar.gz",
+          "description": "the deterministic source tarball the packaging recipes fetch"
+        },
+        {
+          "glob": "*.sigstore.json",
+          "description": "cosign keyless signature bundle, one per asset"
+        }
+      ],
+      "source_sha256": "729ea3d1a4c89c573e6d9e7e201a9a96cccd20f50acbc28abaf4c1de9ef51d12"
+    },
+    {
+      "repo": "LibreDarwin",
+      "tag": "HEAD",
+      "assets": [],
+      "source_sha256": "2d6ace1ee8d6bfed40d1211c7a7fd20ab40c0f73b620269b058a387e277a732b"
+    },
+    {
+      "repo": "LibreMac",
+      "tag": "HEAD",
+      "assets": [],
+      "source_sha256": "a4cf9e8977c89beb0f677568ce9352c4591483b0fae81a6eae9310db88cfcaa1"
+    }
+  ]
+}

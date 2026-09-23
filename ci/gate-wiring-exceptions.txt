@@ -8,3 +8,4 @@
 # that ships and runs nowhere is indistinguishable from one that runs.
 
 tools/check_cross_repo_links.sh    Needs all seven code repositories present to have anything to check against, and this workflow checks out one. The script skips every repository it cannot see, so on a runner it would report "checked 0 references / dead: 0" and pass while proving nothing. Run locally before publishing.
+tools/gen-artifacts-data.py    A generator, not a gate: it writes data/artifacts.json from the release tags, which exist only after every code repository is tagged, so it is run by hand at publish time. What it writes is judged on every deploy by tools/check_download_claims.py, which is wired.

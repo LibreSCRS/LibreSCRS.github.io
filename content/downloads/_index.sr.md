@@ -44,6 +44,9 @@ librescrs-agent, librescrs-pinentry-kde                  (LibreLinux)
 на `-any.pkg.tar.zst` док се остала завршавају на `-x86_64.pkg.tar.zst`;
 команда која архитектуру испише дословно промашиће га.
 
+Сва четири Arch рецепта са ове странице — међуслој, библиотеке агента, агент и
+Plasma клијент — за ово издање изграђена су у чистом chroot-у, тим редом.
+
 ```
 sudo pacman -U librescrs-middleware-5.0.0-1-x86_64.pkg.tar.zst \
                librescrs-agent-common-5.0.0-1-any.pkg.tar.zst \
@@ -52,12 +55,6 @@ sudo pacman -U librescrs-middleware-5.0.0-1-x86_64.pkg.tar.zst \
                librescrs-agent-5.0.0-1-x86_64.pkg.tar.zst \
                librescrs-pinentry-kde-5.0.0-1-x86_64.pkg.tar.zst
 ```
-
-**Шта је за ово издање проверено у чистом chroot-у:** оба рецепта агента се
-тамо граде. Рецепт међуслоја застаје на помоћном тесту коме требају PC/SC
-заглавља; додајте `-DBUILD_TESTING=OFF` у `cmake` ред у његовом `build()`-у.
-Plasma рецепт се тамо још не конфигурише: `librescrs-agent-client-qt` не
-повлачи пакет који носи CMake циљ агента `Wire`.
 
 Два спремишта агента објављују изворну архиву коју ти рецепти преузимају,
 свака са својим потписом:

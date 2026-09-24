@@ -45,6 +45,10 @@ possible. `librescrs-agent-common` is `arch=any`, so its file name ends in
 `-any.pkg.tar.zst` while the others end in `-x86_64.pkg.tar.zst`; a command
 that spells the architecture out will miss it.
 
+All four Arch recipes on this page — middleware, agent libraries, agent and
+the Plasma client — were built in a clean chroot for this release, in that
+order.
+
 ```
 sudo pacman -U librescrs-middleware-5.0.0-1-x86_64.pkg.tar.zst \
                librescrs-agent-common-5.0.0-1-any.pkg.tar.zst \
@@ -53,12 +57,6 @@ sudo pacman -U librescrs-middleware-5.0.0-1-x86_64.pkg.tar.zst \
                librescrs-agent-5.0.0-1-x86_64.pkg.tar.zst \
                librescrs-pinentry-kde-5.0.0-1-x86_64.pkg.tar.zst
 ```
-
-**What was checked in a clean chroot for this release:** the two agent recipes
-build there. The middleware recipe stops at a test helper that needs the PC/SC
-headers; add `-DBUILD_TESTING=OFF` to the `cmake` line in its `build()`. The
-Plasma recipe does not configure there yet: `librescrs-agent-client-qt` does
-not pull in the package that carries the agent's `Wire` CMake target.
 
 The two agent repositories publish the source tarball those recipes fetch,
 each with its signature:

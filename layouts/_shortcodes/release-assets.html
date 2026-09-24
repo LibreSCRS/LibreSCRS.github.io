@@ -4,7 +4,10 @@
   tools/gen-artifacts-data.py from each repository's ci/release-assets.txt and
   is never edited by hand; tools/check_download_claims.py holds the pages and
   the data to each other. An unknown repository, or no data at all, fails the
-  build rather than rendering an empty table.
+  build rather than rendering an empty table. A non-English page takes each
+  description from the i18n key ra_<repo>_<glob with non-alphanumerics as _>,
+  and a missing key fails the build: the English text in the data must not
+  reach a page in another language.
 */ -}}
 {{- $want := .Get "repo" -}}
 {{- if not $want -}}
@@ -26,7 +29,15 @@
   <thead><tr><th>{{ i18n "release_assets_asset" }}</th><th>{{ i18n "release_assets_description" }}</th></tr></thead>
   <tbody>
   {{- range $entry.assets }}
-    <tr><td><code>{{ .glob }}</code></td><td>{{ .description }}</td></tr>
+    {{- $desc := .description -}}
+    {{- if ne $.Page.Language.Lang "en" -}}
+      {{- $key := printf "ra_%s_%s" $want (replaceRE "[^A-Za-z0-9]+" "_" .glob) -}}
+      {{- $desc = i18n $key -}}
+      {{- if not $desc -}}
+        {{- errorf "release-assets: no %s translation %q for %s %s (%s)" $.Page.Language.Lang $key $want .glob $.Position -}}
+      {{- end -}}
+    {{- end }}
+    <tr><td><code>{{ .glob }}</code></td><td>{{ $desc }}</td></tr>
   {{- end }}
   </tbody>
 </table>

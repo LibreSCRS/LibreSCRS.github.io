@@ -22,7 +22,7 @@ directory for downstream patches.
 
 ### OpenSSL (Apache-2.0)
 
-[OpenSSL](https://www.openssl.org/) 3.5.5 — cryptographic library,
+[OpenSSL](https://www.openssl.org/) 3.5.8 — cryptographic library,
 statically vendored.
 
 ---

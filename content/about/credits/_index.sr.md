@@ -22,7 +22,7 @@ LibreSCRS не би био могућ без екосистема отворен
 
 ### OpenSSL (Apache-2.0)
 
-[OpenSSL](https://www.openssl.org/) 3.5.5 — криптографска библиотека,
+[OpenSSL](https://www.openssl.org/) 3.5.8 — криптографска библиотека,
 статички уграђена.
 
 ---

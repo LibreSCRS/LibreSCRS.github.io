@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# Every action is pinned by commit; this is what moves the pins.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

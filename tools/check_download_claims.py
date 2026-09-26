@@ -27,16 +27,16 @@ Scope: pages under content/downloads/ and content/user-guide/, both languages.
 News posts describe the releases they announce and are not held to this one.
 
 Before the release is tagged the data is provisional and rule 3 has nothing to
-judge, so on the deploy path the answer is exit 2 and the site cannot publish.
-A run on a BRANCH other than main still judges the claims, rather than
-stopping there: when the data is provisional, the ref is not a tag, and the
-runner's GITHUB_REF is refs/heads/<branch> with a branch other than main,
-rules 1 and 2 are held to the asset lists as checked out under <repos-root>
-(each repository's main, in the workflow) instead of to the data, and rule 3
-is reported as not judged. There is no flag for this: the mode follows from
-the ref the runner reports for the run, not from an argument a caller passes. On
-main, on a pull request and on any local run without GITHUB_REF, provisional
-data stays exit 2.
+judge. A push run still judges the claims rather than stopping there: when the
+data is provisional, the ref is not a tag, and the runner's GITHUB_REF is
+refs/heads/<branch> (main included), rules 1 and 2 are held to the asset lists
+as checked out under <repos-root> (each repository's main, in the workflow)
+instead of to the data, and rule 3 is reported as not judged. There is no flag
+for this: the mode follows from the ref the runner reports for the run, not
+from an argument a caller passes. On a pull request and on any local run
+without GITHUB_REF, provisional data stays exit 2. Provisional data is never
+published: the deploy workflow skips its deploy job whenever the build job
+reports the data provisional.
 
 Exit: 0 all three hold (branch mode: rules 1 and 2 hold); 1 one does not; 2 cannot judge -- no data file, no page
 in scope, fewer than seven sources, a tag the data names that its repository
@@ -96,9 +96,9 @@ def declared(path):
 
 
 def branch_run():
-    """The branch this runner judges, when it is a branch other than main."""
+    """The branch this runner judges, when the run is on a branch."""
     ref = os.environ.get("GITHUB_REF", "")
-    if ref.startswith("refs/heads/") and ref != "refs/heads/main":
+    if ref.startswith("refs/heads/"):
         return ref[len("refs/heads/"):]
     return None
 

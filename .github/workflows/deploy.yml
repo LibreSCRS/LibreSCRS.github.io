@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+    outputs:
+      provisional: ${{ steps.release.outputs.provisional }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -59,9 +61,9 @@ jobs:
       # repositories AT THE TAG data/artifacts.json names -- never a default
       # branch, where the first commit after the tag would rewrite what that
       # release published. Data generated over a ref that is not a tag is
-      # marked provisional; the checkouts then take the default branch, and the
-      # download check at the end refuses with exit 2, so this deploy cannot go
-      # green on a provisional file.
+      # marked provisional; the checkouts then take the default branch, the
+      # download check judges the pages against those lists, and the job
+      # reports the data provisional so that deploy is skipped.
       - name: The release the pages document
         id: release
         run: |
@@ -70,7 +72,9 @@ jobs:
           data = json.load(open("data/artifacts.json"))
           tag = data["repos"][0]["tag"]
           print(f"tag={tag}")
-          print(f"ref={'' if data.get('provisional') else tag}")
+          provisional = bool(data.get("provisional"))
+          print(f"ref={'' if provisional else tag}")
+          print(f"provisional={'true' if provisional else 'false'}")
           EOF
 
       # Two pages that agree with each other say nothing about the code: a
@@ -173,11 +177,9 @@ jobs:
           persist-credentials: false
 
       # Last, and on purpose. Before every repository is tagged the data is
-      # provisional: on main this is exit 2 ("cannot judge a page about a
-      # release that does not exist yet"), which is why deploy cannot run on
-      # provisional data; on any other branch the runner's GITHUB_REF makes the
-      # check hold the pages to the asset lists checked out above -- each
-      # repository's main -- and pass or fail on that.
+      # provisional, and the runner's GITHUB_REF makes the check hold the
+      # pages to the asset lists checked out above -- each repository's main --
+      # and pass or fail on that. Tagged data is judged in full.
       - name: Download pages name only what the release publishes
         env:
           TAG: ${{ steps.release.outputs.tag }}
@@ -185,8 +187,9 @@ jobs:
 
   deploy:
     # The github-pages environment admits main alone; a branch run stops at the
-    # build job instead of being refused here.
-    if: github.ref == 'refs/heads/main'
+    # build job instead of being refused here. Provisional data (no release
+    # tag yet) is never published: main stays green on it and skips this job.
+    if: github.ref == 'refs/heads/main' && needs.build.outputs.provisional != 'true'
     timeout-minutes: 15
     needs: build
     runs-on: ubuntu-24.04

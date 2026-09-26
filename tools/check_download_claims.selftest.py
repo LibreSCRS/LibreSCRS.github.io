@@ -12,6 +12,7 @@ asserted as exit 2 and the green case comes first.
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -91,6 +92,25 @@ def run(repos, content, data, ref="5.0.0", github_ref=None):
                         "--repos-root", str(repos), "--ref", ref],
                        capture_output=True, text=True, env=env)
     return p.returncode, p.stdout + p.stderr
+
+
+def deploy_skips_provisional(wf):
+    """Structural: deploy runs only on main and only when the build job's
+    `provisional` output, taken from the step that reads the data, is not true."""
+    deploy = re.search(r"^  deploy:\n(.*?)(?=^  \S|\Z)", wf, re.S | re.M)
+    build = re.search(r"^  build:\n(.*?)(?=^  \S|\Z)", wf, re.S | re.M)
+    if not deploy or not build:
+        return False, "no build or deploy job"
+    cond = re.search(r"^    if: (.*)$", deploy.group(1), re.M)
+    if not cond or "github.ref == 'refs/heads/main'" not in cond.group(1) \
+            or "needs.build.outputs.provisional != 'true'" not in cond.group(1):
+        return False, f"deploy if: {cond.group(1) if cond else None}"
+    if not re.search(r"^    outputs:\n      provisional: \$\{\{ steps\.release\.outputs\.provisional \}\}$",
+                     build.group(1), re.M):
+        return False, "build job does not export steps.release.outputs.provisional"
+    if "provisional=" not in build.group(1):
+        return False, "the release step writes no provisional= output"
+    return True, "wired"
 
 
 def case(name, want, got, out, needle=None):
@@ -221,11 +241,18 @@ def main():
         case("D12 provisional data on a branch: an unrendered declared glob fails", 1, rc, out,
              "LibreDarwin-*.dmg")
 
-        # D13 -- the deploy path: on main provisional data stays unjudged.
+        # D13 -- main judges provisional data the same way, so main can be
+        #        green before the release; D18 is what keeps it undeployed.
         repos, content, data = fresh("d13", data_ref="HEAD")
         rc, out = run(repos, content, data, ref="HEAD", github_ref="refs/heads/main")
-        case("D13 provisional data on main is unjudged", 2, rc, out,
-             "cannot judge a page about a release that does not exist yet")
+        case("D13 provisional data on main: consistent claims pass", 0, rc, out,
+             "rules 1 and 2 hold")
+        page = content / "downloads" / "_index.md"
+        page.write_text(page.read_text(encoding="utf-8")
+                        + "\nGet `librescrs-agent_5.0.0-1_amd64.deb` too.\n", encoding="utf-8")
+        rc, out = run(repos, content, data, ref="HEAD", github_ref="refs/heads/main")
+        case("D13 provisional data on main: a wrong claim fails", 1, rc, out,
+             "librescrs-agent_5.0.0-1_amd64.deb")
 
         # D14 -- and so is every run the runner did not start on a branch: a
         # pull request, or a local run with no GITHUB_REF at all.
@@ -259,6 +286,22 @@ def main():
         data.write_text(json.dumps(doc), encoding="utf-8")
         rc, out = run(repos, content, data, github_ref=branch)
         case("D17 provisional data after the tags fails on a branch", 1, rc, out, "provisional")
+
+    # D18 -- provisional data is never published. The check passes it on main
+    # now, so the workflow must skip deploy for it: the build job exports the
+    # data's provisional flag and deploy's condition refuses it.
+    wf = (HERE.parent / ".github" / "workflows" / "deploy.yml").read_text(encoding="utf-8")
+    ok, why = deploy_skips_provisional(wf)
+    case("D18 deploy is skipped when the build reports provisional data", 0, 0 if ok else 1, why)
+    for name, broken in (
+            ("condition drops the provisional test",
+             wf.replace(" && needs.build.outputs.provisional != 'true'", "")),
+            ("build job exports no provisional output",
+             wf.replace("provisional: ${{ steps.release.outputs.provisional }}", "")),
+            ("release step writes no provisional flag", wf.replace("provisional=", "prov=")),
+    ):
+        ok, why = deploy_skips_provisional(broken)
+        case(f"D18 red: {name}", 1, 0 if ok else 1, why)
 
     print("---")
     if failures:

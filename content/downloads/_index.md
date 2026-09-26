@@ -11,14 +11,14 @@ knowing before you pick anything from this page:
    every application — LibreCelik, LibreKDE, Firefox, Thunderbird, `ssh` — is a
    client of it. Install a GUI without the agent and it starts, finds no card,
    and cannot tell you why.
-2. **Two components ship prebuilt binaries: LibreCelik and the middleware.**
-   LibreCelik ships an AppImage and a DMG; LibreMiddleware ships `.deb`
-   packages for Debian 13 and Ubuntu 26.04 LTS and `.rpm` packages for Fedora
-   43. The agent host and the Plasma client ship as source with packaging
-   recipes in their repositories. There is no signed APT, DNF or AUR
-   repository, and **nothing installed from this release updates itself** —
-   where that is the case, this page says so rather than offering a button that
-   leads nowhere.
+2. **Linux packages ship for five distributions:** `.deb` for Debian 13 and
+   Ubuntu 26.04 LTS, `.rpm` for Fedora 43, Fedora 44 and openSUSE Tumbleweed —
+   for the middleware, the agent, LibreCelik and LibreKDE (LibreKDE on all of
+   them except openSUSE Tumbleweed). LibreCelik also ships an AppImage and a
+   DMG; Arch and Manjaro build from the recipes in each repository. There is no
+   signed APT, DNF, zypper or AUR repository, and **nothing installed from
+   this release updates itself** — where that is the case, this page says so
+   rather than offering a button that leads nowhere.
 
 ---
 
@@ -58,33 +58,66 @@ sudo pacman -U librescrs-middleware-5.0.0-1-x86_64.pkg.tar.zst \
                librescrs-pinentry-kde-5.0.0-1-x86_64.pkg.tar.zst
 ```
 
-The two agent repositories publish the source tarball those recipes fetch,
-each with its signature:
+The source tarballs those recipes fetch are listed, each with its signature,
+among the assets of each repository below.
+
+{{< button href="https://github.com/LibreSCRS/LibreLinux/releases/tag/5.0.0" target="_blank" >}}LibreLinux 5.0.0 source{{< /button >}}
+
+### Debian, Ubuntu, Fedora, openSUSE
+
+Packages ship for Debian 13, Ubuntu 26.04 LTS, Fedora 43, Fedora 44 and
+openSUSE Tumbleweed. Each asset names the distribution it was built for, so
+pick the ones that match yours — a package built against another
+distribution's libraries will install and then fail to load.
+
+The card agent is three repositories' worth of packages — the middleware's
+libraries and card plugins, the agent's client library, and the agent with
+its PIN prompter:
+
+| | Debian 13, Ubuntu 26.04 | Fedora 43, 44, openSUSE Tumbleweed |
+|---|---|---|
+| LibreMiddleware | `liblibrescrs5`, `librescrs-card-plugins` | `librescrs-middleware`, `librescrs-card-plugins` |
+| LibreAgent | `liblibrescrs-agentclient-qt5` | `librescrs-agent-client-qt` |
+| LibreLinux | `librescrs-agent`, `librescrs-pinentry-kde` | `librescrs-agent`, `librescrs-pinentry-kde` |
+
+Download them into one otherwise empty directory and install them in one
+transaction, so the package manager orders them itself:
+
+```
+sudo apt install ./*.deb                                  # Debian, Ubuntu
+sudo dnf install ./*.rpm                                  # Fedora
+sudo zypper install --allow-unsigned-rpm ./*.rpm          # openSUSE Tumbleweed
+```
+
+The packages are not signed with a distribution key — there is no repository
+to carry one — so `zypper` needs `--allow-unsigned-rpm`; what proves where they
+came from is the release signature described under
+[Verifying what you downloaded](#verifying-what-you-downloaded). The `-dev` and
+`-devel` packages are for building against the libraries; a desktop needs none
+of them.
+
+{{< release-assets repo="LibreMiddleware" >}}
 
 {{< release-assets repo="LibreAgent" >}}
 
 {{< release-assets repo="LibreLinux" >}}
 
-{{< button href="https://github.com/LibreSCRS/LibreLinux/releases/tag/5.0.0" target="_blank" >}}LibreLinux 5.0.0 source{{< /button >}}
+**`librescrs-pkcs11-direct` conflicts with the card agent.** It registers the
+middleware's own PKCS#11 module for a machine that deliberately runs no agent,
+and exactly one of the two can be installed. What switching between them takes
+depends on the package manager, in both directions:
 
-### Debian, Ubuntu, Fedora
+| | plain install of the other package | the command that switches |
+|---|---|---|
+| `apt` | switches: removes the installed one | `sudo apt install ./<package>.deb` |
+| `dnf` | refuses, and changes nothing | `sudo dnf install --allowerasing ./<package>.rpm` |
+| `zypper` | refuses, and changes nothing | `sudo zypper install --allow-unsigned-rpm --force-resolution ./<package>.rpm` — or run it interactively and choose the solution that removes the installed one |
 
-Prebuilt middleware packages ship for Debian 13, Ubuntu 26.04 LTS and Fedora
-43. Each asset names the distribution it was built for, so pick the one that
-matches yours — a package built against another distribution's glibc will
-install and then fail to load.
-
-{{< release-assets repo="LibreMiddleware" >}}
-
-These install the libraries, the card plugins and, if you choose it, the direct
-PKCS#11 registration. **`librescrs-pkcs11-direct` conflicts with the card
-agent.** On Debian and Ubuntu, installing it removes the agent; on Fedora, `dnf`
-refuses the transaction until the agent is removed. Install it only on a
-machine that deliberately has none.
-
-The agent host and the Plasma client have no `.deb` or `.rpm` in this release —
-build them from source, in the dependency order above; see
-[Building from source](/developer-guide/building-from-source/).
+**Not in this release:** Ubuntu 24.04 LTS and openSUSE Leap 16.0. The agent
+needs sdbus-c++ 2, and Ubuntu 24.04 ships 1.4 and Leap 16.0 ships 1.6; Ubuntu
+24.04 has no KDE Frameworks 6 either, which the PIN prompter is built on.
+Without the agent no client has card access, so neither distribution gets
+packages. Arm64 is not built either.
 
 ### macOS
 
@@ -108,7 +141,13 @@ GUI smart card reader for Linux and macOS. Reads passports, ePassports, eID,
 vehicle registration and other PKI cards through plugins.
 
 **Requires the LibreSCRS card agent — see above.** LibreCelik links no PC/SC
-stack of its own; all card access happens in the agent.
+stack of its own; all card access happens in the agent. **The AppImage does not
+contain the agent** and cannot: the agent is a per-user systemd service on the
+session bus behind polkit, and only a system package can install those.
+Install the agent packages above first, whichever form of LibreCelik you run.
+
+On the distributions above, LibreCelik is also a package, `librecelik`,
+installed the same way as the agent's.
 
 {{< button href="https://github.com/LibreSCRS/LibreCelik/releases/tag/5.0.0" target="_blank" >}}Download AppImage (Linux){{< /button >}}
 
@@ -123,9 +162,13 @@ stack of its own; all card access happens in the agent.
 Plasma 6 integration: the smart-card plasmoid, the credential-management
 window, a Purpose "Sign" plugin, and the `card:/` KIO worker.
 
-Ships as source with an Arch recipe in `packaging/arch/` (package name
-`librekde`). It depends on `librescrs-agent` and `librescrs-agent-client-qt`,
-so install the agent first.
+Ships as five packages — `librekde-common`, `librekde-plasmoid`,
+`librekde-kio`, `librekde-purpose` and `librekde-credentials` — for Debian 13,
+Ubuntu 26.04 LTS, Fedora 43 and Fedora 44, and as an Arch recipe in
+`packaging/arch/` (package name `librekde`). There is no openSUSE Tumbleweed
+build: a rolling distribution moves Plasma's libraries under a prebuilt
+package faster than a release can follow. It depends on the agent and its
+client library, so install the agent first.
 
 {{< release-assets repo="LibreKDE" >}}
 
@@ -138,6 +181,15 @@ so install the agent first.
 Installed automatically with the card agent above — there is no separate
 download. Firefox, Chrome, Thunderbird and `ssh` discover it through p11-kit
 once the agent package is installed.
+
+If your distribution's OpenSC package is installed too, `p11-kit list-modules`
+shows its module beside ours — together with p11-kit's own trust module, three
+entries is the normal count. They are separate providers: an OpenSC that
+carries the Serbian eID driver offers the same card a second time, with the PIN
+typed into the application instead of the agent's prompter. Our packages do
+not conflict with OpenSC on purpose — that would remove it for every other
+card it serves. The [PKCS#11 guide](/user-guide/pkcs11/) says how to tell the
+two apart.
 
 The middleware's own direct module is no longer registered by default. If you
 installed it by hand from a 4.x release archive, that registration is not

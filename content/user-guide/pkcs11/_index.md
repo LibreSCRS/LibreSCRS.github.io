@@ -46,6 +46,22 @@ The same command prints the module's absolute path, which the sections below
 call `<module>`. On a stock Linux install it is
 `/usr/lib/pkcs11/librescrs-pkcs11-agent.so`.
 
+## OpenSC's module beside this one
+
+If your distribution's OpenSC package is installed, `p11-kit list-modules`
+lists its module too, and together with p11-kit's own trust module three
+entries is the normal count on a desktop. OpenSC is a separate provider, not
+part of LibreSCRS: an OpenSC release that carries the Serbian eID driver (see
+[OpenSC integration](/user-guide/opensc-integration/)) offers the same card a
+second time, and through it the application collects the PIN itself.
+
+A browser that lists two devices for one card is showing you exactly that.
+The LibreSCRS one is the device whose token shows `protected authentication
+path`. The packages do not conflict with OpenSC on purpose — that would remove
+it for every other card it serves. If you do not need it, removing OpenSC's
+PKCS#11 package (`opensc-pkcs11` on Debian and Ubuntu, `opensc` elsewhere)
+leaves one provider.
+
 ## If you installed a PKCS#11 module before 5.0
 
 Up to 4.x the middleware shipped its own direct module and told you to register

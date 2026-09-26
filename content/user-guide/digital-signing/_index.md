@@ -47,9 +47,17 @@ GUI or one of the command-line workflows below.
 
 You need one of the following:
 
-1. **OpenSC with built-in Serbian card support** — just install OpenSC, nothing else needed. *(The srbeid driver has been [merged into OpenSC mainline](https://github.com/OpenSC/OpenSC/pull/3595) but is not yet included in a release. If you build OpenSC from source, it works now.)*
-2. **OpenSC + LibreSCRS external driver** — use this until the built-in driver is released. Gives you full OpenSC CLI tools (`pkcs15-crypt`, `pkcs11-tool`, etc.). See [OpenSC integration]({{< ref "user-guide/opensc-integration" >}}).
-3. **LibreSCRS PKCS#11 module** — works without OpenSC. For browser authentication and signing via any PKCS#11 application. See [PKCS#11 setup]({{< ref "user-guide/pkcs11" >}}).
+1. **OpenSC with built-in Serbian card support** — an OpenSC release that
+   carries the [srbeid driver](https://github.com/OpenSC/OpenSC/pull/3595), or
+   any build from OpenSC's main branch. Nothing else is needed, and it gives
+   you the OpenSC command-line tools (`pkcs15-crypt`, `pkcs11-tool`, etc.). The
+   external LibreSCRS driver that backported it to older OpenSC releases is
+   withdrawn in 5.0 — see [OpenSC integration]({{< ref "user-guide/opensc-integration" >}}).
+2. **The LibreSCRS card agent's PKCS#11 module** — works without OpenSC. For
+   browser authentication and signing via any PKCS#11 application. See
+   [PKCS#11 setup]({{< ref "user-guide/pkcs11" >}}).
+
+Both can be installed at once; they are separate providers.
 
 ---
 

@@ -30,7 +30,7 @@ jobs:
       # which refuses on main until the release is tagged -- can stop a run
       # before them.
       - name: Shared gates
-        uses: LibreSCRS/ci/actions/gates@bd36eee50ba085ef4f052ea2767cff910e2e62e7
+        uses: LibreSCRS/ci/actions/gates@ee82c97e5eff32cbf0a4803b861500658c48135e
         with:
           gates: check-workflows selftests
 

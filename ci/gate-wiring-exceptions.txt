@@ -4,7 +4,7 @@
 # Format:   <tracked path><two or more spaces><reason>
 #
 # A row whose path is not a tracked file fails, and a row with no reason fails.
-# check-gates-wired.sh measures reachability, so without these rows a script
+# check-workflows (wired) measures reachability, so without these rows a script
 # that ships and runs nowhere is indistinguishable from one that runs.
 
 tools/check_cross_repo_links.sh    Needs all seven code repositories present to have anything to check against, and this workflow checks out one. The script skips every repository it cannot see, so on a runner it would report "checked 0 references / dead: 0" and pass while proving nothing. Run locally before publishing.

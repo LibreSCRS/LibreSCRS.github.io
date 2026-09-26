@@ -86,9 +86,11 @@ TOOLS = Path(__file__).resolve().parent
 ROOT = TOOLS.parent
 GATE = TOOLS / "check_api_claims.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "deploy.yml"
+# The gate itself. This selftest is not listed: it runs through the shared
+# self-test runner, and check-workflows (LibreSCRS/ci) holds the runner's set
+# to the self-tests this repository ships.
 WIRED = [
-    "python3 tools/check_api_claims.py content _middleware/include",
-    "python3 tools/check_api_claims.selftest.py",
+    "python3 tools/check_api_claims.py content _release/LibreMiddleware/include",
 ]
 JOB = "::job"        # keys workflow_steps() adds; no workflow step declares them
 JOB_IF = "::job-if"
@@ -912,13 +914,13 @@ def main() -> int:
     workflow = WORKFLOW.read_text(encoding="utf-8") if WORKFLOW.is_file() else ""
     live = unconditional_runs(workflow)
     check(
-        "the gate and this selftest both run in the deploy workflow",
+        "the gate runs in the deploy workflow",
         all(command in live for command in WIRED),
         f"{WORKFLOW} runs {live}",
     )
     owners = sorted({s[JOB] for s in workflow_steps(workflow) if s.get("run") in WIRED})
     check(
-        "both wired steps belong to one named job",
+        "the wired step belongs to one named job",
         len(owners) == 1 and owners[0] != "",
         f"jobs {owners}",
     )

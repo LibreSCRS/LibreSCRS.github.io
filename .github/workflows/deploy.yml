@@ -7,25 +7,27 @@ on:
     branches: [main, 'ci/**']
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
+permissions: {}
 
 jobs:
   build:
     timeout-minutes: 15
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           submodules: recursive
           fetch-depth: 0
+          persist-credentials: false
+
+      # The workflow checks and every self-test this repository ships. First,
+      # so that nothing below -- in particular the download check, which
+      # refuses until the release is tagged -- can stop a run before them.
+      - name: Shared gates
+        uses: LibreSCRS/ci/actions/gates@5b9410f9b0e6ab6983c39f931e118e68007c12b4
 
       - name: Setup Hugo
         # Pinned by commit: a moved tag on a third-party action would run its
@@ -40,177 +42,159 @@ jobs:
 
       # Fails the deploy if content ships with a missing title or description,
       # an unpaired page, or a link one language carries and the other does not.
-      # Needs nothing but content/.
       #
       # tools/check_cross_repo_links.sh is deliberately NOT wired here: it needs
-      # all seven code repositories present to have anything to check against,
-      # and this workflow checks out this one and, below, the headers the API
-      # claims are held to -- under a path of its own, not as one of those
-      # seven. The script skips every repository it cannot see, so in CI it
-      # would report "checked 0 references / dead: 0" and pass while proving
-      # nothing. Run it locally before publishing.
+      # all seven code repositories present in full, and this job checks out
+      # one file of each and the headers of one. The script skips every
+      # repository it cannot see, so in CI it would report "checked 0
+      # references / dead: 0" and pass while proving nothing. Run it locally
+      # before publishing.
       - name: Translation completeness
         run: python3 tools/check_translation_completeness.py content
 
-      # The check above compares English against Serbian, so a claim that is
-      # equally wrong in both languages passes it perfectly -- which is how
-      # four sentences denying a signing overload the library had meanwhile
-      # gained stayed on the site until a gate that reads the headers went in.
-      # This one holds the pages against the headers instead: no sentence the
-      # code has disproved anywhere on the site, every symbol listed in
-      # tools/documented-api.txt documented in both languages on a page of the
-      # developer guide, and every one of those symbols still named by a public
-      # header.
-      #
-      # That last rule is why the job checks out a second repository. Two pages
-      # that agree with each other say nothing about the code: a symbol renamed
-      # in the library, and renamed on both pages, would leave this site green
-      # while the guide published a name no header carries. Without the headers
-      # the gate refuses (exit 2) instead of passing, so the step cannot go
-      # green having opened none. It takes the library's default branch, so a
-      # rename that lands there before these pages catch up turns this deploy
-      # red -- which is the point, and makes the library the one to publish
-      # first when both change.
-      - name: Check out the library the guide documents
-        uses: actions/checkout@v4
-        with:
-          repository: LibreSCRS/LibreMiddleware
-          path: _middleware
-          fetch-depth: 1
-
-      - name: API claims match the shipped headers
-        run: python3 tools/check_api_claims.py content _middleware/include
-
-      # A gate nobody has watched fail is a claim, not a check. This one is a
-      # deny-list, so its most likely failure is passing vacuously.
-      - name: Prove the API-claims gate discriminates
-        run: python3 tools/check_api_claims.selftest.py
-
-      # The download pages are held to data/artifacts.json, and the data to the
-      # seven files it was generated from -- read at the TAG the data names, not
-      # from a default branch: the site documents a release, and a commit after
-      # the tag must not rewrite what that release published. Data generated
-      # over a ref that is not a tag (before the release exists) makes the gate
-      # refuse with exit 2, so this deploy cannot go green on a provisional file.
-      - name: The release the download pages document
+      # The pages document a release, so everything below reads the code
+      # repositories AT THE TAG data/artifacts.json names -- never a default
+      # branch, where the first commit after the tag would rewrite what that
+      # release published. Data generated over a ref that is not a tag is
+      # marked provisional; the checkouts then take the default branch, and the
+      # download check at the end refuses with exit 2, so this deploy cannot go
+      # green on a provisional file.
+      - name: The release the pages document
         id: release
-        run: >-
-          python3 -c 'import json; print("tag=" + json.load(open("data/artifacts.json"))["repos"][0]["tag"])'
-          >> "$GITHUB_OUTPUT"
+        run: |
+          python3 - >> "$GITHUB_OUTPUT" <<'EOF'
+          import json
+          data = json.load(open("data/artifacts.json"))
+          tag = data["repos"][0]["tag"]
+          print(f"tag={tag}")
+          print(f"ref={'' if data.get('provisional') else tag}")
+          EOF
 
-      - name: Check out what LibreMiddleware declares at that tag
-        uses: actions/checkout@v4
+      # Two pages that agree with each other say nothing about the code: a
+      # symbol renamed in the library, and renamed on both pages, would leave
+      # this site green while the guide published a name no header carries. So
+      # the pages are held to the headers of the release they document: no
+      # sentence the code has disproved, and every symbol in
+      # tools/documented-api.txt documented in both languages and still named
+      # by a public header. Without the headers the gate refuses (exit 2).
+      - name: Check out LibreMiddleware's headers and declaration at that tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/LibreMiddleware
-          ref: ${{ steps.release.outputs.tag }}
+          ref: ${{ steps.release.outputs.ref }}
           path: _release/LibreMiddleware
-          sparse-checkout: ci/release-assets.txt
+          sparse-checkout: |
+            /include/
+            /ci/release-assets.txt
           sparse-checkout-cone-mode: false
           fetch-depth: 1
+          persist-credentials: false
 
+      - name: API claims match the shipped headers
+        run: python3 tools/check_api_claims.py content _release/LibreMiddleware/include
+
+      # Uploaded before the download check so that every step but that one is
+      # exercised on a branch; deploy needs this whole job, so a red check
+      # still publishes nothing.
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
+        with:
+          path: ./public
+
+      # The download pages are held to data/artifacts.json, and the data to the
+      # seven ci/release-assets.txt files it was generated from, at that tag.
       - name: Check out what LibreAgent declares at that tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/LibreAgent
-          ref: ${{ steps.release.outputs.tag }}
+          ref: ${{ steps.release.outputs.ref }}
           path: _release/LibreAgent
           sparse-checkout: ci/release-assets.txt
           sparse-checkout-cone-mode: false
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Check out what LibreLinux declares at that tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/LibreLinux
-          ref: ${{ steps.release.outputs.tag }}
+          ref: ${{ steps.release.outputs.ref }}
           path: _release/LibreLinux
           sparse-checkout: ci/release-assets.txt
           sparse-checkout-cone-mode: false
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Check out what LibreCelik declares at that tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/LibreCelik
-          ref: ${{ steps.release.outputs.tag }}
+          ref: ${{ steps.release.outputs.ref }}
           path: _release/LibreCelik
           sparse-checkout: ci/release-assets.txt
           sparse-checkout-cone-mode: false
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Check out what LibreKDE declares at that tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/LibreKDE
-          ref: ${{ steps.release.outputs.tag }}
+          ref: ${{ steps.release.outputs.ref }}
           path: _release/LibreKDE
           sparse-checkout: ci/release-assets.txt
           sparse-checkout-cone-mode: false
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Check out what LibreDarwin declares at that tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/LibreDarwin
-          ref: ${{ steps.release.outputs.tag }}
+          ref: ${{ steps.release.outputs.ref }}
           path: _release/LibreDarwin
           sparse-checkout: ci/release-assets.txt
           sparse-checkout-cone-mode: false
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Check out what LibreMac declares at that tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: LibreSCRS/LibreMac
-          ref: ${{ steps.release.outputs.tag }}
+          ref: ${{ steps.release.outputs.ref }}
           path: _release/LibreMac
           sparse-checkout: ci/release-assets.txt
           sparse-checkout-cone-mode: false
           fetch-depth: 1
+          persist-credentials: false
 
-      - name: Prove the download-claims gate discriminates
-        run: python3 tools/check_download_claims.selftest.py
-
+      # Last, and on purpose: before every repository is tagged this is exit 2
+      # ("cannot judge a page about a release that does not exist yet") -- the
+      # expected answer on a branch, and the reason deploy cannot run on
+      # provisional data.
       - name: Download pages name only what the release publishes
         env:
           TAG: ${{ steps.release.outputs.tag }}
         run: python3 tools/check_download_claims.py content data/artifacts.json --repos-root _release --ref "$TAG"
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./public
-
-      # Every self-test this repository ships, by pathspec, each having to
-      # report the cases it ran and how many proved the gate red. Without a
-      # runner the only self-test here was named by hand, one step above.
-      - name: Run every self-test
-        run: ./tools/run-selftests.sh
-
-      # In the build job, never in deploy: deploy has one step and no checkout,
-      # so a gate step there would read a tree that does not exist -- which is
-      # the shape workflow-step-order.py itself fails on, and it would be
-      # failing its own wiring on the first run.
-      - name: Every shipped gate is reachable
-        run: ./ci/scripts/check-gates-wired.sh
-
-      - name: Every job carries a bound
-        run: ./ci/scripts/check-job-timeouts.sh
-
-      - name: Every step can run where it was placed
-        run: ./ci/scripts/workflow-step-order.py
 
   deploy:
     # The github-pages environment admits main alone; a branch run stops at the
     # build job instead of being refused here.
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 15
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346  # v5.0.1

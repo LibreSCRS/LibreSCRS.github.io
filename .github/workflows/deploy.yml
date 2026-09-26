@@ -27,7 +27,7 @@ jobs:
       # so that nothing below -- in particular the download check, which
       # refuses until the release is tagged -- can stop a run before them.
       - name: Shared gates
-        uses: LibreSCRS/ci/actions/gates@5b9410f9b0e6ab6983c39f931e118e68007c12b4
+        uses: LibreSCRS/ci/actions/gates@373a0f82c9af280b7a8ccc4ee30106c947394ca2
 
       - name: Setup Hugo
         # Pinned by commit: a moved tag on a third-party action would run its

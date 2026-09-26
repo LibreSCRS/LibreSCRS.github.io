@@ -15,7 +15,8 @@ knowing before you pick anything from this page:
    Ubuntu 26.04 LTS, `.rpm` for Fedora 43, Fedora 44 and openSUSE Tumbleweed —
    for the middleware, the agent, LibreCelik and LibreKDE (LibreKDE on all of
    them except openSUSE Tumbleweed). LibreCelik also ships an AppImage and a
-   DMG; Arch and Manjaro build from the recipes in each repository. There is no
+   DMG, and the macOS agent ships as the LibreMac DMG; Arch and Manjaro build
+   from the recipes in each repository. There is no
    signed APT, DNF, zypper or AUR repository, and **nothing installed from
    this release updates itself** — where that is the case, this page says so
    rather than offering a button that leads nowhere.
@@ -121,10 +122,17 @@ packages. Arm64 is not built either.
 
 ### macOS
 
-The macOS agent host is written and has run on real hardware, but it is not
-part of this release: there is no signed, notarised build, and the macOS
-PKCS#11 proxy is not in 5.0.0. A macOS user who needs card access today builds
-the host from source.
+The agent ships inside **LibreMac**, one universal disk image for macOS 15 or
+later: the menu bar host, the agent and its PIN prompter, and a CryptoTokenKit
+extension that publishes a present card's signing certificates to the
+Keychain. It is signed ad hoc and **not notarised**, so Gatekeeper refuses it
+on the first launch — [Install LibreMac](/user-guide/install-libremac/) has the
+steps, and why to verify the image before taking them. There is no PKCS#11
+proxy module for other applications on macOS in 5.0.0.
+
+{{< release-assets repo="LibreMac" >}}
+
+{{< button href="https://github.com/LibreSCRS/LibreMac/releases/tag/5.0.0" target="_blank" >}}LibreMac 5.0.0{{< /button >}}
 
 ### After installing
 

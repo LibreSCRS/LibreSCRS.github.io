@@ -62,9 +62,12 @@ pcsc_scan
 
 Download and open the `.dmg` from the [releases page](https://github.com/LibreSCRS/LibreCelik/releases), then drag LibreCelik to Applications. macOS
 includes PC/SC support, but from 5.0 LibreCelik links no PC/SC stack of its
-own: the card agent host owns the card, and the macOS host **is not a release
-asset in 5.0.0** — it is built from source. Without it LibreCelik starts and
-finds no reader.
+own: the card agent owns the card, and on macOS the agent ships in LibreMac —
+[install LibreMac](/user-guide/install-libremac/) first. Without it LibreCelik
+starts and finds no reader.
+
+The LibreCelik disk image is not notarised either, so its first launch takes
+the same Gatekeeper steps as LibreMac's.
 
 ---
 
@@ -72,7 +75,7 @@ finds no reader.
 
 - A USB smart card reader (contact or contactless, depending on the card)
 - Linux: `pcscd` daemon running
-- macOS: the card agent host, built from source
+- macOS 15 or later: LibreMac, which carries the card agent
 
 ---
 

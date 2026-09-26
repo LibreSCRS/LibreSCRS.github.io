@@ -160,18 +160,16 @@ pkcs11-tool --module <module> -T
 
 ## macOS
 
-**На macOS-у у 5.0.0 нема агентског PKCS#11 добављача.** macOS домаћин агента
-је написан и покренут на стварном хардверу, али није део овог издања, а није ни
-посреднички модул за њега.
+**На macOS-у у 5.0.0 нема агентског PKCS#11 добављача.** Агент излази у
+[LibreMac-у](/sr/user-guide/install-libremac/), а Keychain клијенти као што су
+Safari и Mail до сертификата за потпис присутне картице стижу кроз његово
+CryptoTokenKit проширење; посреднички модул који би друге PKCS#11 апликације
+могле да учитају није део овог издања.
 
 Корисник macOS-а коме данас треба PKCS#11 добављач гради директан модул
 middleware-а из изворног кода и региструје га изричито. То је исти модул који
 је Linux користио до 4.x, са истим својством против кога ова страница иначе
 говори: PIN прикупља апликација.
-
-<!-- Odakle će se macOS agent-proxy .dylib instalirati — iz paketa aplikacije,
-     kao korisnička kopija, ili potpisanim .pkg-om — nije odlučeno, pa ova
-     stranica namerno ne opisuje nijednu putanju za njega. -->
 
 ## Linux домаћини без интерфејса
 

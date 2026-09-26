@@ -161,18 +161,16 @@ the library itself is the same either way.
 
 ## macOS
 
-**There is no agent PKCS#11 provider on macOS in 5.0.0.** The macOS agent host
-is written and has run on real hardware, but it is not part of this release,
-and neither is a proxy module for it.
+**There is no agent PKCS#11 provider on macOS in 5.0.0.** The agent ships in
+[LibreMac](/user-guide/install-libremac/), and Keychain clients such as Safari
+and Mail reach a present card's signing certificates through its CryptoTokenKit
+extension; a proxy module that other PKCS#11 applications could load is not
+part of this release.
 
 A macOS user who needs a PKCS#11 provider today builds the middleware's direct
 module from source and registers it explicitly. It is the same module Linux
 used up to 4.x, with the same property this page otherwise argues against: the
 application collects the PIN.
-
-<!-- Where the macOS agent-proxy .dylib will be installed from — inside the
-     application bundle, a per-user copy, or a signed .pkg — is not decided,
-     so this page deliberately describes no path for it. -->
 
 ## Headless Linux hosts
 

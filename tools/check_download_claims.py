@@ -26,7 +26,19 @@ packages while the middleware publishes them for three distributions. So:
 Scope: pages under content/downloads/ and content/user-guide/, both languages.
 News posts describe the releases they announce and are not held to this one.
 
-Exit: 0 all three hold; 1 one does not; 2 cannot judge -- no data file, no page
+Before the release is tagged the data is provisional and rule 3 has nothing to
+judge, so on the deploy path the answer is exit 2 and the site cannot publish.
+A run on a BRANCH other than main still judges the claims, rather than
+stopping there: when the data is provisional, the ref is not a tag, and the
+runner's GITHUB_REF is refs/heads/<branch> with a branch other than main,
+rules 1 and 2 are held to the asset lists as checked out under <repos-root>
+(each repository's main, in the workflow) instead of to the data, and rule 3
+is reported as not judged. There is no flag for this: the mode follows from
+the ref the runner reports for the run, not from an argument a caller passes. On
+main, on a pull request and on any local run without GITHUB_REF, provisional
+data stays exit 2.
+
+Exit: 0 all three hold (branch mode: rules 1 and 2 hold); 1 one does not; 2 cannot judge -- no data file, no page
 in scope, fewer than seven sources, a tag the data names that its repository
 does not have, or a ref that is not a tag at all ("cannot judge a page about a
 release that does not exist yet", which is the expected answer on every local
@@ -36,6 +48,7 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -72,6 +85,24 @@ def is_tag(repo, ref):
                            f"refs/tags/{ref}"], capture_output=True).returncode == 0
 
 
+def declared(path):
+    """The globs a ci/release-assets.txt declares, as the generator reads them."""
+    globs = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line and not line.startswith("#"):
+            globs.append(line.split(None, 1)[0])
+    return globs
+
+
+def branch_run():
+    """The branch this runner judges, when it is a branch other than main."""
+    ref = os.environ.get("GITHUB_REF", "")
+    if ref.startswith("refs/heads/") and ref != "refs/heads/main":
+        return ref[len("refs/heads/"):]
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("content", type=Path)
@@ -95,6 +126,20 @@ def main():
               " -- a scan that read nothing is unmeasured, not clean", file=sys.stderr)
         return 2
 
+    missing = [r for r in REPOS if not (a.repos_root / r / "ci" / "release-assets.txt").is_file()]
+    present = [r for r in REPOS if r not in missing]
+    released = bool(present) and all(is_tag(a.repos_root / r, a.ref) for r in present)
+    branch = branch_run() if doc.get("provisional") and not released else None
+    if branch is not None:
+        if missing:
+            print(f"FATAL: {len(present)} of {len(REPOS)} sources under {a.repos_root}; "
+                  f"missing: {', '.join(missing)} -- cannot judge", file=sys.stderr)
+            return 2
+        print(f"branch {branch}, provisional data: claims held to the asset lists under "
+              f"{a.repos_root}, not to the data; freshness is not judged")
+        entries = {r: {"assets": [{"glob": g} for g in declared(
+            a.repos_root / r / "ci" / "release-assets.txt")]} for r in REPOS}
+
     # --- rules 1 and 2: the pages against the data --------------------------
     rendered, literals = set(), []
     for page in pages:
@@ -116,13 +161,18 @@ def main():
         if not any(overlaps(lit, glob) for _, _, lit in literals):
             fail(f"{repo} publishes {glob}, and no page in scope renders it")
 
+    if branch is not None:
+        if fails:
+            return 1
+        print(f"check_download_claims: {len(pages)} page(s), {len(literals)} asset name(s), "
+              f"{len(all_globs)} declared glob(s) on branch {branch} -- rules 1 and 2 hold")
+        return 0
+
     # --- rule 3: the data against its sources --------------------------------
-    missing = [r for r in REPOS if not (a.repos_root / r / "ci" / "release-assets.txt").is_file()]
     if missing:
         cannot(f"{len(REPOS) - len(missing)} of {len(REPOS)} sources under {a.repos_root}; "
                f"missing: {', '.join(missing)}")
-    present = [r for r in REPOS if r not in missing]
-    if present and not all(is_tag(a.repos_root / r, a.ref) for r in present):
+    if present and not released:
         cannot(f"{a.ref} is not a tag in every repository -- cannot judge a page about "
                f"a release that does not exist yet")
     else:

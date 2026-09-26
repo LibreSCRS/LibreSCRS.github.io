@@ -60,7 +60,7 @@ def git(cwd, *args):
                    check=True, capture_output=True)
 
 
-def world(root, tag="5.0.0"):
+def world(root, tag="5.0.0", data_ref=None):
     """Seven tagged repositories, a content tree, and generated data."""
     repos = root / "repos"
     for name in REPOS:
@@ -77,14 +77,19 @@ def world(root, tag="5.0.0"):
     (content / "_index.md").write_text(PAGE, encoding="utf-8")
     data = root / "artifacts.json"
     subprocess.run([sys.executable, str(GENERATOR), "--repos-root", str(repos),
-                    "--ref", tag, "--out", str(data)], check=True, capture_output=True)
+                    "--ref", data_ref or tag, "--out", str(data)], check=True, capture_output=True)
     return repos, root / "content", data
 
 
-def run(repos, content, data, ref="5.0.0"):
+def run(repos, content, data, ref="5.0.0", github_ref=None):
+    # The runner's own GITHUB_REF never reaches the subject: the branch mode
+    # follows from it, so each case sets it, or leaves it unset, on purpose.
+    env = {k: v for k, v in os.environ.items() if k != "GITHUB_REF"}
+    if github_ref is not None:
+        env["GITHUB_REF"] = github_ref
     p = subprocess.run([sys.executable, str(SUBJECT), str(content), str(data),
                         "--repos-root", str(repos), "--ref", ref],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env=env)
     return p.returncode, p.stdout + p.stderr
 
 
@@ -107,10 +112,10 @@ def main():
     with tempfile.TemporaryDirectory(dir=os.environ.get("TMPDIR", "/var/tmp")) as t:
         base = Path(t)
 
-        def fresh(n):
+        def fresh(n, data_ref=None):
             d = base / n
             d.mkdir()
-            return world(d)
+            return world(d, data_ref=data_ref)
 
         # D0 -- everything agrees: the page renders every repository that
         # publishes, names only assets that exist, and the data is fresh.
@@ -185,6 +190,75 @@ def main():
         data.write_text(json.dumps(doc), encoding="utf-8")
         rc, out = run(repos, content, data)
         case("D9 provisional data judged against a release", 1, rc, out, "provisional")
+
+        # --- provisional data (generated over HEAD), by the ref that runs it --
+        branch = "refs/heads/ci/5.0"
+
+        # D10 -- on a branch the claims are judged against the lists checked
+        # out, and a consistent page passes.
+        repos, content, data = fresh("d10", data_ref="HEAD")
+        rc, out = run(repos, content, data, ref="HEAD", github_ref=branch)
+        case("D10 provisional data on a branch: consistent claims pass", 0, rc, out,
+             "rules 1 and 2 hold")
+
+        # D11 -- ... and a wrong claim fails there, not "cannot judge".
+        repos, content, data = fresh("d11", data_ref="HEAD")
+        page = content / "downloads" / "_index.md"
+        before = page.read_text(encoding="utf-8")
+        page.write_text(before + "\nGet `librescrs-agent_5.0.0-1_amd64.deb` too.\n", encoding="utf-8")
+        assert page.read_text(encoding="utf-8") != before
+        rc, out = run(repos, content, data, ref="HEAD", github_ref=branch)
+        case("D11 provisional data on a branch: a wrong claim fails", 1, rc, out,
+             "librescrs-agent_5.0.0-1_amd64.deb")
+
+        # D12 -- the lists, not the data, are what a branch run judges: a glob
+        # a repository declares on its checkout and no page renders fails.
+        repos, content, data = fresh("d12", data_ref="HEAD")
+        f = repos / "LibreDarwin" / "ci" / "release-assets.txt"
+        f.write_text(f.read_text(encoding="utf-8") + "LibreDarwin-*.dmg   the build\n",
+                     encoding="utf-8")
+        rc, out = run(repos, content, data, ref="HEAD", github_ref=branch)
+        case("D12 provisional data on a branch: an unrendered declared glob fails", 1, rc, out,
+             "LibreDarwin-*.dmg")
+
+        # D13 -- the deploy path: on main provisional data stays unjudged.
+        repos, content, data = fresh("d13", data_ref="HEAD")
+        rc, out = run(repos, content, data, ref="HEAD", github_ref="refs/heads/main")
+        case("D13 provisional data on main is unjudged", 2, rc, out,
+             "cannot judge a page about a release that does not exist yet")
+
+        # D14 -- and so is every run the runner did not start on a branch: a
+        # pull request, or a local run with no GITHUB_REF at all.
+        repos, content, data = fresh("d14", data_ref="HEAD")
+        rc, out = run(repos, content, data, ref="HEAD", github_ref="refs/pull/1/merge")
+        case("D14 provisional data on a pull request is unjudged", 2, rc, out)
+        rc, out = run(repos, content, data, ref="HEAD")
+        case("D14 provisional data with no GITHUB_REF is unjudged", 2, rc, out)
+
+        # D15 -- tagged data on a branch is judged in full, freshness included.
+        repos, content, data = fresh("d15")
+        rc, out = run(repos, content, data, github_ref=branch)
+        case("D15 tagged data on a branch judges normally", 0, rc, out, "all hold")
+        f = repos / "LibreAgent" / "ci" / "release-assets.txt"
+        f.write_text(f.read_text(encoding="utf-8") + "*.sigstore.json   bundle\n", encoding="utf-8")
+        rc, out = run(repos, content, data, github_ref=branch)
+        case("D15 tagged data on a branch: a stale source still fails", 1, rc, out, "LibreAgent")
+
+        # D16 -- only PROVISIONAL data earns the branch mode: tagged data run
+        # over a ref that is not a tag is still a release not judged.
+        repos, content, data = fresh("d16")
+        rc, out = run(repos, content, data, ref="HEAD", github_ref=branch)
+        case("D16 tagged data over a non-tag ref on a branch is unjudged", 2, rc, out,
+             "cannot judge a page about a release that does not exist yet")
+
+        # D17 -- and only before the release exists: provisional data once the
+        # tags are there fails on a branch exactly as it does on main.
+        repos, content, data = fresh("d17")
+        doc = json.loads(data.read_text(encoding="utf-8"))
+        doc["provisional"] = True
+        data.write_text(json.dumps(doc), encoding="utf-8")
+        rc, out = run(repos, content, data, github_ref=branch)
+        case("D17 provisional data after the tags fails on a branch", 1, rc, out, "provisional")
 
     print("---")
     if failures:

@@ -169,10 +169,12 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      # Last, and on purpose: before every repository is tagged this is exit 2
-      # ("cannot judge a page about a release that does not exist yet") -- the
-      # expected answer on a branch, and the reason deploy cannot run on
-      # provisional data.
+      # Last, and on purpose. Before every repository is tagged the data is
+      # provisional: on main this is exit 2 ("cannot judge a page about a
+      # release that does not exist yet"), which is why deploy cannot run on
+      # provisional data; on any other branch the runner's GITHUB_REF makes the
+      # check hold the pages to the asset lists checked out above -- each
+      # repository's main -- and pass or fail on that.
       - name: Download pages name only what the release publishes
         env:
           TAG: ${{ steps.release.outputs.tag }}

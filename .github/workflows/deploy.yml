@@ -23,11 +23,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # The workflow checks and every self-test this repository ships. First,
-      # so that nothing below -- in particular the download check, which
-      # refuses until the release is tagged -- can stop a run before them.
+      # Job bounds, action pins, and every self-test this repository ships.
+      # First, so that nothing below -- in particular the download check,
+      # which refuses on main until the release is tagged -- can stop a run
+      # before them.
       - name: Shared gates
-        uses: LibreSCRS/ci/actions/gates@373a0f82c9af280b7a8ccc4ee30106c947394ca2
+        uses: LibreSCRS/ci/actions/gates@bd36eee50ba085ef4f052ea2767cff910e2e62e7
+        with:
+          gates: check-workflows selftests
 
       - name: Setup Hugo
         # Pinned by commit: a moved tag on a third-party action would run its

@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 name: Deploy to GitHub Pages
 
+# A ci/** branch runs the build job and every gate in it; only main deploys.
 on:
   push:
-    branches: [main]
+    branches: [main, 'ci/**']
   workflow_dispatch:
 
 permissions:
@@ -200,6 +201,9 @@ jobs:
         run: ./ci/scripts/workflow-step-order.py
 
   deploy:
+    # The github-pages environment admits main alone; a branch run stops at the
+    # build job instead of being refused here.
+    if: github.ref == 'refs/heads/main'
     timeout-minutes: 15
     environment:
       name: github-pages

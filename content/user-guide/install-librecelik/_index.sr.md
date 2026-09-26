@@ -20,7 +20,15 @@ chmod +x LibreCelik-*.AppImage
 ./LibreCelik-*.AppImage
 ```
 
-Инсталација није потребна. AppImage садржи све зависности укључујући Qt.
+AppImage не захтева инсталацију: садржи Qt и библиотеке које LibreCelik сам
+повезује. **Не** садржи картичног агента, и не може — агент је systemd сервис по
+кориснику на сесијској магистрали иза polkit-а, а њих може да инсталира само
+системски пакет. Прво инсталирајте пакете агента за своју дистрибуцију, са
+[странице за преузимање](/sr/downloads/); без њих се AppImage покрене и картицу
+не нађе.
+
+На Debian-у 13, Ubuntu-у 26.04 LTS, Fedora-и 43, Fedora-и 44 и openSUSE
+Tumbleweed-у LibreCelik је и пакет, `librecelik`, на истој страници.
 
 ### Подршка за PC/SC читач
 
@@ -33,6 +41,10 @@ sudo systemctl enable --now pcscd
 
 # Fedora/RHEL
 sudo dnf install pcsc-lite pcsc-tools
+sudo systemctl enable --now pcscd
+
+# openSUSE
+sudo zypper install pcsc-lite pcsc-ccid pcsc-tools
 sudo systemctl enable --now pcscd
 
 # Arch/Manjaro

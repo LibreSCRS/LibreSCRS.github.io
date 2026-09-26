@@ -20,7 +20,15 @@ chmod +x LibreCelik-*.AppImage
 ./LibreCelik-*.AppImage
 ```
 
-No installation required. The AppImage bundles all dependencies including Qt.
+The AppImage needs no installation: it bundles Qt and the libraries LibreCelik
+itself links. It does **not** bundle the card agent, and cannot — the agent is
+a per-user systemd service on the session bus behind polkit, which only a
+system package can install. Install the agent packages for your distribution
+first, from the [downloads page](/downloads/); without them the AppImage starts
+and finds no card.
+
+On Debian 13, Ubuntu 26.04 LTS, Fedora 43, Fedora 44 and openSUSE Tumbleweed,
+LibreCelik is also a package, `librecelik`, on the same page.
 
 ### PC/SC reader support
 
@@ -33,6 +41,10 @@ sudo systemctl enable --now pcscd
 
 # Fedora/RHEL
 sudo dnf install pcsc-lite pcsc-tools
+sudo systemctl enable --now pcscd
+
+# openSUSE
+sudo zypper install pcsc-lite pcsc-ccid pcsc-tools
 sudo systemctl enable --now pcscd
 
 # Arch/Manjaro

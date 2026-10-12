@@ -169,8 +169,13 @@ holds no secret and asks the agent for every signature:
 ```
 
 **Firefox and Thunderbird:** **Settings** → **Privacy & Security** →
-**Security** → **Security Devices** → **Load**. Type the path above into the
-file name field rather than browsing to it.
+**Security** → **Security Devices** → **Load**. Paste or type the path above
+into the file name field, then press End (or any arrow key) before **OK** —
+after a paste the dialog may still read the old, empty value and report
+"Unable to add module". Do not use **Browse**: it leads to
+`Contents/MacOS/librescrs-agent`, which is the executable, not the module. If
+"Unable to add module" persists, check that the module is not already loaded
+under another name.
 
 **ssh:** add the module to `~/.ssh/config`:
 

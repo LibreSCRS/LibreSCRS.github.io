@@ -163,16 +163,20 @@ pkcs11-tool --module <module> -T
 [LibreMac](/sr/user-guide/install-libremac/) носи исту врсту модула, који не
 држи никакву тајну и за сваки потпис пита агента:
 
-    /Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+```
+/Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+```
 
-**Firefox и Thunderbird:** Подешавања › Приватност и безбедност › Сертификати ›
-Безбедносни уређаји › Учитај. Путању изнад унесите у поље за име фајла, уместо
-да је тражите прегледањем.
+**Firefox и Thunderbird:** **Подешавања** → **Приватност и безбедност** →
+**Безбедност** → **Безбедносни уређаји** → **Учитај**. Путању изнад унесите у
+поље за име фајла, уместо да је тражите прегледањем.
 
 **ssh:** додајте модул у `~/.ssh/config`:
 
-    Host example.org
-        PKCS11Provider /Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+```
+Host example.org
+    PKCS11Provider /Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+```
 
 или га проследите једном са `ssh -I <путања>`. `ssh-add -s` га не прихвата:
 `ssh-agent` учитава модуле само из `/usr/lib` и `/usr/local/lib`.

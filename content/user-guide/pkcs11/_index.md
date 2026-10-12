@@ -164,16 +164,20 @@ the library itself is the same either way.
 [LibreMac](/user-guide/install-libremac/) carries the same kind of module, which
 holds no secret and asks the agent for every signature:
 
-    /Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+```
+/Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+```
 
-**Firefox and Thunderbird:** Settings › Privacy & Security › Certificates ›
-Security Devices › Load. Type the path above into the file name field rather
-than browsing to it.
+**Firefox and Thunderbird:** **Settings** → **Privacy & Security** →
+**Security** → **Security Devices** → **Load**. Type the path above into the
+file name field rather than browsing to it.
 
 **ssh:** add the module to `~/.ssh/config`:
 
-    Host example.org
-        PKCS11Provider /Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+```
+Host example.org
+    PKCS11Provider /Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+```
 
 or pass it once with `ssh -I <path>`. `ssh-add -s` does not accept it: `ssh-agent`
 loads modules only from `/usr/lib` and `/usr/local/lib`.

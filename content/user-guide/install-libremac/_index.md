@@ -5,7 +5,7 @@ description: "Install the LibreSCRS card agent on macOS from the LibreMac disk i
 ---
 
 On macOS the card agent ships inside **LibreMac**, a menu bar application. One
-disk image carries three things:
+disk image carries four things:
 
 - the **menu bar host**, which shows the card in the reader and offers signing
   and credential management from its menu;
@@ -13,7 +13,9 @@ disk image carries three things:
   the card and collect PINs, CANs and MRZs, as the agent does on Linux;
 - a **CryptoTokenKit extension** that publishes a present card's signing
   certificates to the Keychain, where Safari, Mail and other Keychain clients
-  can use them.
+  can use them;
+- a **PKCS#11 module** for applications that load one, such as Firefox,
+  Thunderbird and `ssh`; see the [PKCS#11 guide](/user-guide/pkcs11/#macos).
 
 LibreCelik on macOS is a client of this agent: install LibreMac first.
 

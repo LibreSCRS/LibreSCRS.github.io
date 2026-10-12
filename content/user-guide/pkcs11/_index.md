@@ -161,16 +161,26 @@ the library itself is the same either way.
 
 ## macOS
 
-**There is no agent PKCS#11 provider on macOS in 5.0.0.** The agent ships in
-[LibreMac](/user-guide/install-libremac/), and Keychain clients such as Safari
-and Mail reach a present card's signing certificates through its CryptoTokenKit
-extension; a proxy module that other PKCS#11 applications could load is not
-part of this release.
+[LibreMac](/user-guide/install-libremac/) carries the same kind of module, which
+holds no secret and asks the agent for every signature:
 
-A macOS user who needs a PKCS#11 provider today builds the middleware's direct
-module from source and registers it explicitly. It is the same module Linux
-used up to 4.x, with the same property this page otherwise argues against: the
-application collects the PIN.
+    /Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+
+**Firefox and Thunderbird:** Settings › Privacy & Security › Certificates ›
+Security Devices › Load. Type the path above into the file name field rather
+than browsing to it.
+
+**ssh:** add the module to `~/.ssh/config`:
+
+    Host example.org
+        PKCS11Provider /Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+
+or pass it once with `ssh -I <path>`. `ssh-add -s` does not accept it: `ssh-agent`
+loads modules only from `/usr/lib` and `/usr/local/lib`.
+
+The PIN is asked for by LibreMac's own prompt, never by the application.
+Safari, Mail and Chrome do not load PKCS#11 modules; they reach the card's
+certificates through the Keychain, which LibreMac already serves.
 
 ## Headless Linux hosts
 

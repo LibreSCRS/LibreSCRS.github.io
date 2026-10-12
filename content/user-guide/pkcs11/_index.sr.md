@@ -160,16 +160,26 @@ pkcs11-tool --module <module> -T
 
 ## macOS
 
-**На macOS-у у 5.0.0 нема агентског PKCS#11 добављача.** Агент излази у
-[LibreMac-у](/sr/user-guide/install-libremac/), а Keychain клијенти као што су
-Safari и Mail до сертификата за потпис присутне картице стижу кроз његово
-CryptoTokenKit проширење; посреднички модул који би друге PKCS#11 апликације
-могле да учитају није део овог издања.
+[LibreMac](/sr/user-guide/install-libremac/) носи исту врсту модула, који не
+држи никакву тајну и за сваки потпис пита агента:
 
-Корисник macOS-а коме данас треба PKCS#11 добављач гради директан модул
-middleware-а из изворног кода и региструје га изричито. То је исти модул који
-је Linux користио до 4.x, са истим својством против кога ова страница иначе
-говори: PIN прикупља апликација.
+    /Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+
+**Firefox и Thunderbird:** Подешавања › Приватност и безбедност › Сертификати ›
+Безбедносни уређаји › Учитај. Путању изнад унесите у поље за име фајла, уместо
+да је тражите прегледањем.
+
+**ssh:** додајте модул у `~/.ssh/config`:
+
+    Host example.org
+        PKCS11Provider /Applications/LibreMac.app/Contents/Frameworks/librescrs-pkcs11-agent.dylib
+
+или га проследите једном са `ssh -I <путања>`. `ssh-add -s` га не прихвата:
+`ssh-agent` учитава модуле само из `/usr/lib` и `/usr/local/lib`.
+
+За PIN пита LibreMac-ов сопствени упитник, никада апликација. Safari, Mail и
+Chrome не учитавају PKCS#11 модуле; до сертификата картице стижу кроз Keychain,
+који LibreMac већ опслужује.
 
 ## Linux домаћини без интерфејса
 

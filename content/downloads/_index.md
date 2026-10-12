@@ -127,8 +127,7 @@ later: the menu bar host, the agent and its PIN prompter, and a CryptoTokenKit
 extension that publishes a present card's signing certificates to the
 Keychain. It is signed ad hoc and **not notarised**, so Gatekeeper refuses it
 on the first launch — [Install LibreMac](/user-guide/install-libremac/) has the
-steps, and why to verify the image before taking them. There is no PKCS#11
-proxy module for other applications on macOS in 5.0.0.
+steps, and why to verify the image before taking them.
 
 {{< release-assets repo="LibreMac" >}}
 

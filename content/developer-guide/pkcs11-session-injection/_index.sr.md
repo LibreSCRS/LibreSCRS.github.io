@@ -111,6 +111,43 @@ PKCS#11 расподела вишеструких PIN-ова ослоњена ј
 тип јаван да би PKCS#11 провајдери изграђени на LibreMiddleware могли да се
 интегришу са истим кешом уместо да воде паралелни.
 
+## Кључеви којима треба PIN за сваки потпис
+
+Кључ који картица штити по операцији — PKCS#15 `userConsent`, PIV кључ за
+дигитални потпис (9C) — објављује се са `CKA_ALWAYS_AUTHENTICATE = TRUE`.
+USER пријава сесије није довољна за потпис њиме: сваки потпис тражи сопствени
+`C_Login(CKU_CONTEXT_SPECIFIC)` после `C_SignInit`.
+
+```c
+C_SignInit(session, &mechanism, key);
+
+CK_BBOOL always = CK_FALSE;
+CK_ATTRIBUTE attribute = {CKA_ALWAYS_AUTHENTICATE, &always, sizeof always};
+C_GetAttributeValue(session, key, &attribute, 1);
+if (always == CK_TRUE)
+    C_Login(session, CKU_CONTEXT_SPECIFIC, pin, pinLength); /* само овај потпис */
+
+C_Sign(session, data, dataLength, signature, &signatureLength);
+```
+
+- Пријава за контекст прихвата се само уз USER пријаву, док траје операција
+  потписа над таквим кључем; иначе враћа `CKR_OPERATION_NOT_INITIALIZED` и картица се не дира.
+  USER пријаву оставља какву је затекла.
+- PIN се одмах проверава (`CKR_PIN_INCORRECT` чува операцију, па корисник може
+  поново; `CKR_PIN_LOCKED` одјављује корисника и завршава сваку операцију
+  потписа на токену), затим се шаље картици у истој трансакцији као потпис и
+  брише када се операција заврши (на токену који подржава OpenSC, сам OpenSC
+  не чува ништа, осим ако је у opensc.conf постављено
+  `pin_cache_ignore_user_consent`). Преко ресета картице се никад не шаље:
+  модул га брише при ресету који сам изврши, а после сваког другог ресета га
+  следећи позив потписа одбија, иначе нестаје са сесијом.
+  `C_Logout` завршава сваку операцију потписа на токену.
+- Без ње `C_Sign`, `C_SignUpdate` и `C_SignFinal` враћају
+  `CKR_USER_NOT_LOGGED_IN`; упит за дужину (`pSignature == NULL`) не тражи PIN.
+- Дајте само PIN. Облик `CAN:PIN` припада пријави сесије PACE картице, никад
+  једној операцији: на PACE картици PIN за контекст који садржи `:` одбија се
+  са `CKR_PIN_INVALID` пре него што ишта стигне до картице, па не троши покушај.
+
 ## Прелазак са 4.1
 
 | 4.1 (уклоњено) | 4.2 (замена) |

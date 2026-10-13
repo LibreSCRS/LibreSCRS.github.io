@@ -127,6 +127,46 @@ PKCS#15 card that expects a caller-built DigestInfo, the plugin reports the
 mechanism as not implemented, so callers fall back to the existing `RSA_PKCS`
 DigestInfo path.
 
+## The card says when it wants the PIN again
+
+Some keys want the PIN before every operation, not once per session. PKCS#15
+records it in a key's `userConsent`, and the PIV Digital Signature key (9C)
+carries it as well. Until 5.0 that fact was lost inside the middleware. It is
+now read from the card and carried through:
+`LibreSCRS::Plugin::CertificateData::alwaysAuthenticate` is `true` for such a
+key, and the middleware's own PKCS#11 module publishes the same value as
+`CKA_ALWAYS_AUTHENTICATE` and implements `C_Login(CKU_CONTEXT_SPECIFIC)` for
+it: the PIN given after `C_SignInit` is verified, presented to the card in the
+same transaction as that one signature, and erased (on an OpenSC-backed token
+OpenSC itself keeps none, unless `pin_cache_ignore_user_consent` is set in
+opensc.conf). The PIN of the session
+login is never used for such a key.
+
+A host that signs through the card plugins rather than through PKCS#11
+deposits the PIN with `CardPlugin::setCredentials(session, "pin", pin)` and
+then calls `sign` (or `decipher`): the plugin presents the PIN and performs the
+operation in one card transaction. A separate `verifyPIN` call before `sign`
+is not guaranteed to work for such a key — the PIV Digital Signature key loses
+its verified state between the two calls. Afterwards `setCredentials(session, "pin", {})` erases that PIN and
+nothing else.
+
+**Behaviour change for PIV.** The Digital Signature key (9C) is now published
+with `CKA_ALWAYS_AUTHENTICATE = TRUE`, and the module no longer re-presents the
+session PIN before signing with it. A client must call
+`C_Login(CKU_CONTEXT_SPECIFIC)` after `C_SignInit`, as PKCS#11 requires;
+without it `C_Sign` returns `CKR_USER_NOT_LOGGED_IN`. The middleware's own
+signing path does this. See
+[in-process session sharing](/developer-guide/pkcs11-session-injection/) for
+the call sequence.
+
+```cpp
+for (const auto& cert : plugin.readCertificates(session)) {
+    if (cert.alwaysAuthenticate) {
+        // ask for the PIN for this signature; never reuse a cached one
+    }
+}
+```
+
 ## Signing from a byte buffer
 
 `LibreSCRS::Signing::SigningService` gained a second `sign()` overload that
@@ -163,6 +203,14 @@ headers later move to a newer ABI:
 ```cpp
 LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 9);
 ```
+
+The version 9 shape includes one more member, `alwaysAuthenticate`, appended
+last to `LibreSCRS::Plugin::CertificateData` — the element type of the vector
+`CardPlugin::readCertificates` returns — so the aggregate grows (`sizeof` 88 to
+96 on the canonical layout). `PinIncorrect` and `PinBlocked` are likewise
+appended to `SignResultOutcome` and `DecipherResultOutcome`. 5.0 was not yet
+tagged, so the integer stays 9 and no published artefact carries an earlier
+version 9 shape.
 
 **This page previously claimed the decipher virtual was appended as the final
 vtable slot, so the change was additive. That was not true, and it is worth
@@ -250,6 +298,9 @@ and has to go by hand.
 - **PKCS#11 consumers**: install the agent, and remove any hand-made
   registration of the old direct module. See the
   [PKCS#11 guide](/user-guide/pkcs11/).
+- **PKCS#11 clients of the middleware's own module**: after `C_SignInit` on a
+  key with `CKA_ALWAYS_AUTHENTICATE`, call `C_Login(CKU_CONTEXT_SPECIFIC)` with
+  the PIN.
 
 ## Developer notes
 

@@ -110,6 +110,44 @@ the PKCS#11 module — but the type is public so PKCS#11 providers built on
 LibreMiddleware can integrate with the same cache instead of running a
 parallel one.
 
+## Keys that want the PIN for every signature
+
+A key the card protects per operation — PKCS#15 `userConsent`, the PIV Digital
+Signature key (9C) — is published with `CKA_ALWAYS_AUTHENTICATE = TRUE`. The
+USER login of the session is not enough to sign with it: each signature needs
+its own `C_Login(CKU_CONTEXT_SPECIFIC)` after `C_SignInit`.
+
+```c
+C_SignInit(session, &mechanism, key);
+
+CK_BBOOL always = CK_FALSE;
+CK_ATTRIBUTE attribute = {CKA_ALWAYS_AUTHENTICATE, &always, sizeof always};
+C_GetAttributeValue(session, key, &attribute, 1);
+if (always == CK_TRUE)
+    C_Login(session, CKU_CONTEXT_SPECIFIC, pin, pinLength); /* this signature only */
+
+C_Sign(session, data, dataLength, signature, &signatureLength);
+```
+
+- The context-specific login is accepted only under a USER login, while a sign
+  operation on such a key is active; otherwise it returns `CKR_OPERATION_NOT_INITIALIZED` and the
+  card is not touched. It leaves the USER login as it was.
+- The PIN is verified at once (`CKR_PIN_INCORRECT` keeps the operation, so the
+  user can retry; `CKR_PIN_LOCKED` logs the user out and ends every sign
+  operation on the token), then presented to the card in the same transaction
+  as the signature and erased when the operation ends (on an OpenSC-backed
+  token OpenSC itself keeps none, unless `pin_cache_ignore_user_consent` is set
+  in opensc.conf). It is never presented
+  across a card reset: the module erases it on a reset it performs itself, and
+  after any other reset the next sign call refuses it, otherwise it goes with
+  the session. `C_Logout` ends every sign operation on the token.
+- Without it `C_Sign`, `C_SignUpdate` and `C_SignFinal` return
+  `CKR_USER_NOT_LOGGED_IN`; a length query (`pSignature == NULL`) needs no PIN.
+- Give the PIN alone. The `CAN:PIN` form belongs to the session login of a
+  PACE card, never to one operation: on a PACE card a context-specific PIN
+  containing `:` is refused with `CKR_PIN_INVALID` before anything reaches the
+  card, so it costs no PIN try.
+
 ## Migration from 4.1
 
 | 4.1 (removed) | 4.2 (replacement) |

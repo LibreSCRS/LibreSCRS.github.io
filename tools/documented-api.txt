@@ -24,3 +24,4 @@ signerChainsToAnyAnchor
 keyId
 ActivationProfile
 hasCredentialProvider
+alwaysAuthenticate

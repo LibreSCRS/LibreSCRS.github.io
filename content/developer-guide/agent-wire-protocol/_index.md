@@ -167,15 +167,48 @@ sleeping. The manager is thread-safe under a single internal mutex, because
 card-removal signals arrive on a monitor thread while calls arrive on the bus
 thread.
 
+### Consent per operation
+
+Some keys the card protects with more than a login: it asks for the PIN before
+**every** operation with them (PKCS#15 `userConsent`; the PIV digital-signature
+key is the common case). The agent reads that rule off the card and reports it
+with every certificate, as the required `cert-info` key `alwaysAuthenticate`
+(`CertificateInfo::alwaysAuthenticate` in the Qt client, on both transports; on
+the D-Bus surface it is the trailing boolean of the certificate entry), and the
+PKCS#11 module turns it into `CKA_ALWAYS_AUTHENTICATE` for that key alone.
+
+The agent also enforces it. A raw sign or decrypt decides from the card in the
+reader at that moment, never from the request or a cached read: an operation
+with such a key that carries no PIN for itself does not use the key and
+presents no PIN, and the agent asks for the PIN and runs it once more. A verification for such a key
+is not remembered for the lease, so a client that skips the PKCS#11
+re-authentication still cannot sign twice on one PIN. If the lease has lapsed,
+the PKCS#11 session returns to the public state.
+
+Every PIN prompt the agent raises is charged to the caller's prompt budget —
+the first of a lease, every one for such a key, and the one after a dropped
+channel alike. A prompt over the budget is never shown; the operation fails as
+rate-limited.
+
+```cpp
+for (const CertificateInfo& cert : op->certificatesResult()) {
+    if (cert.signingCapable && cert.alwaysAuthenticate)
+        hint = tr("The card asks for the PIN for every raw signature or decryption with this certificate.");
+}
+```
+
 ### Async handoff
 
 Every card-touching method is asynchronous. The broker does the cheap
-validation — authorization, rate limit, card resolution, lease gate —
+validation — authorization, card resolution and the lease gate —
 **synchronously on the dispatch thread**, and on failure fulfils the reply
 inline. Only once validation passes is the actual card I/O enqueued onto the
 per-reader worker, with a continuation that captures the reply and the lease key
 and does the post-processing (revoke the lease on an authentication failure,
-audit) when the card is done.
+audit) when the card is done. The prompt budget is not charged on the dispatch thread either: it is
+asked on the worker, because only the operation knows whether it will prompt — for a cold
+lease before the card session is even opened, for a re-prompt before the
+operation is retried.
 
 The dispatch thread is therefore released the moment work is enqueued. The bus
 loop is never parked on an in-flight card operation, which is the property that

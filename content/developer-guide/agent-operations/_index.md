@@ -205,9 +205,16 @@ a contract rather than a convenience:
 - **non-null** — the operation must verify the PIN on-card *before* the sign or
   decipher, holding the card across both, so that a PIN-always key keeps its
   verified state for the immediately following operation. A rejection surfaces
-  as an authentication failure. This is the first operation of a lease, or the
-  first after a prior failure.
+  as an authentication failure. This is the first operation of a lease, the
+  first after a prior failure, every operation with a key the card marks for
+  consent per operation, and the one retried after a dropped channel.
 - **null** — the PIN is already verified for this held channel.
+- **null, for a key the card marks for consent per operation** — the operation
+  does not use the key, presents no PIN and answers `ConsentRequired`; the flow asks for the
+  PIN (charged to the caller's prompt budget) and runs it once more with it. A
+  verification for such a key is never remembered for the lease, and where the
+  card family needs the PIN deposited, it is handed over for that one operation
+  only.
 
 Sign and decrypt share one signature: the routed candidates and the certificate
 id select the key, and the bytes are the input or the ciphertext.

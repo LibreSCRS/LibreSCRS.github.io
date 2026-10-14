@@ -150,6 +150,34 @@ pkcs11-tool --module <module> -T
 The token must list `protected authentication path`. PKCS#11 URI selection
 (`pkcs11:token=…`) works across p11-kit modules once the agent is running.
 
+## EC keys and key agreement
+
+Cards with EC keys — the new Serbian ID card carries one P-384 key — appear as
+EC keys, with the card's own key ID:
+
+```
+pkcs11-tool --module <module> -O
+```
+
+Firefox, Thunderbird and `ssh` sign with them through `CKM_ECDSA`. The module
+also offers `CKM_ECDH1_DERIVE` for a key the agent can run a key agreement
+with. Only the raw secret is supported (`CKD_NULL`, no shared data; any other
+key-derivation function is refused). The derived key lives as long as the
+session that made it, your login and the card — logging out, closing the
+session or removing the card destroys it. It is unreadable unless you ask
+otherwise; `pkcs11-tool` asks for a readable one. Its input file is the other
+party's public key as DER `SubjectPublicKeyInfo` (for example `openssl pkey -in
+peer.pem -pubout -outform DER -out peer-public-key.der`), not a raw point:
+
+```
+pkcs11-tool --module <module> --login --derive --id <key id> \
+    -m ECDH1-DERIVE --input-file peer-public-key.der --derive-pass-der --output-file secret.bin
+```
+
+A shorter `CKA_VALUE_LEN` keeps the last bytes of the secret, as other modules
+do; a longer one than the secret is refused. On macOS, LibreMac offers the same
+key agreement to Keychain applications.
+
 ## Out-of-process isolation
 
 By default the module runs in the calling application's process, where it holds

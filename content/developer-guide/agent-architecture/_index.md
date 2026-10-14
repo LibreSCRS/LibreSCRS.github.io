@@ -257,6 +257,10 @@ that lands the surface. A capability is never advertised before it exists,
 because a client that asks for one and gets a failure has no way to tell "not
 supported here" from "broken".
 
+`ec-keys` is served once the agent serves EC keys end to end: the key facts on
+every certificate, the EC public key, the mechanism on raw requests, and
+`Pkcs11.Derive`.
+
 ## Crypto mechanisms
 
 `Agent/crypto/Mechanism.h` names the mechanism a key operation requests, with
@@ -267,13 +271,17 @@ enum class Mechanism : std::uint8_t {
     RsaPkcs1Sign, RsaPssSign, EcdsaSign,          // private key, lease-gated
     RsaPkcs1Decrypt, RsaOaepDecrypt, EcdhDerive,
     RsaPkcs1Encrypt, RsaOaepEncrypt,              // public key, no consent
+    Sha256RsaPkcs1Sign,                           // private key, the card hashes
 };
 ```
 
-Two of these are wired today (`RsaPkcs1Sign`, `RsaPkcs1Decrypt`, both with
-empty parameters); the rest are designed-additive. Freezing the shape now means
-EC and RSA-PSS arrive as an enum value plus a parameter arm, and never as a
-widened seam signature. Note that `RsaPssSign` is deliberately *not* on the
+Five are wired: `RsaPkcs1Sign`, `Sha256RsaPkcs1Sign`, `EcdsaSign` and
+`RsaPkcs1Decrypt` with empty parameters, and `EcdhDerive` with `MechParamsEcdh`
+restricted to `CKD_NULL` and no shared data. The agent runs exactly the
+mechanism a request names — there is no probing for one that works — and checks
+it against the key before any prompt. The rest are designed-additive. Freezing
+the shape means a new primitive arrives as an enum value plus a parameter arm,
+and never as a widened seam signature. Note that `RsaPssSign` is deliberately *not* on the
 empty-parameter arm — PSS needs the hash, MGF and salt-length triple, and
 pretending otherwise now would force exactly the signature change this design
 avoids.

@@ -197,6 +197,45 @@ for (const CertificateInfo& cert : op->certificatesResult()) {
 }
 ```
 
+### Keys, mechanisms and key agreement
+
+Every certificate the agent reports carries the facts of its key, as required
+`cert-info` keys: `keyId` (the key's PKCS#11 `CKA_ID` — the card's own PKCS#15
+ID, or one the agent computes from the public key, or from the whole
+certificate when it does not parse; never empty), `keyType`
+(`"RSA"`, `"EC"` for the NIST curves P-256, P-384 and P-521, `"OTHER"` for
+anything else — a client that meets a token it does not know reads it as
+`"OTHER"`), `keyBits` and `canDerive`. The PKCS#11 module and the macOS token
+never publish an `"OTHER"` key; `signingCapable` keeps its meaning, so document
+signing through the agent is unaffected. `Pkcs11.PublicKey` serves an EC key as
+`{kty: "EC", crv, x, y}`, each coordinate at the curve's full width.
+
+A raw signature or decryption names its mechanism in the required `mech` key:
+`"rsa-pkcs"` (a complete PKCS#1 v1.5 block), `"sha256-rsa-pkcs"` (the raw
+message, which the card hashes) or `"ecdsa"` (the digest — 32, 48 or 64 bytes —
+answered as `r||s`); a decryption takes only `"rsa-pkcs"`. For an RSA key the card decides: a key
+of a card that hashes on the card (opened with a CAN, as PACE cards are) takes
+only `"sha256-rsa-pkcs"`, every other RSA key only `"rsa-pkcs"`; an EC key
+takes `"ecdsa"`; anything else is refused with `InvalidRequest` before any PIN.
+The agent runs exactly that mechanism. Before it asks for
+any PIN it checks the request against the key — the mechanism's family, the
+input's length, and for a key agreement the peer's point — and refuses a
+mismatch with `InvalidRequest`. Such a refusal never asks for a PIN and leaves
+the lease as it was; on a cold lease the prompt budget was already charged
+when the request arrived.
+
+`Pkcs11.Derive` runs ECDH with the card's key against the peer's uncompressed
+point and answers the raw secret `z` (no key-derivation function). It is
+lease-gated and asks for consent like a signature, and the prompt names it as
+a key agreement (the operation token `pkcs11-derive`). An agent that
+serves it advertises the `ec-keys` feature token; a client checks for it first,
+because an agent without it drops the connection on the unknown request.
+
+```cbor-diag
+{"t": "Pkcs11.Derive", "req": 7, "reader": "obj/3", "cert": "9f2c…", "data": h'04…'}
+{"t": "Reply", "req": 7, "z": h'5a7c…'}
+```
+
 ### Async handoff
 
 Every card-touching method is asynchronous. The broker does the cheap
@@ -208,7 +247,9 @@ and does the post-processing (revoke the lease on an authentication failure,
 audit) when the card is done. The prompt budget is not charged on the dispatch thread either: it is
 asked on the worker, because only the operation knows whether it will prompt — for a cold
 lease before the card session is even opened, for a re-prompt before the
-operation is retried.
+operation is retried. The check of a request against its key runs on the worker
+too, once the card session is open — after a cold lease's prompt has been
+charged and before any PIN is asked for.
 
 The dispatch thread is therefore released the moment work is enqueued. The bus
 loop is never parked on an in-flight card operation, which is the property that

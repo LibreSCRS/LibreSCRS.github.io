@@ -25,3 +25,5 @@ keyId
 ActivationProfile
 hasCredentialProvider
 alwaysAuthenticate
+canDerive
+ECDH_RAW

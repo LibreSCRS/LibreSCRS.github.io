@@ -100,8 +100,9 @@ The trust surfaces this rides on are documented in
 OpenSC-backed cards — for example the Serbian PKS / Gemalto eID — can perform
 on-card RSA decryption. The middleware exposes this through the public plugin
 entry point `LibreSCRS::Plugin::CardPlugin::decipher`, which takes a
-`LibreSCRS::Plugin::DecipherMechanism` (currently
-`DecipherMechanism::RSA_PKCS1_V15`, the only padding those cards support). The
+`LibreSCRS::Plugin::DecipherMechanism` (`DecipherMechanism::RSA_PKCS1_V15` for RSA,
+the only padding those cards support; EC key agreement is
+described below). The
 card performs the RSA operation with its on-card private key; the backend
 strips the PKCS#1 v1.5 padding and returns the recovered plaintext in a
 `DecipherResult`. That plaintext is sensitive, and the caller owns cleansing
@@ -167,6 +168,63 @@ for (const auto& cert : plugin.readCertificates(session)) {
 }
 ```
 
+## EC keys: ECDSA in both plugins, key agreement through OpenSC
+
+Both card plugins sign with EC keys, and both return the signature in one
+form: for `SignMechanism::ECDSA_SHA256`, `ECDSA_SHA384` and `ECDSA_SHA512` the
+input is the hash the caller computed (32, 48 or 64 bytes), and a successful
+`SignResult::signature` is the raw `r || s` — each half exactly the key's field
+width, left-padded with zeros (96 bytes for P-384). That is what PKCS#11
+`CKM_ECDSA` returns, whatever the card itself answers.
+
+- The **OpenSC plugin** always received `r || s`, because OpenSC converts the
+  card's DER answer itself. It now refuses before addressing the card when
+  OpenSC knows no field size for the key, or when the input is not one of the
+  three hash lengths.
+- The **generic PKCS#15 plugin** signs with EC keys on any card, PACE or not
+  (`RSA_SHA256` stays limited to cards that hash on-card). Some cards — the
+  Serbian eID among them — answer with `SEQUENCE { r, s }`, in DER or with the
+  integers written at the full field width, and their key directory records
+  no field size, so the plugin takes the width from the key's certificate and
+  reads the integers as unsigned numbers. Every signature is then checked
+  with that certificate's public key before it is returned: one that does not
+  verify — or a reply of no known form — is a `PluginError`, never passed on.
+
+EC key agreement is `CardPlugin::decipher` with the new
+`DecipherMechanism::ECDH_RAW`. The input is the other party's public point,
+uncompressed (`04 || X || Y`, 97 bytes for P-384), and
+`DecipherResult::plaintext` is the raw shared secret Z, the x-coordinate (48
+bytes for P-384) — a secret the caller erases once it has derived its key from
+it. The OpenSC plugin performs it through OpenSC's own derive path, presenting
+the deposited PIN in the same card transaction; a point of the wrong length or
+form is refused before the card sees it, and whether the point lies on the
+key's curve is the caller's to check. `CertificateData::canDerive` says when
+this will work: the card allows the key to derive *and* the plugin implements
+key agreement for it — in the OpenSC plugin, the card's driver offers raw
+ECDH for the key's field. The generic PKCS#15 plugin implements none —
+card-specific key-agreement commands stay in OpenSC drivers — so it reports
+`canDerive == false` and answers `ECDH_RAW` with `NotImplemented`.
+
+`CertificateData::keyFID` from the generic PKCS#15 plugin follows the card
+command's own key selection: the key reference when the key directory carries
+one, otherwise the last two bytes of the key's path. Two keys in one directory
+no longer share a handle; a handle that keys in two directories share is
+not handed out at all (`keyFID` stays empty), and `sign` refuses it rather
+than guess. Pass the value back to `sign` or
+`decipher` unchanged; a caller that stored one must read it again.
+
+```cpp
+for (const auto& cert : plugin.readCertificates(session)) {
+    if (cert.canDerive && cert.keyFID) {
+        auto r = plugin.decipher(session, *cert.keyFID, peerPoint,
+                                 LibreSCRS::Plugin::DecipherMechanism::ECDH_RAW);
+        if (r.ok()) {
+            // r.plaintext is Z: derive the key from it, then erase it
+        }
+    }
+}
+```
+
 ## Signing from a byte buffer
 
 `LibreSCRS::Signing::SigningService` gained a second `sign()` overload that
@@ -204,11 +262,13 @@ headers later move to a newer ABI:
 LIBRESCRS_DECLARE_CARD_PLUGIN(MyPlugin, 9);
 ```
 
-The version 9 shape includes one more member, `alwaysAuthenticate`, appended
-last to `LibreSCRS::Plugin::CertificateData` — the element type of the vector
-`CardPlugin::readCertificates` returns — so the aggregate grows (`sizeof` 88 to
-96 on the canonical layout). `PinIncorrect` and `PinBlocked` are likewise
-appended to `SignResultOutcome` and `DecipherResultOutcome`. 5.0 was not yet
+The version 9 shape includes two more members appended to
+`LibreSCRS::Plugin::CertificateData` — the element type of the vector
+`CardPlugin::readCertificates` returns: `alwaysAuthenticate`, which grows the
+aggregate (`sizeof` 88 to 96 on the canonical layout), and `canDerive` behind
+it, which fills padding (`sizeof` stays 96). `PinIncorrect` and `PinBlocked`
+are likewise appended to `SignResultOutcome` and `DecipherResultOutcome`, and
+`ECDH_RAW` to `DecipherMechanism`. 5.0 was not yet
 tagged, so the integer stays 9 and no published artefact carries an earlier
 version 9 shape.
 
@@ -231,7 +291,7 @@ harmless by accident: 6 ≠ 9 rejects everything from the previous release, and
 no artefact carrying the intermediate shape was ever published.
 
 The signing and decrypt mechanisms (`SignMechanism::RSA_SHA256`,
-`DecipherMechanism::RSA_PKCS1_V15`) are appended enumerators, so a plugin built
+`DecipherMechanism::RSA_PKCS1_V15`, `DecipherMechanism::ECDH_RAW`) are appended enumerators, so a plugin built
 against an older header simply never receives those values.
 
 ## Breaking changes

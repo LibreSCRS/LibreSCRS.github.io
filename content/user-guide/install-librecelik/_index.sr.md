@@ -60,14 +60,17 @@ pcsc_scan
 
 ## macOS
 
-Преузмите и отворите `.dmg` са [странице издања](https://github.com/LibreSCRS/LibreCelik/releases), па превуците LibreCelik у Applications. macOS носи
-PC/SC, али од 5.0 LibreCelik не линкује сопствени PC/SC слој: картицу држи
-агент, а на macOS-у агент излази у LibreMac-у — прво
-[инсталирајте LibreMac](/sr/user-guide/install-libremac/). Без њега LibreCelik
-се покрене и не нађе читач.
+LibreCelik на macOS-у нема своју слику диска. Долази на истој слици диска као
+LibreMac, `LibreSCRS-*-macos.dmg`, са
+[странице издања LibreMac-а](https://github.com/LibreSCRS/LibreMac/releases):
+превуците обе апликације у Applications и отворите било коју. Од 5.0 LibreCelik
+не линкује сопствени PC/SC слој: картицу држи агент, а на macOS-у агент излази
+у LibreMac-у. Када агент не ради, LibreCelik сам покреће LibreMac и
+агента, па нема ничега што треба инсталирати прво. Кораци су у
+[Инсталацији LibreMac-а](/sr/user-guide/install-libremac/).
 
-Ни LibreCelik слика диска није нотаризована, па њено прво покретање тражи исте
-Gatekeeper кораке као LibreMac.
+Апликације нису нотаризоване, па прво покретање сваке тражи Gatekeeper кораке
+описане тамо.
 
 ---
 
@@ -75,7 +78,7 @@ Gatekeeper кораке као LibreMac.
 
 - USB читач смарт картица (контактни или бесконтактни, у зависности од картице)
 - Linux: `pcscd` сервис мора бити покренут
-- macOS 15 или новији: LibreMac, који носи картичног агента
+- macOS 15 или новији: LibreSCRS слика диска, која уз LibreCelik носи LibreMac и картичног агента
 
 ---
 

@@ -1,11 +1,12 @@
 ---
 layout: "simple"
-title: "Install LibreMac"
-description: "Install the LibreSCRS card agent on macOS from the LibreMac disk image, and get it past Gatekeeper"
+title: "Install LibreMac and LibreCelik"
+description: "Install LibreMac, which carries the LibreSCRS card agent, and LibreCelik on macOS from one disk image, and get both past Gatekeeper"
 ---
 
 On macOS the card agent ships inside **LibreMac**, a menu bar application. One
-disk image carries four things:
+disk image, `LibreSCRS-*-macos.dmg`, carries both applications —
+**LibreMac** and **LibreCelik** — and LibreMac brings four things:
 
 - the **menu bar host**, which shows the card in the reader and offers signing
   and credential management from its menu;
@@ -17,16 +18,19 @@ disk image carries four things:
 - a **PKCS#11 module** for applications that load one, such as Firefox,
   Thunderbird and `ssh`; see the [PKCS#11 guide](/user-guide/pkcs11/#macos).
 
-LibreCelik on macOS is a client of this agent: install LibreMac first.
+LibreCelik, the card reader application, is in the same disk image and is a
+client of this agent. You do not install the two in a particular order: if the
+agent is not running when LibreCelik opens, LibreCelik launches LibreMac and
+starts the agent itself.
 
 **Requirements:** macOS 15 (Sequoia) or later. The image is universal — one
 download for Apple silicon and Intel Macs.
 
-## Before you open it: it is not notarised
+## Before you open them: they are not notarised
 
-LibreMac 5.0.0 is signed ad hoc, not with an Apple Developer ID, and it is not
-notarised by Apple. Gatekeeper therefore refuses to open it the first time, and
-the steps below are how you tell macOS that you trust it. That makes checking
+The applications in this disk image (5.0.0) are signed ad hoc, not with an Apple Developer ID, and they are not
+notarised by Apple. Gatekeeper therefore refuses to open them the first time, and
+the steps below are how you tell macOS that you trust them. That makes checking
 the download yourself the step that matters: verify the disk image against the
 release's `SHA256SUMS` and its cosign signature, as described on
 [verifying a release](/security/), **before** you open it.
@@ -35,21 +39,23 @@ release's `SHA256SUMS` and its cosign signature, as described on
 
 1. Download the disk image from the
    [downloads page](/downloads/#macos).
-2. Open it and drag **LibreMac** to **Applications**.
+2. Open it and drag both **LibreMac** and **LibreCelik** to **Applications**.
 3. Eject the disk image.
+4. Open either application. Opening LibreCelik is enough — it starts LibreMac
+   and the agent when they are not running.
 
 ## First launch past Gatekeeper
 
-1. Open **LibreMac** from Applications. macOS refuses and says it cannot verify
+1. Open **LibreMac** (or **LibreCelik**) from Applications. macOS refuses and says it cannot verify
    the developer or check the application for malicious software. Choose
    **Done** — not **Move to Trash**.
 2. Open **System Settings → Privacy & Security** and scroll to **Security**.
-   A line says LibreMac was blocked; choose **Open Anyway** and confirm with
+   A line says the application was blocked; choose **Open Anyway** and confirm with
    your password or Touch ID.
-3. Open LibreMac again and choose **Open** in the dialog that follows.
+3. Open the same application again and choose **Open** in the dialog that follows.
 
 macOS remembers the decision for this copy. Installing a new version repeats
-the three steps — nothing installed from this release updates itself.
+the three steps, for each application — nothing installed from this release updates itself.
 
 On macOS 15 and later, Control-click → **Open** no longer skips this dialog;
 **Open Anyway** in System Settings is the way. From Terminal the equivalent is
@@ -57,6 +63,7 @@ removing the quarantine attribute from the copy you verified:
 
 ```
 xattr -d com.apple.quarantine /Applications/LibreMac.app
+xattr -d com.apple.quarantine /Applications/LibreCelik.app
 ```
 
 ## Approve the agent

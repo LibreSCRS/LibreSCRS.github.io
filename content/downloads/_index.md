@@ -14,8 +14,9 @@ knowing before you pick anything from this page:
 2. **Linux packages ship for five distributions:** `.deb` for Debian 13 and
    Ubuntu 26.04 LTS, `.rpm` for Fedora 43, Fedora 44 and openSUSE Tumbleweed —
    for the middleware, the agent, LibreCelik and LibreKDE (LibreKDE on all of
-   them except openSUSE Tumbleweed). LibreCelik also ships an AppImage and a
-   DMG, and the macOS agent ships as the LibreMac DMG; Arch and Manjaro build
+   them except openSUSE Tumbleweed). LibreCelik also ships an AppImage; on macOS one
+   disk image, the LibreMac DMG, carries both LibreMac with the agent and
+   LibreCelik; Arch and Manjaro build
    from the recipes in each repository. There is no
    signed APT, DNF, zypper or AUR repository, and **nothing installed from
    this release updates itself** — where that is the case, this page says so
@@ -122,10 +123,12 @@ packages. Arm64 is not built either.
 
 ### macOS
 
-The agent ships inside **LibreMac**, one universal disk image for macOS 15 or
-later: the menu bar host, the agent and its PIN prompter, and a CryptoTokenKit
-extension that publishes a present card's signing certificates to the
-Keychain. It is signed ad hoc and **not notarised**, so Gatekeeper refuses it
+One universal disk image for macOS 15 or later, `LibreSCRS-*-macos.dmg`,
+carries both applications: **LibreMac** — the menu bar host, the agent and its
+PIN prompter, and a CryptoTokenKit extension that publishes a present card's
+signing certificates to the Keychain — and **LibreCelik**, the card reader
+application. Drag both to Applications and open either one; LibreCelik starts
+LibreMac and the agent itself when they are not running. Both are signed ad hoc and **not notarised**, so Gatekeeper refuses them
 on the first launch — [Install LibreMac](/user-guide/install-libremac/) has the
 steps, and why to verify the image before taking them.
 
@@ -144,7 +147,7 @@ running and how to change that.
 
 ## LibreCelik
 
-GUI smart card reader for Linux and macOS. Reads passports, ePassports, eID,
+GUI smart card reader for Linux and macOS (on macOS it ships in the LibreMac disk image). Reads passports, ePassports, eID,
 vehicle registration and other PKI cards through plugins.
 
 **Requires the LibreSCRS card agent — see above.** LibreCelik links no PC/SC
@@ -158,7 +161,8 @@ installed the same way as the agent's.
 
 {{< button href="https://github.com/LibreSCRS/LibreCelik/releases/tag/5.0.0" target="_blank" >}}Download AppImage (Linux){{< /button >}}
 
-{{< button href="https://github.com/LibreSCRS/LibreCelik/releases/tag/5.0.0" target="_blank" >}}Download DMG (macOS){{< /button >}}
+On macOS, LibreCelik comes in the LibreMac disk image — see
+[macOS](#macos) above.
 
 {{< release-assets repo="LibreCelik" >}}
 

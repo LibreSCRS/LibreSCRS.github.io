@@ -14,8 +14,8 @@ LibreSCRS 5.0.0 је један производ кроз седам спрем�
 2. **Linux пакети излазе за пет дистрибуција:** `.deb` за Debian 13 и Ubuntu
    26.04 LTS, `.rpm` за Fedora 43, Fedora 44 и openSUSE Tumbleweed — за
    међуслој, агента, LibreCelik и LibreKDE (LibreKDE за све осим openSUSE
-   Tumbleweed-а). LibreCelik даје и AppImage и DMG, а macOS агент излази као
-   LibreMac DMG; Arch и Manjaro граде из рецепата у сваком спремишту. Нема потписаног APT, DNF, zypper ни AUR
+   Tumbleweed-а). LibreCelik даје и AppImage; на macOS-у једна слика
+   диска, LibreMac DMG, носи и LibreMac са агентом и LibreCelik; Arch и Manjaro граде из рецепата у сваком спремишту. Нема потписаног APT, DNF, zypper ни AUR
    спремишта, и **ништа инсталирано из овог издања не ажурира само себе** —
    тамо где је тако, ова страница то каже, уместо да понуди дугме које не води
    никуда.
@@ -118,10 +118,12 @@ sdbus-c++ 2, а Ubuntu 24.04 испоручује 1.4 и Leap 16.0 испору�
 
 ### macOS
 
-Агент излази унутар апликације **LibreMac**, једне универзалне слике диска за
-macOS 15 или новији: домаћин у траци менија, агент и његов упитник за PIN, и
-CryptoTokenKit проширење које сертификате за потпис присутне картице објављује
-у Keychain. Потписан је ad hoc и **није нотаризован**, па га Gatekeeper при
+Једна универзална слика диска за macOS 15 или новији,
+`LibreSCRS-*-macos.dmg`, носи обе апликације: **LibreMac** — домаћина у
+траци менија, агента и његов упитник за PIN, и CryptoTokenKit проширење које
+сертификате за потпис присутне картице објављује у Keychain — и **LibreCelik**,
+апликацију за читање картица. Превуците обе у Applications и отворите било
+коју; LibreCelik сам покреће LibreMac и агента кад не раде. Обе су потписане ad hoc и **нису нотаризоване**, па их Gatekeeper при
 првом покретању одбија — [Инсталирајте LibreMac](/sr/user-guide/install-libremac/)
 носи кораке, и зашто слику треба проверити пре њих.
 
@@ -140,7 +142,7 @@ CryptoTokenKit проширење које сертификате за потп�
 
 ## LibreCelik
 
-GUI читач смарт картица за Linux и macOS. Чита пасоше, е-пасоше, личне карте,
+GUI читач смарт картица за Linux и macOS (на macOS-у излази на слици диска LibreMac-а). Чита пасоше, е-пасоше, личне карте,
 саобраћајне и друге PKI картице преко додатака.
 
 **Тражи LibreSCRS картични агент — види изнад.** LibreCelik не повезује
@@ -154,7 +156,8 @@ GUI читач смарт картица за Linux и macOS. Чита пасо�
 
 {{< button href="https://github.com/LibreSCRS/LibreCelik/releases/tag/5.0.0" target="_blank" >}}Преузми AppImage (Linux){{< /button >}}
 
-{{< button href="https://github.com/LibreSCRS/LibreCelik/releases/tag/5.0.0" target="_blank" >}}Преузми DMG (macOS){{< /button >}}
+На macOS-у LibreCelik долази на слици диска LibreMac-а — види
+[macOS](#macos) изнад.
 
 {{< release-assets repo="LibreCelik" >}}
 

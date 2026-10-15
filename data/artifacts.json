@@ -19,6 +19,14 @@
           "description": "binary packages built in a Fedora 43 container"
         },
         {
+          "glob": "*.fedora44.rpm",
+          "description": "binary packages built in a Fedora 44 container"
+        },
+        {
+          "glob": "*.opensusetw.rpm",
+          "description": "binary packages built in an openSUSE Tumbleweed container"
+        },
+        {
           "glob": "*.orig.tar.gz",
           "description": "the deterministic source tarball the packaging recipes fetch"
         },
@@ -35,7 +43,7 @@
           "description": "cosign keyless signature bundle, one per asset"
         }
       ],
-      "source_sha256": "bed57b9c2372d31439935b64bcc19dac1c2ceaf17ca1c21eaffd8a4fdb5bd718"
+      "source_sha256": "9460fc4263201ea0d6ba06927be82c4bbd195c7dd7673194d8b8691cf63a7085"
     },
     {
       "repo": "LibreAgent",
@@ -43,53 +51,74 @@
       "assets": [
         {
           "glob": "libreagent_*.orig.tar.gz",
-          "description": "the deterministic source tarball the packaging recipes fetch"
+          "description": "the deterministic source tarball, with the vendored QCBOR sources"
+        },
+        {
+          "glob": "*.debian13.deb",
+          "description": "binary packages built in a Debian 13 container"
+        },
+        {
+          "glob": "*.ubuntu2604.deb",
+          "description": "binary packages built in an Ubuntu 26.04 LTS container"
+        },
+        {
+          "glob": "*.fedora43.rpm",
+          "description": "binary packages built in a Fedora 43 container"
+        },
+        {
+          "glob": "*.fedora44.rpm",
+          "description": "binary packages built in a Fedora 44 container"
+        },
+        {
+          "glob": "*.opensusetw.rpm",
+          "description": "binary packages built in an openSUSE Tumbleweed container"
+        },
+        {
+          "glob": "sbom.cdx.json",
+          "description": "CycloneDX bill of materials naming the vendored QCBOR"
+        },
+        {
+          "glob": "SHA256SUMS",
+          "description": "checksums over every other asset in this release"
         },
         {
           "glob": "*.sigstore.json",
-          "description": "cosign keyless signature bundle, one per asset"
+          "description": "signature bundle, one per asset"
         }
       ],
-      "source_sha256": "6c414d84bc6f4ddc17bb63b3babeb64c109f3ae528515f6919bb80c3617cbaf8"
+      "source_sha256": "81d705e2ed02d4e55abaf56d7b1f0df04d6d88f869f57071bf37d85298313b7f"
     },
     {
       "repo": "LibreLinux",
       "tag": "HEAD",
       "assets": [
         {
+          "glob": "*.debian13.deb",
+          "description": "the agent and the prompter, built in a Debian 13 container"
+        },
+        {
+          "glob": "*.ubuntu2604.deb",
+          "description": "the agent and the prompter, built in an Ubuntu 26.04 LTS container"
+        },
+        {
+          "glob": "*.fedora43.rpm",
+          "description": "the agent and the prompter, built in a Fedora 43 container"
+        },
+        {
+          "glob": "*.fedora44.rpm",
+          "description": "the agent and the prompter, built in a Fedora 44 container"
+        },
+        {
+          "glob": "*.opensusetw.rpm",
+          "description": "the agent and the prompter, built in an openSUSE Tumbleweed container"
+        },
+        {
           "glob": "librelinux_*.orig.tar.gz",
-          "description": "the deterministic source tarball the packaging recipes fetch"
-        },
-        {
-          "glob": "*.sigstore.json",
-          "description": "cosign keyless signature bundle, one per asset"
-        }
-      ],
-      "source_sha256": "559b7b7576a1fe5fd338b79f404456b309cf2d67bcc596569b70d758fd1a143e"
-    },
-    {
-      "repo": "LibreCelik",
-      "tag": "HEAD",
-      "assets": [
-        {
-          "glob": "LibreCelik-*-x86_64.AppImage",
-          "description": "single-file Linux build; make it executable and run it"
-        },
-        {
-          "glob": "LibreCelik-*-macos.dmg",
-          "description": "universal macOS build (x86_64 + arm64); not Apple-signed or notarised"
-        },
-        {
-          "glob": "librecelik_*.orig.tar.gz",
           "description": "the deterministic source tarball"
         },
         {
-          "glob": "sbom-linux.cdx.json",
-          "description": "CycloneDX bill of materials for the AppImage"
-        },
-        {
-          "glob": "sbom-macos.cdx.json",
-          "description": "CycloneDX bill of materials for the DMG"
+          "glob": "sbom.cdx.json",
+          "description": "CycloneDX bill of materials naming the statically linked agent core and QCBOR"
         },
         {
           "glob": "SHA256SUMS",
@@ -100,7 +129,54 @@
           "description": "cosign keyless signature bundle, one per asset"
         }
       ],
-      "source_sha256": "4975cf5ce9954b47bd1889e8230528f6cc3b1808aa2f5386d8da50fc61b497dc"
+      "source_sha256": "e664d109a32b4dd5714dc54e988c1c98f4e6f1e1c489be40fd900883595fe6e2"
+    },
+    {
+      "repo": "LibreCelik",
+      "tag": "HEAD",
+      "assets": [
+        {
+          "glob": "LibreCelik-*-x86_64.AppImage",
+          "description": "single-file Linux build; make it executable and run it"
+        },
+        {
+          "glob": "librecelik_*.orig.tar.gz",
+          "description": "the deterministic source tarball"
+        },
+        {
+          "glob": "librecelik_*.debian13.deb",
+          "description": "Debian 13 package"
+        },
+        {
+          "glob": "librecelik_*.ubuntu2604.deb",
+          "description": "Ubuntu 26.04 LTS package"
+        },
+        {
+          "glob": "librecelik-*.fedora43.rpm",
+          "description": "Fedora 43 package"
+        },
+        {
+          "glob": "librecelik-*.fedora44.rpm",
+          "description": "Fedora 44 package"
+        },
+        {
+          "glob": "librecelik-*.opensusetw.rpm",
+          "description": "openSUSE Tumbleweed package"
+        },
+        {
+          "glob": "sbom-linux.cdx.json",
+          "description": "CycloneDX bill of materials for the AppImage"
+        },
+        {
+          "glob": "SHA256SUMS",
+          "description": "checksums over every other asset in this release"
+        },
+        {
+          "glob": "*.sigstore.json",
+          "description": "cosign keyless signature bundle, one per asset"
+        }
+      ],
+      "source_sha256": "7ae8f1c36041f2a35d636a5976e470da60582943143ebafdee64c337ce3e9c32"
     },
     {
       "repo": "LibreKDE",
@@ -108,26 +184,67 @@
       "assets": [
         {
           "glob": "librekde_*.orig.tar.gz",
-          "description": "the deterministic source tarball the packaging recipes fetch"
+          "description": "the deterministic source tarball of the tagged tree"
+        },
+        {
+          "glob": "*.debian13.deb",
+          "description": "binary packages built in a Debian 13 container"
+        },
+        {
+          "glob": "*.ubuntu2604.deb",
+          "description": "binary packages built in an Ubuntu 26.04 LTS container"
+        },
+        {
+          "glob": "*.fedora43.rpm",
+          "description": "binary packages built in a Fedora 43 container"
+        },
+        {
+          "glob": "*.fedora44.rpm",
+          "description": "binary packages built in a Fedora 44 container"
+        },
+        {
+          "glob": "SHA256SUMS",
+          "description": "checksums over every other asset in this release"
+        },
+        {
+          "glob": "*.sigstore.json",
+          "description": "cosign signature bundle, one per asset"
+        }
+      ],
+      "source_sha256": "787eecab185ef9b606ed1bedb9a6f7b30d869657c5ace575548d9f116e7c53ac"
+    },
+    {
+      "repo": "LibreDarwin",
+      "tag": "HEAD",
+      "assets": [],
+      "source_sha256": "e7830605abd8d64d408a5a73dd36318a6105a91fad4cd305a5553e3fce202314"
+    },
+    {
+      "repo": "LibreMac",
+      "tag": "HEAD",
+      "assets": [
+        {
+          "glob": "LibreSCRS-*-macos.dmg",
+          "description": "universal macOS build (x86_64 + arm64): LibreMac with the agent inside, and LibreCelik; ad hoc signed, not notarised"
+        },
+        {
+          "glob": "sbom-macos.cdx.json",
+          "description": "CycloneDX bill of materials for LibreMac and its agent"
+        },
+        {
+          "glob": "sbom-librecelik-macos.cdx.json",
+          "description": "CycloneDX bill of materials for LibreCelik in the disk image"
+        },
+        {
+          "glob": "SHA256SUMS",
+          "description": "checksums over every other asset in this release"
         },
         {
           "glob": "*.sigstore.json",
           "description": "cosign keyless signature bundle, one per asset"
         }
       ],
-      "source_sha256": "729ea3d1a4c89c573e6d9e7e201a9a96cccd20f50acbc28abaf4c1de9ef51d12"
-    },
-    {
-      "repo": "LibreDarwin",
-      "tag": "HEAD",
-      "assets": [],
-      "source_sha256": "2d6ace1ee8d6bfed40d1211c7a7fd20ab40c0f73b620269b058a387e277a732b"
-    },
-    {
-      "repo": "LibreMac",
-      "tag": "HEAD",
-      "assets": [],
-      "source_sha256": "a4cf9e8977c89beb0f677568ce9352c4591483b0fae81a6eae9310db88cfcaa1"
+      "source_sha256": "c7c57db760bf23fbc49807ca8d630358a9f75039fab71c859b8a63897af6df90"
     }
   ]
 }
